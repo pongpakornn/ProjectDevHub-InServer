@@ -1,0 +1,15 @@
+# Python / Virtual Environment
+**/venv/
+**/__pycache__/
+*.py[cod]
+.env
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+
+# .NET / ASP.NET Core
+**/bin/
+**/obj/
+appsettings.Development.json
