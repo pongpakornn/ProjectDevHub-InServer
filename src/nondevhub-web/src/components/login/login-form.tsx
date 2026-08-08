@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Lock, User, Eye, EyeOff, ArrowRight, BadgeCheck, AlertCircle, CheckCircle2, X, ArrowLeft, KeyRound, Database } from 'lucide-react'
-import { loginApi, registerApi, resetPasswordApi } from '@/services/auth.service'
+import { Lock, Eye, EyeOff, ArrowRight, BadgeCheck, AlertCircle, CheckCircle2, X, ArrowLeft, KeyRound } from 'lucide-react'
+import { loginApi, resetPasswordApi } from '@/services/auth.service'
 import { useRouter } from 'next/navigation'
 
 interface ToastState {
@@ -87,16 +87,12 @@ interface LoginFormProps {
 
 export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
   const router = useRouter()
-  const [state, setState] = useState<'login' | 'signup'>('login')
   const [showPassword, setShowPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [mounted, setMounted] = useState(false)
-
   const [rememberMe, setRememberMe] = useState(false)
-  const [dbStatus, setDbStatus] = useState<'checking' | 'online' | 'offline'>('checking')
 
   const [formData, setFormData] = useState({
-    name: '',
     userId: '',
     password: '',
   })
@@ -120,21 +116,7 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
       setFormData((prev) => ({ ...prev, userId: savedUserId }))
       setRememberMe(true)
     }
-    checkDbHealth()
   }, [])
-
-  const checkDbHealth = async () => {
-    try {
-      const res = await fetch('/api/health/db-check', { method: 'GET', cache: 'no-store' })
-      if (res.ok) {
-        setDbStatus('online')
-      } else {
-        setDbStatus('offline')
-      }
-    } catch {
-      setDbStatus('offline')
-    }
-  }
 
   const handleLoginSuccess = (userId: string) => {
     if (rememberMe) {
@@ -164,10 +146,6 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (state === 'signup' && !formData.name.trim()) {
-      triggerToast('กรุณากรอก ชื่อ - นามสกุล ให้ครบถ้วน')
-      return
-    }
     if (!formData.userId.trim()) {
       triggerToast('กรุณากรอก User ID (รหัสพนักงาน)')
       return
@@ -178,28 +156,18 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
     }
 
     try {
-      if (state === 'login') {
-        const data = await loginApi({
-          userId: formData.userId.trim(),
-          password: formData.password,
-        })
-        
-        handleLoginSuccess(formData.userId.trim())
-        window.sessionStorage.setItem('nondevhub-user', JSON.stringify(data.user))
-        triggerToast(data.title || 'เข้าสู่ระบบสำเร็จ!', 'success')
-        
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 1000)
-      } else {
-        const data = await registerApi({
-          userId: formData.userId.trim(),
-          name: formData.name.trim(),
-          password: formData.password,
-        })
-        triggerToast(data.title || 'ลงทะเบียนสำเร็จ!', 'success')
-        setState('login')
-      }
+      const data = await loginApi({
+        userId: formData.userId.trim(),
+        password: formData.password,
+      })
+      
+      handleLoginSuccess(formData.userId.trim())
+      window.sessionStorage.setItem('nondevhub-user', JSON.stringify(data.user))
+      triggerToast(data.title || 'เข้าสู่ระบบสำเร็จ!', 'success')
+      
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
     } catch (error) {
       triggerToast(error instanceof Error ? error.message : 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่')
     }
@@ -239,73 +207,22 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
 
   return (
     <div className="relative w-full">
-      {/* 🔴 ด้านหน้าการ์ด: Login / Register */}
+      {/* 🔴 ด้านหน้าการ์ด: Login */}
       <div
         className={`transition-all duration-300 ${
           isFlipped ? 'pointer-events-none absolute inset-0 invisible opacity-0' : 'relative z-10 visible opacity-100'
         }`}
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-2">
-          {/* DB Status Badge */}
-          {/* <div className="flex justify-end">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50/50 px-2.5 py-0.5 text-[10px] font-medium text-slate-600">
-              <Database className="h-3 w-3 text-slate-500" />
-              <span>SQL Server:</span>
-              {dbStatus === 'checking' && <span className="text-amber-500">Checking...</span>}
-              {dbStatus === 'online' && <span className="font-semibold text-emerald-600">Online</span>}
-              {dbStatus === 'offline' && <span className="font-semibold text-rose-600">Offline</span>}
-            </div>
-          </div> */}
-
+          
           <div className="mb-6 space-y-1 text-center">
-            <AnimatePresence mode="wait">
-              <motion.h1
-                key={state}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.15 }}
-                className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl drop-shadow-xs"
-              >
-                {state === 'login' ? 'เข้าสู่ระบบ' : 'ลงทะเบียนใช้งาน'}
-              </motion.h1>
-            </AnimatePresence>
-
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={state + '-subtitle'}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15, delay: 0.05 }}
-                className="text-xs font-medium text-slate-600"
-              >
-                {state === 'login'
-                  ? 'กรุณากรอกข้อมูลเพื่อเข้าสู่ระบบ NonDevHub System'
-                  : 'สร้างบัญชีผู้ใช้ใหม่สำหรับเจ้าหน้าที่ในระบบ'}
-              </motion.p>
-            </AnimatePresence>
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl drop-shadow-xs">
+              เข้าสู่ระบบ
+            </h1>
+            <p className="text-xs font-medium text-slate-600">
+              กรุณากรอกข้อมูลเพื่อเข้าสู่ระบบ NonDevHub System
+            </p>
           </div>
-
-          <AnimatePresence>
-            {state === 'signup' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25 }}
-              >
-                <WaveInput
-                  label="ชื่อ - นามสกุล"
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  icon={<User className="h-4 w-4" />}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <WaveInput
             label="User ID (รหัสพนักงาน)"
@@ -334,38 +251,36 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
                 </button>
               }
             />
-            {state === 'login' && (
-              <div className="-mt-1 flex items-center justify-between">
-                {/* 🎯 Custom Checkbox ตาม Style ที่นนท์ส่งมา + เปลี่ยนคำว่า Remember */}
-                <label className="inline-flex cursor-pointer items-center gap-2 select-none group">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      id="rememberMe"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="peer hidden"
-                    />
-                    <div
-                        className={`relative h-5.5 w-5.5 rounded border border-slate-300 bg-white transition-all duration-100 ease-in-out
-                        after:absolute after:left-1.5 after:top-px after:h-3 after:w-1.5 after:rotate-45 after:border-b-2 after:border-r-2 after:border-white after:opacity-0 after:scale-0 after:transition-all after:duration-300 after:delay-150
-                        peer-checked:border-transparent peer-checked:bg-[#6871f1] peer-checked:animate-jelly peer-checked:after:opacity-100 peer-checked:after:scale-100`}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900">
-                    Remember
-                  </span>
-                </label>
+            
+            <div className="-mt-1 flex items-center justify-between">
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none group">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="peer hidden"
+                  />
+                  <div
+                    className={`relative h-5.5 w-5.5 rounded border border-slate-300 bg-white transition-all duration-100 ease-in-out
+                      after:absolute after:left-1.5 after:top-px after:h-3 after:w-1.5 after:rotate-45 after:border-b-2 after:border-r-2 after:border-white after:opacity-0 after:scale-0 after:transition-all after:duration-300 after:delay-150
+                      peer-checked:border-transparent peer-checked:bg-[#6871f1] peer-checked:animate-jelly peer-checked:after:opacity-100 peer-checked:after:scale-100`}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900">
+                  Remember
+                </span>
+              </label>
 
-                <button
-                  type="button"
-                  onClick={() => setIsFlipped(true)}
-                  className="text-xs font-semibold text-slate-600 transition-colors hover:text-zinc-900"
-                >
-                  ลืมรหัสผ่าน?
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setIsFlipped(true)}
+                className="text-xs font-semibold text-slate-600 transition-colors hover:text-zinc-900"
+              >
+                ลืมรหัสผ่าน?
+              </button>
+            </div>
           </div>
 
           <motion.button
@@ -376,23 +291,10 @@ export function LoginForm({ isFlipped, setIsFlipped }: LoginFormProps) {
           >
             <span className="absolute inset-0 h-full w-1/2 -translate-x-full -skew-x-12 bg-white/15 transition-transform duration-1000 ease-in-out group-hover:translate-x-[300%]" />
             <span className="relative z-10 flex items-center gap-2">
-              {state === 'login' ? 'เข้าสู่ระบบ' : 'ยืนยันลงทะเบียน'}
+              เข้าสู่ระบบ
               <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
             </span>
           </motion.button>
-
-          <div className="pt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setState((prev) => (prev === 'login' ? 'signup' : 'login'))}
-              className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-slate-600 transition-colors hover:text-slate-900"
-            >
-              <span>{state === 'login' ? 'ยังไม่มีบัญชีผู้ใช้งาน?' : 'มีบัญชีผู้ใช้งานอยู่แล้ว?'}</span>
-              <span className="font-bold text-zinc-900 underline underline-offset-4 transition-colors hover:text-zinc-700">
-                {state === 'login' ? 'ลงทะเบียนที่นี่' : 'เข้าสู่ระบบที่นี่'}
-              </span>
-            </button>
-          </div>
         </form>
       </div>
 

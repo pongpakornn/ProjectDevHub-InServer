@@ -47,7 +47,7 @@ export function LoginCard({ children, isFlipped, dbStatus = 'checking' }: LoginC
             />
           </span>
 
-          {/* Brand Name เท่านั้น (ไม่มี SQL Server Text แล้ว) */}
+          {/* Brand Name เท่านั้น */}
           <span>NONDEVHUB SYSTEM</span>
         </div>
       </div>
