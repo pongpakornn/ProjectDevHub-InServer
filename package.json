@@ -3,9 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run dev --prefix src/nondevhub-web",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --prefix src/nondevhub-web",
+    "dev:api": "dotnet run --project src/nondevhub-api/nondevhub-api.csproj",
     "build": "npm run build --prefix src/nondevhub-web",
     "start": "npm run start --prefix src/nondevhub-web",
     "lint": "npm run lint --prefix src/nondevhub-web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
   }
 }

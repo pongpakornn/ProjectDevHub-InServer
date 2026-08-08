@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1.1 อ่านค่า CORS จาก appsettings.json
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
-                    ?? new[] { "http://localhost:3000" };
+                    ?? new[] { "http://localhost:3000", "http://127.0.0.1:3000" };
 
 builder.Services.AddCors(options =>
 {
@@ -27,7 +27,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// 1.3 ลงทะเบียน DbContext (SQL Server) และ Services ในระบบ (ย้ายมาไว้ตรงนี้ก่อน builder.Build)
+// 1.3 ลงทะเบียน DbContext (SQL Server) และ Services ในระบบ
 string connectionString = builder.Configuration.GetConnectionString("NonDevHub")!;
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -42,12 +42,16 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+else
+{
+    // 🟢 ใช้ HTTPS Redirection เฉพาะ Production ป้องกันปัญหา Redirect Loop/CORS ล้มเหลวใน Dev
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
 app.UseCors("AllowNextJS");
 app.UseAuthorization();
 
-// 2.1 Sample Async Weather API Endpoint (Non-blocking)
+// 2.1 Sample Async Weather API Endpoint
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -69,10 +73,10 @@ app.MapGet("/api/v1/weatherforecast", async () =>
 })
 .WithName("GetWeatherForecast");
 
-// 2.2 Map Controller Routes (รวมถึง AuthController /api/v1/auth/login)
+// 2.2 Map Controller Routes
 app.MapControllers();
 
-// 2.3 สั่งให้ Server เริ่มรัน (บรรทัดนี้ต้องอยู่เป็นบรรทัดสุดท้ายของการตั้งค่า App)
+// 2.3 สั่งให้ Server เริ่มรัน
 app.Run();
 
 // =========================================================================
