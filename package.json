@@ -1,0 +1,11 @@
+{
+  "name": "project-nondevhub-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix src/nondevhub-web",
+    "build": "npm run build --prefix src/nondevhub-web",
+    "start": "npm run start --prefix src/nondevhub-web",
+    "lint": "npm run lint --prefix src/nondevhub-web"
+  }
+}

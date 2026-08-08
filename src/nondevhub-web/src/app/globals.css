@@ -5,7 +5,7 @@
   --foreground: #171717;
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -23,4 +23,39 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ==========================================================================
+   Autofill / Autocomplete Customization
+   ========================================================================== */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-transition: color 9999s ease-out, background-color 9999s ease-out;
+  transition: color 9999s ease-out, background-color 9999s ease-out;
+  -webkit-text-fill-color: #0f172a !important;
+  background-clip: content-box !important;
+}
+
+input:autofill {
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+/* ==========================================================================
+   Checkbox Animation
+   ========================================================================== */
+@keyframes jelly {
+  from { transform: scale(1, 1); }
+  30% { transform: scale(1.25, 0.75); }
+  40% { transform: scale(0.75, 1.25); }
+  50% { transform: scale(1.15, 0.85); }
+  65% { transform: scale(0.95, 1.05); }
+  75% { transform: scale(1.05, 0.95); }
+  to { transform: scale(1, 1); }
+}
+
+.animate-jelly {
+  animation: jelly 0.6s ease;
 }
