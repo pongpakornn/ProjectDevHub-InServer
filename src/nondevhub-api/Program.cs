@@ -1,10 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using nondevhub_api.Data;
+using nondevhub_api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. อ่านค่า CORS จาก appsettings.json
+// =========================================================================
+// 1. BUILDER PHASE: Register Services & Dependency Injection
+// =========================================================================
+
+// 1.1 อ่านค่า CORS จาก appsettings.json
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
-                     ?? new[] { "http://localhost:3000" };
+                    ?? new[] { "http://localhost:3000" };
 
 builder.Services.AddCors(options =>
 {
@@ -17,17 +23,21 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 2. เพิ่ม Services ที่จำเป็นในระบบ
+// 1.2 เพิ่ม Controller & OpenAPI Services
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// 3. (พร้อมขยาย) ตั้งค่า DbContext สำหรับเชื่อม SQL Server
-// string connectionString = builder.Configuration.GetConnectionString("ChrSync")!;
-// builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+// 1.3 ลงทะเบียน DbContext (SQL Server) และ Services ในระบบ (ย้ายมาไว้ตรงนี้ก่อน builder.Build)
+string connectionString = builder.Configuration.GetConnectionString("NonDevHub")!;
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// =========================================================================
+// 2. PIPELINE PHASE: Configure Middlewares & Routes
+// =========================================================================
 
 var app = builder.Build();
 
-// 4. Configure HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -37,7 +47,7 @@ app.UseHttpsRedirection();
 app.UseCors("AllowNextJS");
 app.UseAuthorization();
 
-// 5. Sample Async Weather API Endpoint (Non-blocking)
+// 2.1 Sample Async Weather API Endpoint (Non-blocking)
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -45,7 +55,6 @@ var summaries = new[]
 
 app.MapGet("/api/v1/weatherforecast", async () =>
 {
-    // ใช้ Task.Run หรือ Async Data Fetching เพื่อการทำงานแบบ Non-blocking
     var forecast = await Task.Run(() => 
         Enumerable.Range(1, 5).Select(index =>
             new WeatherForecast
@@ -60,18 +69,16 @@ app.MapGet("/api/v1/weatherforecast", async () =>
 })
 .WithName("GetWeatherForecast");
 
-// Map Controllers สำหรับ API Routes ที่จะสร้างเพิ่มในอนาคต
+// 2.2 Map Controller Routes (รวมถึง AuthController /api/v1/auth/login)
 app.MapControllers();
 
+// 2.3 สั่งให้ Server เริ่มรัน (บรรทัดนี้ต้องอยู่เป็นบรรทัดสุดท้ายของการตั้งค่า App)
 app.Run();
 
-// Test : เเล้วมันเกิดบัคหรือ Error เกิดขึ้นเนื่องจากสูตรคำนวณค่า Fahrenheit ไม่ถูกต้อง (ควรใช้ Math.Round เพื่อปัดเศษให้ถูกต้อง)
-// public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-// {
-//     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-// }
+// =========================================================================
+// 3. MODELS / RECORDS Definition
+// =========================================================================
 public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)Math.Round(TemperatureC / 0.5556);
-    // หรือใช้อีกสูตรมาตรฐาน: public int TemperatureF => 32 + (int)Math.Round(TemperatureC * 1.8);
 }
