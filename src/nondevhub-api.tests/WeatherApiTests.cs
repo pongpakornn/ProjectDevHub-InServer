@@ -13,7 +13,7 @@ public class WeatherApiTests
         // 2. Act (เรียกประมวลผลคำนวณค่า Fahrenheit จาก Property ใน Class)
         int actualFahrenheit = forecast.TemperatureF;
 
-        // 3. Assert (ตรวจสอบว่า 25°C ได้ผลลัพธ์เป็น 77°F ตรงตามสูตรหรือไม่)
+        // 3. Assert (ตรวจสอบว่า 25°C ต้องได้ 77°F ตามสูตร Math.Round)
         Assert.Equal(77, actualFahrenheit);
     }
 }
