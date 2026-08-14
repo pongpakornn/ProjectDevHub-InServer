@@ -1,21 +1,53 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/buttons/button';
 import { Input } from '@/components/ui/inputs/input';
+import { authService } from '@/services/auth.service';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log('Login Submitted:', { username, password });
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      // ยิง API Login โดยส่ง username ไปเป็น empId ของ Backend
+      const response = await authService.login({
+        empId: username,
+        password: password,
+      });
+
+      if (response.success && response.token) {
+        // จัดเก็บ Session & User Info ลง LocalStorage
+        localStorage.setItem('token', response.token);
+        localStorage.setItem('user', JSON.stringify(response.user));
+
+        // นำทางไปยังหน้า Dashboard
+        router.push('/dashboard');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('เกิดข้อผิดพลาด ไม่สามารถเข้าสู่ระบบได้');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
     setUsername('');
     setPassword('');
+    setErrorMessage('');
   };
 
   return (
@@ -30,11 +62,18 @@ export default function LoginPage() {
         </h1>
       </div>
 
-      {/* Login Card Container - ปรับขนาดการ์ดเป็น max-w-xs (320px) ให้กระชับสมส่วน */}
+      {/* Login Card Container */}
       <div className="w-full max-w-xs bg-[#2d2d2d] rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-800">
         <h2 className="text-2xl font-black text-white text-center mb-6 tracking-wider uppercase">
           LOGIN
         </h2>
+
+        {/* Display Alert Message เมื่อเกิด Error */}
+        {errorMessage && (
+          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium text-center">
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
@@ -43,6 +82,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+            disabled={isLoading}
             required
           />
 
@@ -52,15 +92,16 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            disabled={isLoading}
             required
           />
 
-          {/* โซนปุ่มกดขนาดพอดีคำ ไม่แผ่กว้างเต็มเกินไป */}
+          {/* โซนปุ่มกด */}
           <div className="grid grid-cols-2 gap-3 mt-4">
-            <Button type="submit" variant="primary">
-              LOGIN
+            <Button type="submit" variant="primary" disabled={isLoading}>
+              {isLoading ? 'LOADING...' : 'LOGIN'}
             </Button>
-            <Button type="button" variant="danger" onClick={handleCancel}>
+            <Button type="button" variant="danger" onClick={handleCancel} disabled={isLoading}>
               CANCEL
             </Button>
           </div>

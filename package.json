@@ -5,6 +5,9 @@
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "dotnet run --project backend",
-    "dev": "npm --prefix frontend run dev"
+    "dev": "concurrently -k -p \"[{name}]\" -n \"Backend,Frontend\" -c \"cyan,green\" \"npm run dev:backend\" \"npm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

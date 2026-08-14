@@ -10,11 +10,12 @@ export const Input: React.FC<InputProps> = ({ label, id, className = '', ...prop
       <input
         id={id}
         placeholder=" "
-        className={`peer w-full bg-transparent py-1.5 text-xs sm:text-sm text-white border-b border-gray-600 outline-none transition-colors duration-300 focus:border-transparent ${className}`}
+        className={`peer w-full bg-transparent py-1.5 text-xs sm:text-sm text-white border-b border-gray-600 outline-none transition-colors duration-300 focus:border-transparent 
+        [&:-webkit-autofill]:shadow-[0_0_0_1000px_#2d2d2d_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white] ${className}`}
         {...props}
       />
       
-      {/* Floating Label ปรับขนาดให้กระชับ เหมาะกับการ์ดขนาดเล็ก */}
+      {/* Floating Label */}
       <label
         htmlFor={id}
         className="absolute left-0 top-1.5 text-gray-400 text-xs tracking-wider pointer-events-none transition-all duration-300 ease-in-out peer-focus:-top-4 peer-focus:text-[10px] peer-focus:text-gray-300 peer-not-placeholder-shown:-top-4 peer-not-placeholder-shown:text-[10px] peer-not-placeholder-shown:text-gray-300 uppercase font-semibold"
