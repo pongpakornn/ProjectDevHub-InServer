@@ -1,0 +1,21 @@
+import React from 'react';
+import './globals.css';
+
+export const metadata = {
+  title: 'ProjectDev Hub',
+  description: 'Full-Stack Project Development Hub',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="th">
+      <body className="bg-[#1e1e1e] text-white antialiased min-h-screen">
+        {children}
+      </body>
+    </html>
+  );
+}
