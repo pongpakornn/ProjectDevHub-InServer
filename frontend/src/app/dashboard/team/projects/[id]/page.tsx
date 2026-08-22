@@ -693,7 +693,7 @@ export default function TeamProjectDetailPage() {
               placeholder="14.2" 
               value={stackVersion}
               onChange={(e) => setStackVersion(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -703,7 +703,7 @@ export default function TeamProjectDetailPage() {
               <select 
                 value={stackLayer}
                 onChange={(e) => setStackLayer(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="">เลือก Layer</option>
                 <option value="Frontend">Frontend</option>
@@ -714,7 +714,7 @@ export default function TeamProjectDetailPage() {
             </div>
             <button 
               onClick={handleAddStack}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs self-end h-[38px] flex items-center gap-1"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs self-end h-9.5 flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               เพิ่ม
@@ -749,7 +749,7 @@ export default function TeamProjectDetailPage() {
         <h3 className="font-bold text-slate-800 text-sm">Project Timeline</h3>
         
         <div className="overflow-x-auto">
-          <div className="min-w-[700px]">
+          <div className="min-w-175">
             <div className="grid grid-cols-12 border-b border-slate-200 pb-2 text-[11px] font-bold text-slate-500 text-center">
               <div className="col-span-4 text-left pl-2">Activity</div>
               <div className="col-span-1">มิ.ย.</div>
@@ -813,7 +813,7 @@ export default function TeamProjectDetailPage() {
               <div key={work.id} className="group relative [perspective:1000px] h-[260px]">
                 <div className={`relative w-full h-full duration-500 [transform-style:preserve-3d] transition-transform rounded-xl border border-slate-200 shadow-xs ${isFlipped ? "[transform:rotateY(180deg)]" : ""}`}>
                   
-                  <div className="absolute inset-0 w-full h-full bg-white rounded-xl [backface-visibility:hidden] p-3 flex flex-col justify-between">
+                  <div className="absolute inset-0 w-full h-full bg-white rounded-xl backface-hidden p-3 flex flex-col justify-between">
                     <div 
                       onClick={() => toggleCardFlip(work.id)} 
                       className="cursor-pointer relative flex-1 bg-slate-100 rounded-lg overflow-hidden group/img"

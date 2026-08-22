@@ -86,7 +86,7 @@ export default function TeamWorkPage() {
   return (
     <div className="w-full select-none space-y-6">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f172a] via-[#1e1b4b] to-[#311042] border border-slate-800/80 p-6 md:p-8 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#0f172a] via-[#1e1b4b] to-[#311042] border border-slate-800/80 p-6 md:p-8 shadow-xl">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -107,7 +107,7 @@ export default function TeamWorkPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
-            <div className="bg-slate-900/60 border border-indigo-500/20 rounded-xl p-4 min-w-[280px] space-y-2.5 backdrop-blur-md shadow-lg shadow-black/20">
+            <div className="bg-slate-900/60 border border-indigo-500/20 rounded-xl p-4 min-w-70 space-y-2.5 backdrop-blur-md shadow-lg shadow-black/20">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-200 font-semibold flex items-center gap-2">
                   <Activity className="w-4 h-4 text-indigo-400" />
@@ -164,13 +164,13 @@ export default function TeamWorkPage() {
               <thead>
                 <tr className="bg-slate-950 border-b border-slate-800 text-[11px] font-mono font-bold text-slate-300 uppercase tracking-wider">
                   <th className="py-3.5 px-3.5 w-12 text-center text-slate-400">NO</th>
-                  <th className="py-3.5 px-3.5 min-w-[260px]">PROJECT</th>
-                  <th className="py-3.5 px-3.5 min-w-[130px]">TEAM MEMBERS</th>
+                  <th className="py-3.5 px-3.5 min-w-65">PROJECT</th>
+                  <th className="py-3.5 px-3.5 min-w-32.5">TEAM MEMBERS</th>
                   <th className="py-3.5 px-3.5 w-20">PRIORITY</th>
                   <th className="py-3.5 px-3.5 w-24">START</th>
                   <th className="py-3.5 px-3.5 w-24">END</th>
                   <th className="py-3.5 px-3.5 w-28">STATUS</th>
-                  <th className="py-3.5 px-3.5 min-w-[130px]">PROGRESS</th>
+                  <th className="py-3.5 px-3.5 min-w-32.5">PROGRESS</th>
                   <th className="py-3.5 px-3.5 w-36 text-center">ACTIONS</th>
                 </tr>
               </thead>
@@ -216,9 +216,9 @@ export default function TeamWorkPage() {
 
                       <td className="py-3.5 px-3.5">
                         {project.priority === "สูง" ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">สูง</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-700 border border-rose-200">สูง</span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">ปกติ</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-slate-600 border border-slate-200">ปกติ</span>
                         )}
                       </td>
                       <td className="py-3.5 px-3.5 font-mono text-[11px] text-slate-500 font-bold">{project.startDate}</td>
@@ -240,11 +240,11 @@ export default function TeamWorkPage() {
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
                             <div
-                              className={`h-full rounded-full transition-all duration-300 ${currentProgress === 100 ? "bg-emerald-500" : "bg-indigo-500"}`}
+                              className={`h-full rounded-full transition-all duration-300 ${currentProgress === 100 ? "bg-indigo-500" : "bg-indigo-500"}`}
                               style={{ width: `${currentProgress}%` }}
                             />
                           </div>
-                          <span className="font-mono font-bold text-[10px] text-slate-600 min-w-[26px] text-right">
+                          <span className="font-mono font-bold text-[10px] text-slate-600 min-w-6.5 text-right">
                             {currentProgress}%
                           </span>
                         </div>
