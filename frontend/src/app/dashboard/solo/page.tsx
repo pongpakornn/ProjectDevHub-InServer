@@ -76,7 +76,7 @@ export default function SoloWorkPage() {
   };
 
   const handleProjectClick = (id: number | string) => {
-    router.push(`/dashboard/projects/${id}`);
+    router.push(`/dashboard/solo/${id}`);
   };
 
   const handleDelete = (id: number | string) => {

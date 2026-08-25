@@ -11,6 +11,7 @@
 //   GitFork, 
 //   Tv,
 //   Terminal,
+//   RotateCw,
 //   X
 // } from "lucide-react";
 
@@ -23,9 +24,10 @@
 //   { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
 //   { name: "Solo Work", href: "/dashboard/solo", icon: User },
 //   { name: "Team Work", href: "/dashboard/team", icon: Users },
-//   { name: "Tester Automation", href: "/dashboard/test-automation", icon: TestTube },
+//   { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube }, // 👈 อัปเดต Path ให้ตรงกับ app/dashboard/testing/page.tsx
 //   { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork },
 //   { name: "Present Station", href: "/dashboard/present", icon: Tv },
+//   { name: "360 Viewer Test", href: "/dashboard/test360", icon: RotateCw }, // 👈 เมนูทดสอบ 360° product viewer
 // ];
 
 // export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
@@ -40,7 +42,7 @@
 //         }`}
 //       >
 //         {/* ========================================================= */}
-//         {/* 🟢 BRAND HEADER (ตัด Toggle Button ตรงกลางออกแล้ว) */}
+//         {/* 🟢 BRAND HEADER */}
 //         {/* ========================================================= */}
 //         <div className="h-16 px-4 flex items-center justify-between border-b border-zinc-800/60 relative">
 //           <div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? "w-full justify-center" : ""}`}>
@@ -55,8 +57,6 @@
 //               </span>
 //             )}
 //           </div>
-
-//           {/* ❌ ปุ่ม Toggle เดิมที่ลอยอยู่ตรงกลางเส้นแบ่งขอบถูกลบออกแล้วตรงนี้ */}
 //         </div>
 
 //         {/* Menu Section */}
@@ -170,13 +170,6 @@
 //     </>
 //   );
 // }
-
-
-
-
-
-
-
 "use client";
 
 import { useState } from "react";
@@ -190,6 +183,8 @@ import {
   GitFork, 
   Tv,
   Terminal,
+  RotateCw,
+  Box,
   X
 } from "lucide-react";
 
@@ -202,9 +197,11 @@ const menuItems = [
   { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
   { name: "Solo Work", href: "/dashboard/solo", icon: User },
   { name: "Team Work", href: "/dashboard/team", icon: Users },
-  { name: "Tester Automation", href: "/dashboard/test-automation", icon: TestTube },
+  { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube }, // 👈 อัปเดต Path ให้ตรงกับ app/dashboard/testing/page.tsx
   { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork },
   { name: "Present Station", href: "/dashboard/present", icon: Tv },
+  { name: "360 Viewer Test", href: "/dashboard/test360", icon: RotateCw }, // 👈 เมนูทดสอบ 360° product viewer (image sequence)
+  { name: "3D Model Test", href: "/dashboard/test3d", icon: Box }, // 👈 เมนูทดสอบ 3D model viewer (หมุนได้ทุกแกน)
 ];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
@@ -300,7 +297,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
 
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700/60 flex items-center justify-center text-cyan-400 font-mono font-black text-sm shadow-inner shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-linear-to-br from-zinc-800 to-zinc-900 border border-zinc-700/60 flex items-center justify-center text-cyan-400 font-mono font-black text-sm shadow-inner shrink-0">
                   P.U
                 </div>
                 <div className="flex flex-col min-w-0">
