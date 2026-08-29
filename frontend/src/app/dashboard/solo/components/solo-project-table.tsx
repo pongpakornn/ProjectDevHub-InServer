@@ -6,9 +6,9 @@ import { SoloProject } from "@/types/project";
 
 interface SoloProjectTableProps {
   projects: SoloProject[];
-  onProjectClick: (id: number | string) => void;
+  onProjectClick: (id: number) => void;
   onEdit: (project: SoloProject) => void;
-  onDelete: (id: number | string) => void;
+  onDelete: (id: number) => void;
 }
 
 export default function SoloProjectTable({

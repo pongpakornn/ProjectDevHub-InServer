@@ -5,8 +5,10 @@ import { Plus, X } from "lucide-react";
 import { Dropdown, DropdownOption } from "@/components/ui/inputs/dropdown";
 import { Button } from "@/components/ui/buttons/button";
 import { StackItem } from "@/types/project-detail";
+import { createStackItem, deleteStackItem } from "@/lib/project-solo-api";
 
 interface ProjectStackSectionProps {
+  projectId: number;   // ★ เพิ่ม — ต้องรู้ว่ากำลังเพิ่ม Stack ให้โปรเจกต์ไหน
   stacks: StackItem[];
   setStacks: React.Dispatch<React.SetStateAction<StackItem[]>>;
 }
@@ -37,6 +39,7 @@ const stackLayerOptions: DropdownOption[] = [
 ];
 
 export const ProjectStackSection: React.FC<ProjectStackSectionProps> = ({
+  projectId,
   stacks,
   setStacks,
 }) => {
@@ -44,22 +47,41 @@ export const ProjectStackSection: React.FC<ProjectStackSectionProps> = ({
   const [stackName, setStackName] = useState("");
   const [stackVersion, setStackVersion] = useState("");
   const [stackLayer, setStackLayer] = useState("");
+  const [isSaving, setIsSaving] = useState(false); // ★ กันกดซ้ำระหว่างรอ API
 
-  const handleAddStack = () => {
-    if (!stackName) return;
-    setStacks([...stacks, {
-      id: Date.now().toString(),
-      type: stackType,
-      name: stackName,
-      version: stackVersion,
-      layer: stackLayer || "Frontend"
-    }]);
-    setStackName("");
-    setStackVersion("");
+  // ★ แก้ทั้งฟังก์ชัน — เรียก createStackItem จริงแทนการ setStacks เฉยๆ
+  const handleAddStack = async () => {
+    if (!stackName || isSaving) return;
+    setIsSaving(true);
+    try {
+      const created = await createStackItem(projectId, {
+        type: stackType,
+        name: stackName,
+        version: stackVersion,
+        layer: stackLayer || "Frontend",
+      });
+      setStacks([...stacks, created]); // ★ ใช้ id จริงจาก backend แทน Date.now()
+      setStackName("");
+      setStackVersion("");
+    } catch (err) {
+      console.error("เพิ่ม Stack ไม่สำเร็จ", err);
+      alert("เพิ่ม Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteStack = (id: string) => {
-    setStacks(stacks.filter(s => s.id !== id));
+  // ★ แก้ทั้งฟังก์ชัน — เรียก deleteStackItem จริง พร้อม rollback ถ้าพลาด
+  const handleDeleteStack = async (id: string) => {
+    const prevStacks = stacks;
+    setStacks(stacks.filter(s => s.id !== id)); // Optimistic update
+    try {
+      await deleteStackItem(Number(id));
+    } catch (err) {
+      console.error("ลบ Stack ไม่สำเร็จ", err);
+      alert("ลบ Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setStacks(prevStacks); // Rollback
+    }
   };
 
   return (
@@ -110,10 +132,11 @@ export const ProjectStackSection: React.FC<ProjectStackSectionProps> = ({
           </div>
           <Button 
             onClick={handleAddStack}
-            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold px-4 py-2 self-end h-[38px] flex items-center gap-1 shrink-0"
+            disabled={isSaving}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold px-4 py-2 self-end h-[38px] flex items-center gap-1 shrink-0 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
-            เพิ่ม
+            {isSaving ? "กำลังบันทึก..." : "เพิ่ม"}
           </Button>
         </div>
       </div>

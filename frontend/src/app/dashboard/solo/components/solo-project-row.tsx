@@ -6,15 +6,29 @@ import ViewButton from "@/components/ui/buttons/view-button";
 import EditButton from "@/components/ui/buttons/edit-button";
 import DeleteButton from "@/components/ui/buttons/delete-button";
 import { SoloProject } from "@/types/project";
-import { calculateProjectProgress } from "@/lib/project-utils";
 
 interface SoloProjectRowProps {
   project: SoloProject;
   idx: number;
-  onProjectClick: (id: number | string) => void;
+  onProjectClick: (id: number) => void;
   onEdit: (project: SoloProject) => void;
-  onDelete: (id: number | string) => void;
+  onDelete: (id: number) => void;
 }
+
+const STATUS_LABEL: Record<SoloProject["status"], string> = {
+  PLANNING: "วางแผน",
+  IN_PROGRESS: "กำลังทำ",
+  ON_HOLD: "พักไว้",
+  COMPLETED: "เสร็จแล้ว",
+  CANCELLED: "ยกเลิก",
+};
+
+const PRIORITY_LABEL: Record<SoloProject["priority"], string> = {
+  LOW: "ต่ำ",
+  MEDIUM: "ปกติ",
+  HIGH: "สูง",
+  URGENT: "เร่งด่วน",
+};
 
 export default function SoloProjectRow({
   project,
@@ -23,20 +37,19 @@ export default function SoloProjectRow({
   onEdit,
   onDelete,
 }: SoloProjectRowProps) {
-  const currentProgress = calculateProjectProgress(
-    project.phases,
-    project.status,
-    project.progress
-  );
+  // หมายเหตุ: ตอนนี้ Backend คำนวณ progress ให้อัตโนมัติผ่าน Trigger แล้ว ใช้ project.progress ได้ตรงๆ
+  const currentProgress = project.progress;
+  const isHighPriority = project.priority === "HIGH" || project.priority === "URGENT";
+  const isCompleted = project.status === "COMPLETED";
 
   return (
     <tr className="hover:bg-slate-50/80 transition-colors group">
       <td className="py-3.5 px-3.5 text-center font-mono font-bold text-slate-400">
         {String(idx + 1).padStart(2, "0")}
       </td>
-      
+
       <td className="py-3.5 px-3.5">
-        <div 
+        <div
           onClick={() => onProjectClick(project.id)}
           className="flex items-start gap-2.5 cursor-pointer group/item"
         >
@@ -57,29 +70,33 @@ export default function SoloProjectRow({
       <td className="py-3.5 px-3.5 font-mono text-[11px] font-bold text-slate-600">
         <div className="flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-          <span>{project.owner}</span>
+          <span>{project.ownerName}</span>
         </div>
       </td>
 
       <td className="py-3.5 px-3.5">
-        {project.priority === "สูง" ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-700 border border-rose-200">สูง</span>
+        {isHighPriority ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-700 border border-rose-200">
+            {PRIORITY_LABEL[project.priority]}
+          </span>
         ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-slate-600 border border-slate-200">ปกติ</span>
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-slate-600 border border-slate-200">
+            {PRIORITY_LABEL[project.priority]}
+          </span>
         )}
       </td>
       <td className="py-3.5 px-3.5 font-mono text-[11px] text-slate-500 font-bold">{project.startDate}</td>
       <td className="py-3.5 px-3.5 font-mono text-[11px] text-slate-500 font-bold">{project.endDate}</td>
       <td className="py-3.5 px-3.5">
-        {project.status === "เสร็จแล้ว" ? (
+        {isCompleted ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            เสร็จแล้ว
+            {STATUS_LABEL[project.status]}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
             <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
-            กำลังทำ
+            {STATUS_LABEL[project.status]}
           </span>
         )}
       </td>
@@ -99,18 +116,9 @@ export default function SoloProjectRow({
 
       <td className="py-3.5 px-3.5 text-center">
         <div className="flex items-center justify-center gap-2">
-          <ViewButton 
-            title="ดูรายละเอียดโปรเจกต์" 
-            onClick={() => onProjectClick(project.id)} 
-          />
-          <EditButton 
-            title="แก้ไขโปรเจกต์" 
-            onClick={() => onEdit(project)} 
-          />
-          <DeleteButton 
-            title="ลบโปรเจกต์" 
-            onClick={() => onDelete(project.id)} 
-          />
+          <ViewButton title="ดูรายละเอียดโปรเจกต์" onClick={() => onProjectClick(project.id)} />
+          <EditButton title="แก้ไขโปรเจกต์" onClick={() => onEdit(project)} />
+          <DeleteButton title="ลบโปรเจกต์" onClick={() => onDelete(project.id)} />
         </div>
       </td>
     </tr>

@@ -1,13 +1,159 @@
+// "use client";
+
+// import React, { useState, useEffect } from "react";
+// import { X } from "lucide-react";
+// import { Button } from "@/components/ui/buttons/button";
+// import { WorkItem } from "@/types/project-detail";
+
+// interface AddWorkModalProps {
+//   isOpen: boolean;
+//   editingWork: WorkItem | null;
+//   projectId: number;              // ★ เพิ่ม prop นี้
+//   onClose: () => void;
+//   onSave: (workData: { title: string; desc: string; flow: string; image: string | null }) => void;
+// }
+
+// export const AddWorkModal: React.FC<AddWorkModalProps> = ({
+//   isOpen,
+//   editingWork,
+//   onClose,
+//   onSave,
+// }) => {
+//   const [workTitle, setWorkTitle] = useState("");
+//   const [workDesc, setWorkDesc] = useState("");
+//   const [workFlow, setWorkFlow] = useState("");
+//   const [workImage, setWorkImage] = useState<string | null>(null);
+
+//   useEffect(() => {
+//     if (editingWork) {
+//       setWorkTitle(editingWork.title);
+//       setWorkDesc(editingWork.description);
+//       setWorkFlow(editingWork.flowDescription);
+//       setWorkImage(editingWork.imageUrl);
+//     } else {
+//       setWorkTitle("");
+//       setWorkDesc("");
+//       setWorkFlow("");
+//       setWorkImage(null);
+//     }
+//   }, [editingWork, isOpen]);
+
+//   if (!isOpen) return null;
+
+//   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+//     const file = e.target.files?.[0];
+//     if (file) {
+//       const reader = new FileReader();
+//       reader.onloadend = () => setWorkImage(reader.result as string);
+//       reader.readAsDataURL(file);
+//     }
+//   };
+
+//   // const handleSave = () => {
+//   //   if (!workTitle) return;
+//   //   onSave({
+//   //     title: workTitle,
+//   //     desc: workDesc,
+//   //     flow: workFlow,
+//   //     image: workImage,
+//   //   });
+//   // };
+//   const handleSave = async () => {
+//   if (!workTitle) return;
+//   let finalImageUrl = editingWork?.imageUrl || null;
+
+//   if (workImageFile) {                                    // ไฟล์จริงที่ผู้ใช้เลือกใหม่
+//     finalImageUrl = await uploadShowcaseImage(projectId, workImageFile);
+//   }
+
+//   onSave({ title: workTitle, desc: workDesc, flow: workFlow, image: finalImageUrl });
+// };
+
+//   return (
+//     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+//       <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+//         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+//           <h3 className="font-bold text-slate-900 text-sm">
+//             {editingWork ? "แก้ไขผลงานของโครงการ" : "เพิ่มผลงานของโครงการ"}
+//           </h3>
+//           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+//             <X className="w-4 h-4" />
+//           </button>
+//         </div>
+
+//         <div className="space-y-3 text-xs">
+//           <div>
+//             <label className="block font-semibold text-slate-700 mb-1">ชื่อหน้า / ฟีเจอร์ *</label>
+//             <input 
+//               type="text" 
+//               placeholder="เช่น หน้า Dashboard สรุปโครงการ"
+//               value={workTitle}
+//               onChange={(e) => setWorkTitle(e.target.value)}
+//               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+//             />
+//           </div>
+
+//           <div>
+//             <label className="block font-semibold text-slate-700 mb-1">รายละเอียด</label>
+//             <textarea 
+//               placeholder="อธิบายว่าหน้านี้ทำอะไรได้บ้าง"
+//               value={workDesc}
+//               onChange={(e) => setWorkDesc(e.target.value)}
+//               className="w-full px-3 py-2 border border-slate-200 rounded-lg h-20 focus:outline-none focus:border-indigo-500"
+//             />
+//           </div>
+
+//           <div>
+//             <label className="block font-semibold text-slate-700 mb-1">ฟังก์ชั่นการทำงาน (สำหรับสร้าง Auto Flow)</label>
+//             <textarea 
+//               placeholder="เช่น หน้านี้หน้า Login Admin -> หน้าหลัก เห็นทั้งระบบ และ User -> หน้าหลัก เห็นบางเมนู"
+//               value={workFlow}
+//               onChange={(e) => setWorkFlow(e.target.value)}
+//               className="w-full px-3 py-2 border border-slate-200 rounded-lg h-20 focus:outline-none focus:border-indigo-500 font-mono text-[11px]"
+//             />
+//           </div>
+
+//           <div>
+//             <label className="block font-semibold text-slate-700 mb-1">รูปภาพ</label>
+//             <input 
+//               type="file" 
+//               accept="image/*"
+//               onChange={handleImageUpload}
+//               className="w-full text-slate-500 text-xs"
+//             />
+//           </div>
+//         </div>
+
+//         <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+//           <Button 
+//             onClick={onClose}
+//             className="w-auto! bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 normal-case text-xs font-semibold py-2 px-4"
+//           >
+//             ยกเลิก
+//           </Button>
+//           <Button 
+//             onClick={handleSave}
+//             className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-2 px-4"
+//           >
+//             บันทึก
+//           </Button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import { WorkItem } from "@/types/project-detail";
+import { uploadShowcaseImage } from "@/lib/project-solo-api";
 
 interface AddWorkModalProps {
   isOpen: boolean;
   editingWork: WorkItem | null;
+  projectId: number;
   onClose: () => void;
   onSave: (workData: { title: string; desc: string; flow: string; image: string | null }) => void;
 }
@@ -15,6 +161,7 @@ interface AddWorkModalProps {
 export const AddWorkModal: React.FC<AddWorkModalProps> = ({
   isOpen,
   editingWork,
+  projectId,
   onClose,
   onSave,
 }) => {
@@ -22,6 +169,8 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
   const [workDesc, setWorkDesc] = useState("");
   const [workFlow, setWorkFlow] = useState("");
   const [workImage, setWorkImage] = useState<string | null>(null);
+  const [workImageFile, setWorkImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (editingWork) {
@@ -29,11 +178,13 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
       setWorkDesc(editingWork.description);
       setWorkFlow(editingWork.flowDescription);
       setWorkImage(editingWork.imageUrl);
+      setWorkImageFile(null); // ยังไม่มีไฟล์ใหม่ จนกว่าจะเลือกเปลี่ยนรูป
     } else {
       setWorkTitle("");
       setWorkDesc("");
       setWorkFlow("");
       setWorkImage(null);
+      setWorkImageFile(null);
     }
   }, [editingWork, isOpen]);
 
@@ -42,20 +193,27 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setWorkImage(reader.result as string);
-      reader.readAsDataURL(file);
+      setWorkImageFile(file);
+      setWorkImage(URL.createObjectURL(file));
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!workTitle) return;
-    onSave({
-      title: workTitle,
-      desc: workDesc,
-      flow: workFlow,
-      image: workImage,
-    });
+    let finalImageUrl = editingWork?.imageUrl || null;
+
+    try {
+      if (workImageFile) {
+        setIsUploading(true);
+        finalImageUrl = await uploadShowcaseImage(projectId, workImageFile);
+      }
+      onSave({ title: workTitle, desc: workDesc, flow: workFlow, image: finalImageUrl });
+    } catch (err) {
+      console.error(err);
+      alert("อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -73,8 +231,8 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
         <div className="space-y-3 text-xs">
           <div>
             <label className="block font-semibold text-slate-700 mb-1">ชื่อหน้า / ฟีเจอร์ *</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="เช่น หน้า Dashboard สรุปโครงการ"
               value={workTitle}
               onChange={(e) => setWorkTitle(e.target.value)}
@@ -84,7 +242,7 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">รายละเอียด</label>
-            <textarea 
+            <textarea
               placeholder="อธิบายว่าหน้านี้ทำอะไรได้บ้าง"
               value={workDesc}
               onChange={(e) => setWorkDesc(e.target.value)}
@@ -94,7 +252,7 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">ฟังก์ชั่นการทำงาน (สำหรับสร้าง Auto Flow)</label>
-            <textarea 
+            <textarea
               placeholder="เช่น หน้านี้หน้า Login Admin -> หน้าหลัก เห็นทั้งระบบ และ User -> หน้าหลัก เห็นบางเมนู"
               value={workFlow}
               onChange={(e) => setWorkFlow(e.target.value)}
@@ -104,27 +262,31 @@ export const AddWorkModal: React.FC<AddWorkModalProps> = ({
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">รูปภาพ</label>
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
               onChange={handleImageUpload}
               className="w-full text-slate-500 text-xs"
             />
+            {workImage && (
+              <img src={workImage} alt="preview" className="mt-2 w-full h-32 object-cover rounded-lg border border-slate-200" />
+            )}
           </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-          <Button 
+          <Button
             onClick={onClose}
             className="w-auto! bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 normal-case text-xs font-semibold py-2 px-4"
           >
             ยกเลิก
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
-            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-2 px-4"
+            disabled={isUploading}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-2 px-4 disabled:opacity-50"
           >
-            บันทึก
+            {isUploading ? "กำลังอัปโหลด..." : "บันทึก"}
           </Button>
         </div>
       </div>

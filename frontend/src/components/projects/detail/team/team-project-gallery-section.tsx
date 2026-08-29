@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Eye, Plus, RotateCw, Trash2, Workflow, X } from "lucide-react";
+import { Eye, Plus, RotateCw, Workflow, X } from "lucide-react";
+import { Button } from "@/components/ui/buttons/button";
+import EditButtonV2 from "@/components/ui/buttons/buttonv2/edit-buttonv2";
+import DeleteButtonV2 from "@/components/ui/buttons/buttonv2/delete-buttonv2";
+import TeamAddWorkModal from "./team-add-work-modal";
 
 export interface WorkItem {
   id: string;
@@ -22,46 +26,49 @@ export default function TeamProjectGallerySection({
   setWorks,
 }: TeamProjectGallerySectionProps) {
   const [flippedCards, setFlippedCards] = useState<{ [id: string]: boolean }>({});
-  const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingWork, setEditingWork] = useState<WorkItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
-
-  const [workTitle, setWorkTitle] = useState("");
-  const [workDesc, setWorkDesc] = useState("");
-  const [workFlow, setWorkFlow] = useState("");
-  const [workImage, setWorkImage] = useState<string | null>(null);
 
   const toggleCardFlip = (id: string) => {
     setFlippedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setWorkImage(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+  const handleDeleteWork = (id: string) => setWorks(works.filter((w) => w.id !== id));
+
+  const openAddModal = () => {
+    setEditingWork(null);
+    setIsModalOpen(true);
   };
 
-  const handleSaveWork = () => {
-    if (!workTitle) return;
-    const newWork: WorkItem = {
-      id: Date.now().toString(),
-      title: workTitle,
-      description: workDesc,
-      flowDescription: workFlow,
-      imageUrl:
-        workImage ||
-        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-      date: new Date().toLocaleDateString("th-TH"),
-    };
-    setWorks([...works, newWork]);
-    setIsAddWorkOpen(false);
-    setWorkTitle("");
-    setWorkDesc("");
-    setWorkFlow("");
-    setWorkImage(null);
+  const openEditModal = (work: WorkItem) => {
+    setEditingWork(work);
+    setIsModalOpen(true);
+  };
+
+  const handleSaveWork = (data: { title: string; desc: string; flow: string; image: string | null }) => {
+    if (editingWork) {
+      setWorks(
+        works.map((w) =>
+          w.id === editingWork.id
+            ? { ...w, title: data.title, description: data.desc, flowDescription: data.flow, imageUrl: data.image || w.imageUrl }
+            : w
+        )
+      );
+    } else {
+      const newWork: WorkItem = {
+        id: Date.now().toString(),
+        title: data.title,
+        description: data.desc,
+        flowDescription: data.flow,
+        imageUrl: data.image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+        date: new Date().toLocaleDateString("th-TH"),
+      };
+      setWorks([...works, newWork]);
+    }
+    setIsModalOpen(false);
+    setEditingWork(null);
   };
 
   return (
@@ -69,20 +76,20 @@ export default function TeamProjectGallerySection({
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-slate-800 text-sm">Present ผลงาน / หน้าจอระบบ</h3>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             onClick={() => setIsPreviewOpen(true)}
-            className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer"
+            className="w-auto! bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs hover:shadow-sm normal-case text-xs font-bold py-1.5 px-3 flex items-center gap-1.5"
           >
             <Eye className="w-3.5 h-3.5" />
             พรีวิว
-          </button>
-          <button
-            onClick={() => setIsAddWorkOpen(true)}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+          </Button>
+          <Button
+            onClick={openAddModal}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-1.5 px-3 flex items-center gap-1"
           >
             <Plus className="w-3.5 h-3.5" />
             เพิ่มผลงาน
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -91,16 +98,9 @@ export default function TeamProjectGallerySection({
           const isFlipped = flippedCards[work.id];
           return (
             <div key={work.id} className="group relative [perspective:1000px] h-[260px]">
-              <div
-                className={`relative w-full h-full duration-500 [transform-style:preserve-3d] transition-transform rounded-xl border border-slate-200 shadow-xs ${
-                  isFlipped ? "[transform:rotateY(180deg)]" : ""
-                }`}
-              >
-                <div className="absolute inset-0 w-full h-full bg-white rounded-xl backface-hidden p-3 flex flex-col justify-between">
-                  <div
-                    onClick={() => toggleCardFlip(work.id)}
-                    className="cursor-pointer relative flex-1 bg-slate-100 rounded-lg overflow-hidden group/img"
-                  >
+              <div className={`relative w-full h-full duration-500 [transform-style:preserve-3d] transition-transform rounded-xl border border-slate-200 shadow-xs ${isFlipped ? "[transform:rotateY(180deg)]" : ""}`}>
+                <div className="absolute inset-0 w-full h-full bg-white rounded-xl [backface-visibility:hidden] p-3 flex flex-col justify-between">
+                  <div onClick={() => toggleCardFlip(work.id)} className="cursor-pointer relative flex-1 bg-slate-100 rounded-lg overflow-hidden group/img">
                     <img src={work.imageUrl} alt={work.title} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                       <RotateCw className="w-4 h-4" />
@@ -113,12 +113,10 @@ export default function TeamProjectGallerySection({
                       <h4 className="font-bold text-slate-900 text-xs">{work.title}</h4>
                       <p className="text-[10px] text-slate-400">บันทึก {work.date}</p>
                     </div>
-                    <button
-                      onClick={() => setWorks(works.filter((w) => w.id !== work.id))}
-                      className="text-slate-400 hover:text-rose-500 p-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <EditButtonV2 onClick={() => openEditModal(work)} title="แก้ไขผลงาน" />
+                      <DeleteButtonV2 onClick={() => handleDeleteWork(work.id)} title="ลบผลงาน" />
+                    </div>
                   </div>
                 </div>
 
@@ -129,10 +127,7 @@ export default function TeamProjectGallerySection({
                         <Workflow className="w-3.5 h-3.5" />
                         Workflow Diagram
                       </span>
-                      <button
-                        onClick={() => toggleCardFlip(work.id)}
-                        className="text-slate-400 hover:text-white cursor-pointer"
-                      >
+                      <button onClick={() => toggleCardFlip(work.id)} className="text-slate-400 hover:text-white">
                         <RotateCw className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -141,7 +136,14 @@ export default function TeamProjectGallerySection({
                       {work.flowDescription || "ไม่มีการระบุ Workflow"}
                     </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 text-center">คลิกไอคอนหมุนเพื่อกลับไปดูรูป</p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+                    <p className="text-[10px] text-slate-500">คลิกไอคอนหมุนเพื่อกลับไปดูรูป</p>
+                    <div className="flex items-center gap-2">
+                      <EditButtonV2 onClick={() => openEditModal(work)} title="แก้ไขผลงาน" />
+                      <DeleteButtonV2 onClick={() => handleDeleteWork(work.id)} title="ลบผลงาน" />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -149,120 +151,37 @@ export default function TeamProjectGallerySection({
         })}
       </div>
 
-      {isAddWorkOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-sm">เพิ่มผลงานของโครงการ</h3>
-              <button
-                onClick={() => setIsAddWorkOpen(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">ชื่อหน้า / ฟีเจอร์ *</label>
-                <input
-                  type="text"
-                  placeholder="เช่น หน้า Dashboard สรุปโครงการ"
-                  value={workTitle}
-                  onChange={(e) => setWorkTitle(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">รายละเอียด</label>
-                <textarea
-                  placeholder="อธิบายว่าหน้านี้ทำอะไรได้บ้าง"
-                  value={workDesc}
-                  onChange={(e) => setWorkDesc(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg h-20 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  ฟังก์ชั่นการทำงาน (สำหรับสร้าง Auto Flow)
-                </label>
-                <textarea
-                  placeholder="เช่น หน้านี้หน้า Login Admin -> หน้าหลัก เห็นทั้งระบบ และ User -> หน้าหลัก เห็นบางเมนู"
-                  value={workFlow}
-                  onChange={(e) => setWorkFlow(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg h-20 focus:outline-none focus:border-indigo-500 font-mono text-[11px]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">รูปภาพ</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="w-full text-slate-500 text-xs cursor-pointer"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                onClick={() => setIsAddWorkOpen(false)}
-                className="px-4 py-2 border border-slate-200 rounded-lg font-semibold text-xs text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleSaveWork}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs cursor-pointer"
-              >
-                บันทึก
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TeamAddWorkModal
+        isOpen={isModalOpen}
+        editingWork={editingWork}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingWork(null);
+        }}
+        onSave={handleSaveWork}
+      />
 
       {isPreviewOpen && works.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-          <button
-            onClick={() => setIsPreviewOpen(false)}
-            className="absolute top-4 right-4 text-white hover:text-slate-300 cursor-pointer"
-          >
+          <button onClick={() => setIsPreviewOpen(false)} className="absolute top-4 right-4 text-white hover:text-slate-300">
             <X className="w-6 h-6" />
           </button>
 
           <div className="max-w-4xl w-full flex flex-col items-center gap-4">
-            <img
-              src={works[previewIndex].imageUrl}
-              alt={works[previewIndex].title}
-              className="max-h-[70vh] object-contain rounded-xl border border-slate-800"
-            />
+            <img src={works[previewIndex].imageUrl} alt={works[previewIndex].title} className="max-h-[70vh] object-contain rounded-xl border border-slate-800" />
             <div className="text-center text-white space-y-1">
               <h4 className="font-bold text-base">{works[previewIndex].title}</h4>
               <p className="text-xs text-slate-400">{works[previewIndex].description}</p>
             </div>
 
             <div className="flex items-center gap-4 pt-2">
-              <button
-                disabled={previewIndex === 0}
-                onClick={() => setPreviewIndex((prev) => prev - 1)}
-                className="px-3 py-1 bg-slate-800 text-white rounded text-xs disabled:opacity-40 cursor-pointer"
-              >
+              <Button disabled={previewIndex === 0} onClick={() => setPreviewIndex((p) => p - 1)} className="w-auto! bg-slate-800 hover:bg-slate-700 text-white normal-case text-xs font-semibold py-1 px-3 disabled:opacity-40">
                 ย้อนกลับ
-              </button>
-              <span className="text-xs text-slate-400 font-mono">
-                {previewIndex + 1} / {works.length}
-              </span>
-              <button
-                disabled={previewIndex === works.length - 1}
-                onClick={() => setPreviewIndex((prev) => prev + 1)}
-                className="px-3 py-1 bg-slate-800 text-white rounded text-xs disabled:opacity-40 cursor-pointer"
-              >
+              </Button>
+              <span className="text-xs text-slate-400 font-mono">{previewIndex + 1} / {works.length}</span>
+              <Button disabled={previewIndex === works.length - 1} onClick={() => setPreviewIndex((p) => p + 1)} className="w-auto! bg-slate-800 hover:bg-slate-700 text-white normal-case text-xs font-semibold py-1 px-3 disabled:opacity-40">
                 ถัดไป
-              </button>
+              </Button>
             </div>
           </div>
         </div>

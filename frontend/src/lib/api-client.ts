@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5209/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5209/api';
+export const API_HOST = API_BASE_URL.replace(/\/api\/?$/, '');   // ★ เพิ่มบรรทัดนี้ → ได้ "http://localhost:5209"
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {

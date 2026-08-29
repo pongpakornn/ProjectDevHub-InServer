@@ -12,11 +12,28 @@ interface ProjectDetailHeaderProps {
   onOpenEditModal: () => void;
 }
 
+const STATUS_LABEL: Record<SoloProject["status"], string> = {
+  PLANNING: "วางแผน",
+  IN_PROGRESS: "กำลังทำ",
+  ON_HOLD: "พักไว้",
+  COMPLETED: "เสร็จแล้ว",
+  CANCELLED: "ยกเลิก",
+};
+
+const PRIORITY_LABEL: Record<SoloProject["priority"], string> = {
+  LOW: "Low (ต่ำ)",
+  MEDIUM: "Normal (ปกติ)",
+  HIGH: "High (สูง)",
+  URGENT: "Urgent (เร่งด่วน)",
+};
+
 export const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({
   projectInfo,
   overallProgress,
   onOpenEditModal,
 }) => {
+  const isHighPriority = projectInfo.priority === "HIGH" || projectInfo.priority === "URGENT";
+
   return (
     <div className="rounded-2xl bg-white border border-slate-200 shadow-sm">
       <div className="relative isolate overflow-hidden bg-gradient-to-r from-[#0f1123] via-[#161936] to-[#201c47] p-6 sm:p-8 text-white rounded-t-2xl border-b border-indigo-900/40">
@@ -52,9 +69,9 @@ export const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({
                 <span className="text-indigo-400 font-bold font-mono">{overallProgress}%</span>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                <div 
-                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]" 
-                  style={{ width: `${overallProgress}%` }} 
+                <div
+                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+                  style={{ width: `${overallProgress}%` }}
                 />
               </div>
             </div>
@@ -67,7 +84,7 @@ export const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({
                 </Button>
               </Link>
 
-              <Button 
+              <Button
                 onClick={onOpenEditModal}
                 className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_4px_16px_rgba(79,70,229,0.4)] hover:shadow-[0_6px_20px_rgba(79,70,229,0.6)] normal-case text-xs font-bold py-2 px-4 flex items-center justify-center gap-1.5 border border-indigo-500/30"
               >
@@ -85,27 +102,29 @@ export const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({
             <span className="text-slate-400 font-medium block mb-1.5">Status</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-md font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-              {projectInfo.status}
+              {STATUS_LABEL[projectInfo.status]}
             </span>
           </div>
           <div>
             <span className="text-slate-400 font-medium block mb-1.5">Priority</span>
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold border ${
-              projectInfo.priority === "สูง" 
-                ? "bg-rose-50 text-rose-600 border-rose-100" 
-                : "bg-emerald-50 text-emerald-700 border-emerald-100"
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${projectInfo.priority === "สูง" ? "bg-rose-500" : "bg-emerald-500"}`} />
-              {projectInfo.priority === "สูง" ? "Critical (สูง)" : "Normal (ปกติ)"}
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-semibold border ${
+                isHighPriority
+                  ? "bg-rose-50 text-rose-600 border-rose-100"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isHighPriority ? "bg-rose-500" : "bg-emerald-500"}`} />
+              {PRIORITY_LABEL[projectInfo.priority]}
             </span>
           </div>
           <div>
             <span className="text-slate-400 font-medium block mb-1.5">Owner</span>
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                {projectInfo.owner?.charAt(0) || "?"}
+                {projectInfo.ownerName?.charAt(0) || "?"}
               </span>
-              <span className="font-bold text-slate-800">{projectInfo.owner}</span>
+              <span className="font-bold text-slate-800">{projectInfo.ownerName}</span>
             </div>
           </div>
           <div>
@@ -135,7 +154,7 @@ export const ProjectDetailHeader: React.FC<ProjectDetailHeaderProps> = ({
           <div className="col-span-2 md:col-span-2">
             <span className="text-slate-400 font-medium block mb-1.5">Project Type</span>
             <span className="inline-block px-2.5 py-1 bg-slate-800 text-white rounded-md font-bold">
-              {projectInfo.projectType}
+              {projectInfo.projectTypeName}
             </span>
           </div>
         </div>

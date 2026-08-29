@@ -1,0 +1,386 @@
+
+// Cluade Code Mail Master
+import { fetchApi, API_BASE_URL, API_HOST } from "@/lib/api-client";
+import { SoloProject, SoloProjectDetail, CreateProjectFormData } from "@/types/project";
+import { Phase, TaskItem, StackItem, WorkItem } from "@/types/project-detail";
+
+export interface ProjectType {
+  projectTypeId: number;
+  typeName: string;
+}
+
+interface SoloProjectDtoRaw {
+  projectId: number;
+  projectCode: string;
+  projectName: string;
+  description?: string | null;
+  projectTypeId: number;
+  projectTypeName: string;
+  divisionName?: string | null;
+  requesterName?: string | null;
+  projectOwnerId: number;
+  ownerName: string;
+  status: string;
+  priority: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  progressPercent: number;
+}
+
+interface TaskItemDtoRaw {
+  taskId: number;
+  milestoneId: number;
+  title: string;
+  detail?: string | null;
+  completed: boolean;
+}
+
+interface PhaseDtoRaw {
+  milestoneId: number;
+  projectId: number;
+  milestoneName: string;
+  ownerId?: number | null;
+  ownerName?: string | null;
+  startDate?: string | null;   // ★ เพิ่ม
+  dueDate?: string | null;
+  completedDate?: string | null;
+  status: string;
+  sortOrder: number;
+  items: TaskItemDtoRaw[];
+}
+
+interface StackItemDtoRaw {
+  techStackId: number;
+  projectId: number;
+  type: string;
+  name: string;
+  version?: string | null;
+  layer: string;
+}
+
+interface WorkItemDtoRaw {
+  showcaseItemId: number;
+  projectId: number;
+  title: string;
+  description?: string | null;
+  flowDescription?: string | null;
+  imageUrl?: string | null;
+  createdDate: string;
+}
+
+interface SoloProjectDetailDtoRaw {
+  project: SoloProjectDtoRaw;
+  phases: PhaseDtoRaw[];
+  stacks: StackItemDtoRaw[];
+  showcases: WorkItemDtoRaw[];
+}
+
+function mapProject(raw: SoloProjectDtoRaw): SoloProject {
+  return {
+    id: raw.projectId,
+    projectCode: raw.projectCode,
+    name: raw.projectName,
+    description: raw.description || undefined,
+    projectTypeId: raw.projectTypeId,
+    projectTypeName: raw.projectTypeName,
+    department: raw.divisionName || undefined,
+    requester: raw.requesterName || undefined,
+    ownerId: raw.projectOwnerId,
+    ownerName: raw.ownerName,
+    status: raw.status as SoloProject["status"],
+    priority: raw.priority as SoloProject["priority"],
+    startDate: raw.startDate || undefined,
+    endDate: raw.endDate || undefined,
+    progress: raw.progressPercent,
+  };
+}
+
+function mapMilestoneStatus(status: string): Phase["status"] {
+  if (status === "COMPLETED") return "Done";
+  if (status === "IN_PROGRESS") return "In Progress";
+  return "Not Started";
+}
+
+function mapPhaseStatusToMilestoneStatus(status: Phase["status"]): string {
+  if (status === "Done") return "COMPLETED";
+  if (status === "In Progress") return "IN_PROGRESS";
+  return "PENDING";
+}
+
+function mapTaskItem(raw: TaskItemDtoRaw): TaskItem {
+  return {
+    id: String(raw.taskId),
+    title: raw.title,
+    detail: raw.detail || "",
+    completed: raw.completed,
+  };
+}
+
+function mapPhase(raw: PhaseDtoRaw): Phase {
+  return {
+    id: String(raw.milestoneId),
+    name: raw.milestoneName,
+    owner: raw.ownerName || "",
+    // ★ แก้: เดิม startDate ถูก hardcode เป็น "" เสมอ (เพราะ backend ไม่เคยมีคอลัมน์นี้)
+    // ตอนนี้ backend มี StartDate จริงแล้ว (Part 5) เลย map จาก raw.startDate ได้ตรงๆ
+    startDate: raw.startDate || "",
+    endDate: raw.dueDate || "",
+    status: mapMilestoneStatus(raw.status),
+    items: (raw.items || []).map(mapTaskItem),
+    isExpanded: false,
+  };
+}
+
+function mapStackItem(raw: StackItemDtoRaw): StackItem {
+  return {
+    id: String(raw.techStackId),
+    type: raw.type,
+    name: raw.name,
+    version: raw.version || "",
+    layer: raw.layer,
+  };
+}
+
+// แปลง "DD-MM-YYYY" หรือ "DD/MM/YYYY" (จาก UI) ให้เป็น "YYYY-MM-DD" (ISO ที่ backend รับได้)
+function toIsoDate(dateStr?: string | null): string | null {
+  if (!dateStr || dateStr === "-") return null;
+  const match = dateStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
+  if (match) {
+    const [, d, m, y] = match;
+    return `${y}-${m}-${d}`;
+  }
+  return dateStr; // เผื่อกรณีเป็น ISO อยู่แล้ว (เช่นตอน edit ไม่ได้แตะวันที่)
+}
+
+function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
+  return {
+    id: String(raw.showcaseItemId),
+    title: raw.title,
+    description: raw.description || "",
+    flowDescription: raw.flowDescription || "",
+    imageUrl: raw.imageUrl ? `${API_HOST}${raw.imageUrl}` : "",   // ★ ต่อ host เข้าไป
+    date: raw.createdDate ? new Date(raw.createdDate).toLocaleDateString("th-TH") : "",
+  };
+}
+
+function toCreateProjectBody(data: CreateProjectFormData) {
+  return {
+    projectName: data.name,
+    description: data.description,
+    projectTypeId: data.projectTypeId,
+    divisionName: data.department,
+    requesterName: data.requester,
+    projectOwnerId: data.ownerId,
+    priority: data.priority,
+    status: data.status,
+    startDate: toIsoDate(data.startDate),
+endDate: toIsoDate(data.endDate),
+  };
+}
+
+export function getProjectTypes(): Promise<ProjectType[]> {
+  return fetchApi<ProjectType[]>("/ProjectSolo/types");
+}
+
+// ★ เพิ่มกลับเข้ามา — ที่ทำให้ build error หายไป
+export interface UserOption {
+  userId: number;
+  empId: string;
+  fullName: string;
+}
+
+export function getUsers(): Promise<UserOption[]> {
+  return fetchApi<UserOption[]>("/ProjectSolo/users");
+}
+
+export async function getProjects(): Promise<SoloProject[]> {
+  const raw = await fetchApi<SoloProjectDtoRaw[]>("/ProjectSolo");
+  return raw.map(mapProject);
+}
+
+export async function getProjectDetail(projectId: number): Promise<SoloProjectDetail> {
+  const raw = await fetchApi<SoloProjectDetailDtoRaw>(`/ProjectSolo/${projectId}`);
+  return {
+    project: mapProject(raw.project),
+    phases: raw.phases.map(mapPhase),
+    stacks: raw.stacks.map(mapStackItem),
+    showcases: raw.showcases.map(mapWorkItem),
+  };
+}
+
+export async function createProject(
+  data: CreateProjectFormData,
+  currentUserId: number
+): Promise<SoloProject> {
+  const raw = await fetchApi<SoloProjectDtoRaw>(`/ProjectSolo?userId=${currentUserId}`, {
+    method: "POST",
+    body: JSON.stringify(toCreateProjectBody(data)),
+  });
+  return mapProject(raw);
+}
+
+export async function updateProject(
+  projectId: number,
+  data: CreateProjectFormData,
+  currentUserId: number
+): Promise<SoloProject> {
+  const raw = await fetchApi<SoloProjectDtoRaw>(`/ProjectSolo?userId=${currentUserId}`, {
+    method: "PUT",
+    body: JSON.stringify({ projectId, ...toCreateProjectBody(data) }),
+  });
+  return mapProject(raw);
+}
+
+export function deleteProject(projectId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/${projectId}`, { method: "DELETE" });
+}
+
+// ===========================================================================
+// Phase (Milestone)
+// ===========================================================================
+export async function createPhase(
+  projectId: number,
+  data: Pick<Phase, "name" | "status"> & {
+    ownerId?: number;
+    startDate?: string;   // ★ เพิ่ม
+    dueDate?: string;
+    sortOrder?: number;
+  }
+): Promise<Phase> {
+  const raw = await fetchApi<PhaseDtoRaw>("/ProjectSolo/phases", {
+    method: "POST",
+    body: JSON.stringify({
+      projectId,
+      milestoneName: data.name,
+      ownerId: data.ownerId ?? null,
+      startDate: toIsoDate(data.startDate),
+      dueDate: toIsoDate(data.dueDate),
+      status: mapPhaseStatusToMilestoneStatus(data.status),
+      sortOrder: data.sortOrder ?? 0,
+    }),
+  });
+  return mapPhase(raw);
+}
+
+export async function updatePhase(
+  milestoneId: number,
+  data: Pick<Phase, "name" | "status"> & {
+    ownerId?: number;
+    startDate?: string;   // ★ เพิ่ม
+    dueDate?: string;
+    sortOrder?: number;
+  }
+): Promise<Phase> {
+  const raw = await fetchApi<PhaseDtoRaw>("/ProjectSolo/phases", {
+    method: "PUT",
+    body: JSON.stringify({
+      milestoneId,
+      milestoneName: data.name,
+      ownerId: data.ownerId ?? null,
+      startDate: toIsoDate(data.startDate),
+      dueDate: toIsoDate(data.dueDate),
+      status: mapPhaseStatusToMilestoneStatus(data.status),
+      sortOrder: data.sortOrder ?? 0,
+    }),
+  });
+  return mapPhase(raw);
+}
+
+export function deletePhase(milestoneId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/phases/${milestoneId}`, { method: "DELETE" });
+}
+
+// ★ เพิ่มใหม่: Auto-Generate Phases
+export async function autoGeneratePhases(projectId: number): Promise<Phase[]> {
+  const raw = await fetchApi<PhaseDtoRaw[]>(`/ProjectSolo/${projectId}/phases/auto-generate`, {
+    method: "POST",
+  });
+  return raw.map(mapPhase);
+}
+
+// ===========================================================================
+// TaskItem (Task)
+// ===========================================================================
+export async function createTaskItem(
+  projectId: number,
+  milestoneId: number,
+  data: Pick<TaskItem, "title" | "detail">,
+  currentUserId: number
+): Promise<TaskItem> {
+  const raw = await fetchApi<TaskItemDtoRaw>(`/ProjectSolo/tasks?userId=${currentUserId}`, {
+    method: "POST",
+    body: JSON.stringify({ projectId, milestoneId, title: data.title, detail: data.detail }),
+  });
+  return mapTaskItem(raw);
+}
+
+export async function updateTaskItem(taskId: number, data: TaskItem): Promise<TaskItem> {
+  const raw = await fetchApi<TaskItemDtoRaw>("/ProjectSolo/tasks", {
+    method: "PUT",
+    body: JSON.stringify({
+      taskId,
+      title: data.title,
+      detail: data.detail,
+      completed: data.completed,
+    }),
+  });
+  return mapTaskItem(raw);
+}
+
+export function deleteTaskItem(taskId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/tasks/${taskId}`, { method: "DELETE" });
+}
+
+// ===========================================================================
+// StackItem (TechStack)
+// ===========================================================================
+export async function createStackItem(
+  projectId: number,
+  data: Pick<StackItem, "type" | "name" | "version" | "layer">
+): Promise<StackItem> {
+  const raw = await fetchApi<StackItemDtoRaw>("/ProjectSolo/stacks", {
+    method: "POST",
+    body: JSON.stringify({ projectId, ...data }),
+  });
+  return mapStackItem(raw);
+}
+
+export function deleteStackItem(techStackId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/stacks/${techStackId}`, { method: "DELETE" });
+}
+
+// ===========================================================================
+// WorkItem (ShowcaseItem)
+// ===========================================================================
+export async function createWorkItem(
+  projectId: number,
+  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">,
+  currentUserId: number
+): Promise<WorkItem> {
+  const raw = await fetchApi<WorkItemDtoRaw>(`/ProjectSolo/showcases?userId=${currentUserId}`, {
+    method: "POST",
+    body: JSON.stringify({ projectId, ...data }),
+  });
+  return mapWorkItem(raw);
+}
+
+export function deleteWorkItem(showcaseItemId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/showcases/${showcaseItemId}`, { method: "DELETE" });
+}
+
+export async function uploadShowcaseImage(projectId: number, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/Upload/showcase-image?projectId=${projectId}`,
+    { method: "POST", body: formData }
+  );
+
+  if (!response.ok) {
+    throw new Error("อัปโหลดรูปภาพไม่สำเร็จ");
+  }
+
+  const data = await response.json();
+  return data.url as string;
+}

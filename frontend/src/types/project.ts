@@ -1,58 +1,52 @@
+import { Phase, StackItem, WorkItem } from "@/types/project-detail";
 
-export interface TaskItem {
-  id: string;
-  title: string;
-  completed: boolean;
-}
-
-export interface Phase {
-  id: string;
-  name: string;
-  status: "Done" | "In Progress" | "Not Started";
-  items?: TaskItem[];
-}
-
+// ตรงกับ SoloProjectDto ฝั่ง Backend
 export interface SoloProject {
-  id: number | string;
-  name: string;
-  description: string;
-  projectType?: string;
-  department?: string;
-  owner: string;
-  requester?: string;
-  priority: "ปกติ" | "สูง";
-  status: "เสร็จแล้ว" | "กำลังทำ" | "Planning";
-  startDate: string;
-  plannedEndDate?: string;
+  id: number;
+  projectCode: string;
+  name: string;               // ProjectName
+  description?: string;
+
+  projectTypeId: number;
+  projectTypeName: string;
+
+  department?: string;        // DivisionName
+  requester?: string;         // RequesterName (Free Text)
+
+  ownerId: number;            // ProjectOwnerId (ผูก User จริง)
+  ownerName: string;
+
+  status: "PLANNING" | "IN_PROGRESS" | "ON_HOLD" | "COMPLETED" | "CANCELLED";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+  startDate?: string;         // "YYYY-MM-DD"
+  endDate?: string;
   actualEndDate?: string;
-  endDate: string;
-  progress: number; // Dynamic calculated percentage
-  phases?: Phase[]; // ใช้เก็บรายการ Phase/Task ย่อยภายใน
-  language?: string;
-  framework?: string;
-  library?: string;
-  database?: string;
-  apiService?: string;
-  otherTech?: string;
+
+  progress: number;           // ProgressPercent — คำนวณจาก Backend อัตโนมัติ ห้ามแก้เอง
 }
 
+// รายละเอียดเต็มของหน้า Detail (Project + Phase + Stack + Showcase)
+export interface SoloProjectDetail {
+  project: SoloProject;
+  phases: Phase[];
+  stacks: StackItem[];
+  showcases: WorkItem[];
+}
+
+// ตรงกับ CreateSoloProjectRequest ฝั่ง Backend (ใช้ทั้ง Create/Edit Form)
 export interface CreateProjectFormData {
   name: string;
   description: string;
-  projectType: string;
+  projectTypeId: number;
   department: string;
-  owner: string;
   requester: string;
-  priority: "ปกติ" | "สูง";
-  status: "เสร็จแล้ว" | "กำลังทำ" | "Planning";
+  ownerId: number;
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  status: "PLANNING" | "IN_PROGRESS" | "ON_HOLD" | "COMPLETED" | "CANCELLED";
   startDate: string;
-  plannedEndDate: string;
-  actualEndDate: string;
-  // ตัด progress ออก เพื่อไม่ให้กรอก Manual
-  language: string;
-  framework: string;
-  library: string;
-  database: string;
-  apiService: string;
-  otherTech: string;
+  endDate: string;
+  // หมายเหตุ: ตัด language/framework/library/database/apiService/otherTech ออกแล้ว
+  // เพราะซ้ำซ้อนกับ Tech Stack Section (StackItem) — ใช้ Stack Section แทน
+  // ตัด progress ออก เพราะ Backend คำนวณให้อัตโนมัติจาก Task
 }
