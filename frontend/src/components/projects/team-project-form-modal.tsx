@@ -85,8 +85,6 @@ export default function TeamProjectFormModal({
     setFormError("");
   }, [mode, initialData, isOpen]);
 
-  if (!isOpen) return null;
-
   const userOptions = users.map((u) => ({
     label: `${u.fullName} (${u.empId})`,
     value: String(u.userId),
@@ -96,6 +94,8 @@ export default function TeamProjectFormModal({
     () => new Map(userOptions.map((o) => [o.label, Number(o.value)])),
     [users]
   );
+
+  if (!isOpen) return null;
 
   const projectTypeOptions = projectTypes.map((pt) => ({
     label: pt.typeName,
