@@ -616,8 +616,10 @@ namespace backend.Services
         // ===========================================================================
         public async Task<List<SoloProjectDto>> GetProjectsAsync()
         {
+            // Solo = ไม่มีสมาชิกใน ProjectMembers เลย (ตรงข้ามกับเงื่อนไข Team ใน ProjectTeamService)
+            // เดิม Query นี้ไม่มีเงื่อนไขนี้ ทำให้ Project ที่มีสมาชิกทีม (Team Project) หลุดมาแสดงในหน้า Solo ด้วย
             return await _context.Projects
-                .Where(p => p.IsActive)
+                .Where(p => p.IsActive && !p.Members.Any())
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
                 .OrderByDescending(p => p.CreatedDate)

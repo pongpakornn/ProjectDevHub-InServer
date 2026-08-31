@@ -2,10 +2,10 @@
 
 import React from "react";
 import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
-import { PresentItem } from "@/types/present";
+import { WorkItem } from "@/types/project-detail";
 
 interface PresentCarouselProps {
-  items: PresentItem[];
+  items: WorkItem[];
   activeIndex: number;
   slideDirection: "left" | "right";
   onGoPrev: () => void;
@@ -76,7 +76,7 @@ export function PresentCarousel({
                           {String(idx + 1).padStart(2, "0")}
                         </p>
                         <p className="text-white font-bold text-sm">{item.title}</p>
-                        <p className="text-white/80 text-xs">{item.subtitle}</p>
+                        <p className="text-white/80 text-xs">{item.description}</p>
                       </div>
                     </button>
                   ) : (

@@ -1,26 +1,46 @@
 "use client";
 
 import { Calendar, CheckCircle2, Clock } from "lucide-react";
-
-export const projectsData = [
-  { id: "1", name: "CheckPallet V.1", progress: 100, status: "completed", date: "12/12/2025 → 05/03/2026", monthStart: 1, monthEnd: 3 },
-  { id: "2", name: "StorePC V.1", progress: 100, status: "completed", date: "05/03/2026 → 10/04/2026", monthStart: 3, monthEnd: 4 },
-  { id: "3", name: "StoreSP - Spare Part", progress: 100, status: "completed", date: "11/04/2026 → 13/04/2026", monthStart: 4, monthEnd: 5 },
-  { id: "4", name: "StoreRM - Raw Material", progress: 100, status: "completed", date: "11/04/2026 → 13/04/2026", monthStart: 5, monthEnd: 5 },
-  { id: "5", name: "Softpro Core API - Stock", progress: 100, status: "completed", date: "11/04/2026 → 13/04/2026", monthStart: 5, monthEnd: 5 },
-  { id: "6", name: "OT Web API", progress: 100, status: "completed", date: "11/04/2026 → 13/04/2026", monthStart: 5, monthEnd: 5 },
-  { id: "7", name: "Softpro Core API - HR", progress: 100, status: "in_progress", date: "11/04/2026 → 13/04/2026", monthStart: 5, monthEnd: 5 },
-  { id: "8", name: "SmartOps System", progress: 10, status: "in_progress", date: "03/08/2026 → -", monthStart: 8, monthEnd: 9 },
-];
+import { DashboardProject } from "@/types/dashboard";
 
 const months = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
-export default function ProjectTimeline() {
+function toDisplayDate(iso?: string): string {
+  if (!iso) return "-";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function getMonth(iso?: string): number | null {
+  if (!iso) return null;
+  const month = Number(iso.split("-")[1]);
+  return month >= 1 && month <= 12 ? month : null;
+}
+
+interface ProjectTimelineProps {
+  projects: DashboardProject[];
+}
+
+export default function ProjectTimeline({ projects }: ProjectTimelineProps) {
+  const currentYear = new Date().getFullYear();
+
+  const rows = projects.map((p) => {
+    const monthStart = getMonth(p.startDate) ?? 1;
+    const monthEnd = Math.max(monthStart, getMonth(p.endDate) ?? monthStart);
+    return {
+      ...p,
+      dateLabel: `${toDisplayDate(p.startDate)} → ${toDisplayDate(p.endDate)}`,
+      monthStart,
+      monthEnd,
+    };
+  });
+
   return (
     <div className="space-y-6">
       {/* 1. Perfect Gantt Chart Layout */}
       <div className="bg-white border border-slate-300 rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden space-y-4">
-        
+
         {/* Dark Header */}
         <div className="flex justify-between items-center px-6 py-3.5 bg-slate-900 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -33,10 +53,13 @@ export default function ProjectTimeline() {
             </div>
           </div>
           <select className="text-xs border border-slate-700 rounded-xl px-3 py-1.5 bg-slate-800 font-semibold text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 shadow-xs cursor-pointer">
-            <option>ปี 2026</option>
+            <option>ปี {currentYear}</option>
           </select>
         </div>
 
+        {rows.length === 0 ? (
+          <p className="text-center text-slate-400 text-xs py-10">ยังไม่มีโปรเจกต์ในระบบ</p>
+        ) : (
         <div className="px-6 pb-6 space-y-3">
           {/* Header Row: Left Title Space + 12 Months Grid */}
           <div className="flex gap-3 items-center">
@@ -52,9 +75,9 @@ export default function ProjectTimeline() {
 
           {/* Project Rows */}
           <div className="space-y-2 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner">
-            {projectsData.map((project, idx) => (
+            {rows.map((project, idx) => (
               <div
-                key={project.id}
+                key={project.projectId}
                 className={`flex gap-3 items-center text-xs p-2.5 border-b border-slate-200 last:border-b-0 ${
                   idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
                 } hover:bg-emerald-50/50 transition-colors`}
@@ -62,7 +85,7 @@ export default function ProjectTimeline() {
                 {/* Fixed Left Project Info Column */}
                 <div className="w-56 shrink-0 pr-2 border-r border-slate-200">
                   <p className="font-bold text-slate-800 text-xs truncate">{project.name}</p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{project.date}</p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{project.dateLabel}</p>
                 </div>
 
                 {/* 12-Month Gantt Bar Area */}
@@ -86,7 +109,7 @@ export default function ProjectTimeline() {
                       width: `${Math.max(((project.monthEnd - project.monthStart + 1) / 12) * 100, 6)}%`,
                     }}
                   >
-                    {project.progress === 100 ? "100%" : `${project.progress}%`}
+                    {Math.round(project.progress) === 100 ? "100%" : `${Math.round(project.progress)}%`}
                   </div>
                 </div>
               </div>
@@ -95,9 +118,9 @@ export default function ProjectTimeline() {
 
           {/* Bottom Summary Tags */}
           <div className="pt-3 flex flex-wrap gap-2">
-            {projectsData.map((p) => (
+            {rows.map((p) => (
               <span
-                key={p.id}
+                key={p.projectId}
                 className={`text-[10px] font-bold px-3 py-1 rounded-lg border inline-flex items-center gap-1.5 shadow-2xs ${
                   p.status === "completed"
                     ? "bg-emerald-50 text-emerald-900 border-emerald-300"
@@ -114,11 +137,12 @@ export default function ProjectTimeline() {
             ))}
           </div>
         </div>
+        )}
       </div>
 
       {/* 2. Timeline Progress Bar List */}
       <div className="bg-white border border-slate-300 rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden">
-        
+
         {/* Dark Header */}
         <div className="px-6 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
           <div>
@@ -129,9 +153,12 @@ export default function ProjectTimeline() {
           </div>
         </div>
 
+        {rows.length === 0 ? (
+          <p className="text-center text-slate-400 text-xs py-10">ยังไม่มีโปรเจกต์ในระบบ</p>
+        ) : (
         <div className="p-6 space-y-3.5">
-          {projectsData.map((p) => (
-            <div key={p.id} className="space-y-1.5 bg-slate-50/60 p-3.5 rounded-xl border border-slate-200 shadow-xs">
+          {rows.map((p) => (
+            <div key={p.projectId} className="space-y-1.5 bg-slate-50/60 p-3.5 rounded-xl border border-slate-200 shadow-xs">
               <div className="flex justify-between items-center text-xs">
                 <span className="font-bold text-slate-800">{p.name}</span>
                 <div className="flex items-center gap-2">
@@ -144,7 +171,7 @@ export default function ProjectTimeline() {
                   >
                     {p.status === "completed" ? "เสร็จแล้ว" : "กำลังทำ"}
                   </span>
-                  <span className="text-slate-900 font-bold text-xs font-mono">{p.progress}%</span>
+                  <span className="text-slate-900 font-bold text-xs font-mono">{Math.round(p.progress)}%</span>
                 </div>
               </div>
               <div className="w-full h-3.5 bg-slate-200 rounded-full overflow-hidden p-0.5 shadow-inner border border-slate-300/60">
@@ -160,6 +187,7 @@ export default function ProjectTimeline() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

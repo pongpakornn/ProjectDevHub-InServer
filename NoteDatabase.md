@@ -324,3 +324,72 @@ CREATE UNIQUE INDEX UQ_FlowDefinitions_ProjectId ON Flow.FlowDefinitions(Project
   `/dashboard/flow`, `/dashboard/solo/[id]`, `/dashboard/team/projects/[id]`
 
 รายละเอียดไฟล์ที่แก้ไข/เพิ่มทั้งหมดของรอบนี้ ดูใน commit message ของ commit ที่ merge เข้า `main`
+
+# NoteDatabase — Testing Schema (Tester Automation Module) (รอบนี้)
+
+Database: `ProjectDevHub` — สร้าง Schema `Testing` ใหม่ ผูก `ProjectId` กับ `Project.Projects` (Solo/Team)
+Scope ตรงกับ Data ที่ UI เก็บจริง (Suite + Run พร้อมสรุปจำนวนเคส) — ไม่สร้าง TestCases/TestLogs
+แบบ Per-Case เพิ่ม เพราะ UI ยังไม่มีจุดกรอกข้อมูลระดับนั้น รันแล้วผ่าน `sqlcmd` จริง (ดูผลใน `sys.tables`)
+
+```sql
+IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Testing')
+BEGIN
+    EXEC('CREATE SCHEMA Testing');
+END
+GO
+
+CREATE TABLE Testing.TestSuites (
+    TestSuiteId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ProjectId INT NOT NULL,
+    SuiteCode VARCHAR(30) NOT NULL,
+    Name NVARCHAR(255) NOT NULL,
+    CreatedBy INT NOT NULL,
+    IsActive BIT NOT NULL DEFAULT (1),
+    CreatedDate DATETIMEOFFSET NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    UpdatedDate DATETIMEOFFSET NULL,
+    CONSTRAINT UQ_TestSuites_SuiteCode UNIQUE (SuiteCode),
+    CONSTRAINT FK_TestSuites_Project FOREIGN KEY (ProjectId) REFERENCES Project.Projects(ProjectId) ON DELETE CASCADE,
+    CONSTRAINT FK_TestSuites_Creator FOREIGN KEY (CreatedBy) REFERENCES Core.Users(UserId)
+);
+GO
+
+CREATE TABLE Testing.TestRuns (
+    TestRunId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    TestSuiteId INT NOT NULL,
+    Tool VARCHAR(20) NOT NULL DEFAULT ('playwright'),         -- playwright, cypress, vitest, jest, robot
+    Environment VARCHAR(10) NOT NULL DEFAULT ('DEV'),         -- DEV, SIT, UAT, PROD
+    RunDate DATE NOT NULL,
+    TotalCases INT NOT NULL DEFAULT (0),
+    PassedCases INT NOT NULL DEFAULT (0),
+    FailedCases INT NOT NULL DEFAULT (0),
+    SkippedCases INT NOT NULL DEFAULT (0),
+    DurationSeconds INT NOT NULL DEFAULT (0),
+    Status VARCHAR(10) NOT NULL DEFAULT ('passed'),           -- passed, failed, partial, skipped
+    ReportUrl NVARCHAR(500) NULL,
+    Note NVARCHAR(500) NULL,
+    TriggeredBy INT NOT NULL,
+    CreatedDate DATETIMEOFFSET NOT NULL DEFAULT (SYSDATETIMEOFFSET()),
+    CONSTRAINT FK_TestRuns_Suite FOREIGN KEY (TestSuiteId) REFERENCES Testing.TestSuites(TestSuiteId) ON DELETE CASCADE,
+    CONSTRAINT FK_TestRuns_TriggeredBy FOREIGN KEY (TriggeredBy) REFERENCES Core.Users(UserId),
+    CONSTRAINT CK_TestRuns_Tool CHECK (Tool IN ('playwright','cypress','vitest','jest','robot')),
+    CONSTRAINT CK_TestRuns_Environment CHECK (Environment IN ('DEV','SIT','UAT','PROD')),
+    CONSTRAINT CK_TestRuns_Status CHECK (Status IN ('passed','failed','partial','skipped'))
+);
+GO
+```
+
+ไฟล์: `create_testing_schema.sql` (root ของ repo) — Backend: `Models/Testing/*.cs`, `Services/TestingService.cs`,
+`Controllers/TestingController.cs`. Frontend: `lib/testing-api.ts`, เปลี่ยน `app/dashboard/testing/page.tsx`
++ `test-run-modal.tsx` จาก Mock State ล้วนเป็นเรียก API จริง (Dropdown โปรเจกต์ดึงจาก Solo+Team จริงด้วย)
+
+**บั๊กที่เจอและแก้ระหว่างทาง**: `ProjectSoloService.GetProjectsAsync` เดิมไม่มีเงื่อนไขกรอง `ProjectMembers`
+ทำให้ Project ที่มีสมาชิกทีม (Team Project) หลุดมาแสดงในหน้า Solo ด้วย (นับซ้ำ) — เพิ่มเงื่อนไข
+`!p.Members.Any()` ให้ตรงกับ Convention เดิมที่ `ProjectTeamService` ใช้อยู่แล้ว มีผลกับ Dashboard/Present
+ที่รวมรายชื่อ Solo+Team เข้าด้วยกัน (ไม่งั้นจะนับโปรเจกต์ซ้ำ)
+
+**Dashboard + Present**: ไม่มีการแก้ไข Schema เพิ่ม — Dashboard ใช้ Endpoint ใหม่ `GET /api/Dashboard/summary`
+(Aggregate จาก `Project.Projects` + `Testing.TestRuns` ตรงๆ ไม่มีตารางใหม่) ส่วน Present ใช้
+`GET /api/ProjectSolo`/`GET /api/ProjectTeam` + `.../showcases` ที่มีอยู่แล้วเดิมทั้งหมด (ตามที่ระบุว่า
+"ไม่ต้องสร้าง Table เพิ่ม")
+
+รายละเอียดไฟล์ที่แก้ไข/เพิ่มทั้งหมดของรอบนี้ ดูใน commit message ของ commit ที่ merge เข้า `main`

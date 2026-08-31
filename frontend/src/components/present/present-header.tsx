@@ -3,17 +3,31 @@
 import React from "react";
 import { Plus, Tv } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
-import { PresentProject } from "@/types/present";
+
+interface PresentHeaderProject {
+  name: string;
+  status: string; // PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+  startDate?: string;
+  endDate?: string;
+}
 
 interface PresentHeaderProps {
-  project: PresentProject;
+  project: PresentHeaderProject;
   itemCount: number;
   onOpenAddModal: () => void;
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  PLANNING: "วางแผน",
+  IN_PROGRESS: "กำลังทำ",
+  ON_HOLD: "พักไว้",
+  COMPLETED: "เสร็จแล้ว",
+  CANCELLED: "ยกเลิก",
+};
+
 const statusBadgeClass = (status: string) => {
-  if (status === "เสร็จแล้ว") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (status === "กำลังทำ") return "bg-amber-50 text-amber-700 border-amber-200";
+  if (status === "COMPLETED") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (status === "IN_PROGRESS") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-slate-100 text-slate-600 border-slate-200";
 };
 
@@ -31,9 +45,9 @@ export function PresentHeader({ project, itemCount, onOpenAddModal }: PresentHea
           <h1 className="text-xl sm:text-2xl font-extrabold text-white">{project.name}</h1>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadgeClass(project.status)}`}>
-              {project.status}
+              {STATUS_LABEL[project.status] ?? project.status}
             </span>
-            <span className="font-mono text-slate-400">{project.startDate} → {project.endDate}</span>
+            <span className="font-mono text-slate-400">{project.startDate || "-"} → {project.endDate || "-"}</span>
             <span className="text-slate-500">· {itemCount} รายการนำเสนอ</span>
           </div>
         </div>

@@ -1,45 +1,82 @@
 // path: app/dashboard/present/[id]/page.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { presentProjects } from "../page";
-import { PresentItem } from "@/types/present";
+import { WorkItem } from "@/types/project-detail";
 import { PresentHeader } from "@/components/present/present-header";
 import { PresentCarousel } from "@/components/present/present-carousel";
 import { PresentGridItem } from "@/components/present/present-grid-item";
 import { PresentLightbox } from "@/components/present/present-lightbox";
 import { PresentItemModal } from "@/components/present/present-item-modal";
+import * as soloApi from "@/lib/project-solo-api";
+import * as teamApi from "@/lib/project-team-api";
 
-const defaultImage =
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80";
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
+const CURRENT_USER_ID = 1;
 
-const mockItems: PresentItem[] = [
-  { id: "i1", title: "Test1", subtitle: "Test1", imageUrl: defaultImage },
-  { id: "i2", title: "Test2", subtitle: "Test2", imageUrl: defaultImage },
-  { id: "i3", title: "Test3", subtitle: "Test3", imageUrl: defaultImage },
-];
+interface ProjectHeaderInfo {
+  name: string;
+  status: string;
+  startDate?: string;
+  endDate?: string;
+}
 
 export default function PresentProjectDetailPage() {
   const params = useParams();
-  const projectId = String(params.id);
-  const project = presentProjects.find((p) => p.id === projectId) || presentProjects[0];
+  const searchParams = useSearchParams();
+  const projectId = Number(params?.id);
+  const routeType = searchParams.get("type") === "team" ? "team" : "solo";
+  const api = routeType === "team" ? teamApi : soloApi;
 
-  const [items, setItems] = useState<PresentItem[]>(mockItems);
+  const [projectInfo, setProjectInfo] = useState<ProjectHeaderInfo | null>(null);
+  const [items, setItems] = useState<WorkItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
+
+  const loadDetail = useCallback(async () => {
+    if (!projectId) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const detail = await api.getProjectDetail(projectId);
+      setProjectInfo({
+        name: detail.project.name,
+        status: detail.project.status,
+        startDate: detail.project.startDate,
+        endDate: detail.project.endDate,
+      });
+      setItems(detail.showcases);
+      setActiveIndex((i) => Math.min(i, Math.max(0, detail.showcases.length - 1)));
+    } catch (err) {
+      console.error(err);
+      setLoadError("ไม่สามารถโหลดข้อมูลโปรเจกต์ได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, routeType]);
+
+  useEffect(() => {
+    loadDetail();
+  }, [loadDetail]);
 
   const changeActive = (nextIndex: number, dir: "left" | "right") => {
     setSlideDirection(dir);
@@ -75,9 +112,8 @@ export default function PresentProjectDetailPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const closeItemModal = () => {
@@ -86,50 +122,85 @@ export default function PresentProjectDetailPage() {
     setTitle("");
     setDescription("");
     setImagePreview(null);
+    setImageFile(null);
   };
 
-  const openEditModal = (item: PresentItem) => {
+  const openEditModal = (item: WorkItem) => {
     setEditingId(item.id);
     setTitle(item.title);
-    setDescription(item.subtitle);
+    setDescription(item.description);
     setImagePreview(item.imageUrl);
+    setImageFile(null);
     setIsAddOpen(true);
   };
 
-  const handleSaveItem = () => {
-    if (!title.trim()) return;
+  const handleSaveItem = async () => {
+    if (!title.trim() || !projectId || isSaving) return;
+    setIsSaving(true);
+    try {
+      let finalImageUrl = imagePreview || "";
+      if (imageFile) {
+        finalImageUrl = await api.uploadShowcaseImage(projectId, imageFile);
+      } else if (editingId) {
+        const existing = items.find((it) => it.id === editingId);
+        finalImageUrl = existing?.imageUrl || finalImageUrl;
+      }
 
-    if (editingId) {
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === editingId
-            ? { ...it, title, subtitle: description, imageUrl: imagePreview || it.imageUrl }
-            : it
-        )
-      );
-    } else {
-      const newItem: PresentItem = {
-        id: Date.now().toString(),
-        title,
-        subtitle: description,
-        imageUrl: imagePreview || defaultImage,
-      };
-      setItems((prev) => [...prev, newItem]);
-      setActiveIndex(items.length);
+      if (editingId) {
+        await api.updateWorkItem(Number(editingId), projectId, {
+          title,
+          description,
+          flowDescription: items.find((it) => it.id === editingId)?.flowDescription || "",
+          imageUrl: finalImageUrl,
+        });
+      } else {
+        await api.createWorkItem(
+          projectId,
+          { title, description, flowDescription: "", imageUrl: finalImageUrl },
+          CURRENT_USER_ID
+        );
+      }
+
+      await loadDetail();
+      setActiveIndex(items.length); // เผื่อรายการใหม่ ให้เลื่อนไปดูตัวล่าสุดหลังโหลดใหม่
+    } catch (err) {
+      console.error(err);
+      alert("บันทึกรายการนำเสนอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsSaving(false);
+      closeItemModal();
     }
-
-    closeItemModal();
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
+    const prevItems = items;
     setItems((prev) => {
       const next = prev.filter((it) => it.id !== id);
       setActiveIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
       return next;
     });
+    try {
+      await api.deleteWorkItem(Number(id));
+    } catch (err) {
+      console.error(err);
+      alert("ลบรายการนำเสนอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setItems(prevItems);
+    }
   };
 
   const activeItem = items[activeIndex];
+
+  if (isLoading) {
+    return <div className="w-full py-20 text-center text-slate-500 text-xs font-medium">กำลังโหลดข้อมูลโปรเจกต์...</div>;
+  }
+
+  if (loadError || !projectInfo) {
+    return (
+      <div className="w-full py-20 text-center text-red-500 text-xs font-medium">
+        {loadError || "ไม่พบโปรเจกต์นี้"}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full select-none space-y-6">
@@ -144,13 +215,14 @@ export default function PresentProjectDetailPage() {
       </Link>
 
       <PresentHeader
-        project={project}
+        project={projectInfo}
         itemCount={items.length}
         onOpenAddModal={() => {
           setEditingId(null);
           setTitle("");
           setDescription("");
           setImagePreview(null);
+          setImageFile(null);
           setIsAddOpen(true);
         }}
       />
@@ -184,7 +256,7 @@ export default function PresentProjectDetailPage() {
       <PresentLightbox
         isOpen={isLightboxOpen}
         isVisible={lightboxVisible}
-        activeItem={activeItem}
+        activeItem={activeItem ?? null}
         activeIndex={activeIndex}
         totalItems={items.length}
         slideDirection={slideDirection}

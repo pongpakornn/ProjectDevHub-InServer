@@ -336,6 +336,7 @@ using backend.Models;
 using backend.Models.Project;
 using backend.Models.Planning;
 using backend.Models.Flow;
+using backend.Models.Testing;
 
 namespace backend.Data
 {
@@ -376,6 +377,10 @@ namespace backend.Data
         public DbSet<FlowTechStacks> FlowTechStacks => Set<FlowTechStacks>();
         public DbSet<FlowExecutions> FlowExecutions => Set<FlowExecutions>();
         public DbSet<FlowLogs> FlowLogs => Set<FlowLogs>();
+
+        // ---------- Testing ----------
+        public DbSet<TestSuites> TestSuites => Set<TestSuites>();
+        public DbSet<TestRuns> TestRuns => Set<TestRuns>();
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -720,6 +725,40 @@ namespace backend.Data
                     .WithMany(e => e.Logs)
                     .HasForeignKey(l => l.FlowExecutionId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ===========================================================================
+            // ---------- Testing Schema ----------
+            // ===========================================================================
+
+            // TestSuites (ผูกกับ Project.Projects — Cascade เมื่อลบ Project ต้นทาง)
+            modelBuilder.Entity<TestSuites>(entity =>
+            {
+                entity.HasIndex(s => s.SuiteCode).IsUnique();
+
+                entity.HasOne(s => s.Project)
+                    .WithMany()
+                    .HasForeignKey(s => s.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(s => s.Creator)
+                    .WithMany()
+                    .HasForeignKey(s => s.CreatedBy)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // TestRuns (Cascade เมื่อลบ TestSuite)
+            modelBuilder.Entity<TestRuns>(entity =>
+            {
+                entity.HasOne(r => r.TestSuite)
+                    .WithMany(s => s.Runs)
+                    .HasForeignKey(r => r.TestSuiteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(r => r.TriggeredByUser)
+                    .WithMany()
+                    .HasForeignKey(r => r.TriggeredBy)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
         }

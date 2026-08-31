@@ -4,13 +4,13 @@ import React from "react";
 import { Maximize2 } from "lucide-react";
 import EditButton from "@/components/ui/buttons/edit-button";
 import DeleteButton from "@/components/ui/buttons/delete-button";
-import { PresentItem } from "@/types/present";
+import { WorkItem } from "@/types/project-detail";
 
 interface PresentGridItemProps {
-  item: PresentItem;
+  item: WorkItem;
   index: number;
   onOpenLightbox: (index: number) => void;
-  onEdit: (item: PresentItem) => void;
+  onEdit: (item: WorkItem) => void;
   onDelete: (id: string) => void;
 }
 
@@ -44,7 +44,7 @@ export function PresentGridItem({
 
           <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-none">
             <p className="text-white font-bold text-xs truncate">{item.title}</p>
-            <p className="text-white/75 text-[11px] truncate">{item.subtitle}</p>
+            <p className="text-white/75 text-[11px] truncate">{item.description}</p>
           </div>
         </div>
 
