@@ -5,29 +5,24 @@ import { Eye, Plus, RotateCw, Workflow, X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import EditButtonV2 from "@/components/ui/buttons/buttonv2/edit-buttonv2";
 import DeleteButtonV2 from "@/components/ui/buttons/buttonv2/delete-buttonv2";
+import { WorkItem } from "@/types/project-detail";
+import { deleteWorkItem } from "@/lib/project-team-api";
 import TeamAddWorkModal from "./team-add-work-modal";
-
-export interface WorkItem {
-  id: string;
-  title: string;
-  description: string;
-  flowDescription: string;
-  imageUrl: string;
-  date: string;
-}
 
 interface TeamProjectGallerySectionProps {
   works: WorkItem[];
   setWorks: React.Dispatch<React.SetStateAction<WorkItem[]>>;
+  onOpenAddModal: () => void;
+  onOpenEditModal: (work: WorkItem) => void;
 }
 
 export default function TeamProjectGallerySection({
   works,
   setWorks,
+  onOpenAddModal,
+  onOpenEditModal,
 }: TeamProjectGallerySectionProps) {
   const [flippedCards, setFlippedCards] = useState<{ [id: string]: boolean }>({});
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingWork, setEditingWork] = useState<WorkItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
@@ -35,40 +30,16 @@ export default function TeamProjectGallerySection({
     setFlippedCards((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleDeleteWork = (id: string) => setWorks(works.filter((w) => w.id !== id));
-
-  const openAddModal = () => {
-    setEditingWork(null);
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (work: WorkItem) => {
-    setEditingWork(work);
-    setIsModalOpen(true);
-  };
-
-  const handleSaveWork = (data: { title: string; desc: string; flow: string; image: string | null }) => {
-    if (editingWork) {
-      setWorks(
-        works.map((w) =>
-          w.id === editingWork.id
-            ? { ...w, title: data.title, description: data.desc, flowDescription: data.flow, imageUrl: data.image || w.imageUrl }
-            : w
-        )
-      );
-    } else {
-      const newWork: WorkItem = {
-        id: Date.now().toString(),
-        title: data.title,
-        description: data.desc,
-        flowDescription: data.flow,
-        imageUrl: data.image || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-        date: new Date().toLocaleDateString("th-TH"),
-      };
-      setWorks([...works, newWork]);
+  const handleDeleteWork = async (id: string) => {
+    const prevWorks = works;
+    setWorks(works.filter((w) => w.id !== id));
+    try {
+      await deleteWorkItem(Number(id));
+    } catch (err) {
+      console.error("ลบผลงานไม่สำเร็จ", err);
+      alert("ลบผลงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setWorks(prevWorks);
     }
-    setIsModalOpen(false);
-    setEditingWork(null);
   };
 
   return (
@@ -84,7 +55,7 @@ export default function TeamProjectGallerySection({
             พรีวิว
           </Button>
           <Button
-            onClick={openAddModal}
+            onClick={onOpenAddModal}
             className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-1.5 px-3 flex items-center gap-1"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -114,7 +85,7 @@ export default function TeamProjectGallerySection({
                       <p className="text-[10px] text-slate-400">บันทึก {work.date}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <EditButtonV2 onClick={() => openEditModal(work)} title="แก้ไขผลงาน" />
+                      <EditButtonV2 onClick={() => onOpenEditModal(work)} title="แก้ไขผลงาน" />
                       <DeleteButtonV2 onClick={() => handleDeleteWork(work.id)} title="ลบผลงาน" />
                     </div>
                   </div>
@@ -140,7 +111,7 @@ export default function TeamProjectGallerySection({
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
                     <p className="text-[10px] text-slate-500">คลิกไอคอนหมุนเพื่อกลับไปดูรูป</p>
                     <div className="flex items-center gap-2">
-                      <EditButtonV2 onClick={() => openEditModal(work)} title="แก้ไขผลงาน" />
+                      <EditButtonV2 onClick={() => onOpenEditModal(work)} title="แก้ไขผลงาน" />
                       <DeleteButtonV2 onClick={() => handleDeleteWork(work.id)} title="ลบผลงาน" />
                     </div>
                   </div>
@@ -150,16 +121,6 @@ export default function TeamProjectGallerySection({
           );
         })}
       </div>
-
-      <TeamAddWorkModal
-        isOpen={isModalOpen}
-        editingWork={editingWork}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingWork(null);
-        }}
-        onSave={handleSaveWork}
-      />
 
       {isPreviewOpen && works.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">

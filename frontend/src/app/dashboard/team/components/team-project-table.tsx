@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { SoloProject } from "@/types/project";
+import { TeamProject } from "@/types/project";
 import TeamProjectRow from "./team-project-row";
 
 interface TeamProjectTableProps {
-  projects: SoloProject[];
+  projects: TeamProject[];
   onProjectClick: (id: number | string) => void;
-  onEditProject: (project: SoloProject) => void;
+  onEditProject: (project: TeamProject) => void;
   onDeleteProject: (id: number | string) => void;
 }
 

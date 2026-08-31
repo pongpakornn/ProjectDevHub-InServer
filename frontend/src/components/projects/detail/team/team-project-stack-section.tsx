@@ -4,16 +4,11 @@ import React, { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Dropdown, DropdownOption } from "@/components/ui/inputs/dropdown";
 import { Button } from "@/components/ui/buttons/button";
-
-export interface StackItem {
-  id: string;
-  type: string;
-  name: string;
-  version: string;
-  layer: string;
-}
+import { StackItem } from "@/types/project-detail";
+import { createStackItem, deleteStackItem } from "@/lib/project-team-api";
 
 interface TeamProjectStackSectionProps {
+  projectId: number;
   stacks: StackItem[];
   setStacks: React.Dispatch<React.SetStateAction<StackItem[]>>;
 }
@@ -44,6 +39,7 @@ const stackLayerOptions: DropdownOption[] = [
 ];
 
 export default function TeamProjectStackSection({
+  projectId,
   stacks,
   setStacks,
 }: TeamProjectStackSectionProps) {
@@ -51,25 +47,39 @@ export default function TeamProjectStackSection({
   const [stackName, setStackName] = useState("");
   const [stackVersion, setStackVersion] = useState("");
   const [stackLayer, setStackLayer] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleAddStack = () => {
-    if (!stackName) return;
-    setStacks([
-      ...stacks,
-      {
-        id: Date.now().toString(),
+  const handleAddStack = async () => {
+    if (!stackName || isSaving) return;
+    setIsSaving(true);
+    try {
+      const created = await createStackItem(projectId, {
         type: stackType,
         name: stackName,
         version: stackVersion,
         layer: stackLayer || "Frontend",
-      },
-    ]);
-    setStackName("");
-    setStackVersion("");
+      });
+      setStacks([...stacks, created]);
+      setStackName("");
+      setStackVersion("");
+    } catch (err) {
+      console.error("เพิ่ม Stack ไม่สำเร็จ", err);
+      alert("เพิ่ม Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDeleteStack = (id: string) => {
+  const handleDeleteStack = async (id: string) => {
+    const prevStacks = stacks;
     setStacks(stacks.filter((s) => s.id !== id));
+    try {
+      await deleteStackItem(Number(id));
+    } catch (err) {
+      console.error("ลบ Stack ไม่สำเร็จ", err);
+      alert("ลบ Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setStacks(prevStacks);
+    }
   };
 
   return (
@@ -120,10 +130,11 @@ export default function TeamProjectStackSection({
           </div>
           <Button
             onClick={handleAddStack}
-            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold px-4 py-2 self-end h-[38px] flex items-center gap-1 shrink-0"
+            disabled={isSaving}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold px-4 py-2 self-end h-[38px] flex items-center gap-1 shrink-0 disabled:opacity-50"
           >
             <Plus className="w-3.5 h-3.5" />
-            เพิ่ม
+            {isSaving ? "กำลังบันทึก..." : "เพิ่ม"}
           </Button>
         </div>
       </div>
