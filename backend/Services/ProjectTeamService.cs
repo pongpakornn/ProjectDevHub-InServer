@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.DTOs;
 using backend.Models.Project;
+using backend.Models.Flow;
 
 namespace backend.Services
 {
@@ -12,10 +13,12 @@ namespace backend.Services
     public class ProjectTeamService : IProjectTeamService
     {
         private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService;
 
-        public ProjectTeamService(AppDbContext context)
+        public ProjectTeamService(AppDbContext context, IAuditLogService auditLogService)
         {
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         private static readonly Dictionary<string, string[]> PhaseTemplates = new()
@@ -158,6 +161,10 @@ namespace backend.Services
                 await _context.Entry(m).Reference(x => x.User).LoadAsync();
             }
 
+            await EnsureFlowDefinitionAsync(project, "TEAM");
+            await _auditLogService.LogAsync(currentUserId, "TEAM", "INSERT",
+                $"สร้างโปรเจกต์ Team: {project.ProjectName} ({project.ProjectCode})", project.ProjectId.ToString());
+
             return MapToTeamProjectDto(project);
         }
 
@@ -201,17 +208,46 @@ namespace backend.Services
 
             await _context.Entry(project).Reference(p => p.Owner).LoadAsync();
 
+            await EnsureFlowDefinitionAsync(project, "TEAM");
+            await _auditLogService.LogAsync(currentUserId, "TEAM", "UPDATE",
+                $"แก้ไขโปรเจกต์ Team: {project.ProjectName} ({project.ProjectCode})", project.ProjectId.ToString());
+
             return MapToTeamProjectDto(project);
         }
 
-        public async Task<bool> DeleteProjectAsync(int projectId)
+        public async Task<bool> DeleteProjectAsync(int projectId, int currentUserId)
         {
             var project = await _context.Projects.FindAsync(projectId);
             if (project == null) return false;
 
-            project.IsActive = false;
-            project.UpdatedDate = DateTimeOffset.UtcNow;
+            var projectName = project.ProjectName;
+            var projectCode = project.ProjectCode;
+
+            // Hard Delete: ตัดความสัมพันธ์ที่ไม่ได้ตั้ง Cascade ไว้ (รักษาประวัติ/ไม่ผูกกับ Project โดยตรง) ก่อนลบจริง
+            var taskIds = await _context.Tasks
+                .Where(t => t.ProjectId == projectId)
+                .Select(t => t.TaskId)
+                .ToListAsync();
+
+            var histories = _context.StatusHistory
+                .Where(h => h.ProjectId == projectId || (h.TaskId != null && taskIds.Contains(h.TaskId.Value)));
+            _context.StatusHistory.RemoveRange(histories);
+
+            var linkedEvents = await _context.Events
+                .Where(e => e.LinkedProjectId == projectId || (e.LinkedTaskId != null && taskIds.Contains(e.LinkedTaskId.Value)))
+                .ToListAsync();
+            foreach (var ev in linkedEvents)
+            {
+                if (ev.LinkedProjectId == projectId) ev.LinkedProjectId = null;
+                if (ev.LinkedTaskId != null && taskIds.Contains(ev.LinkedTaskId.Value)) ev.LinkedTaskId = null;
+            }
+
+            _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
+
+            await _auditLogService.LogAsync(currentUserId, "TEAM", "DELETE",
+                $"ลบโปรเจกต์ Team: {projectName} ({projectCode})", projectId.ToString());
+
             return true;
         }
 
@@ -533,6 +569,21 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
+        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request)
+        {
+            var showcase = await _context.ShowcaseItems.FindAsync(request.ShowcaseItemId);
+            if (showcase == null) return null;
+
+            showcase.Title = request.Title;
+            showcase.Description = request.Description;
+            showcase.FlowDescription = request.FlowDescription;
+            showcase.ImageUrl = request.ImageUrl;
+            showcase.UpdatedDate = DateTimeOffset.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return MapToWorkItemDto(showcase);
+        }
+
         public async Task<bool> DeleteWorkItemAsync(int showcaseItemId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(showcaseItemId);
@@ -541,6 +592,180 @@ namespace backend.Services
             _context.ShowcaseItems.Remove(showcase);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        // ===========================================================================
+        // Comments
+        // ===========================================================================
+        public async Task<List<CommentDto>?> GetCommentsAsync(int projectId, int? taskId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var comments = taskId.HasValue
+                ? await _context.Comments
+                    .Where(c => c.TaskId == taskId.Value)
+                    .Include(c => c.User)
+                    .OrderBy(c => c.CreatedDate)
+                    .ToListAsync()
+                : await _context.Comments
+                    .Where(c => c.ProjectId == projectId && c.TaskId == null)
+                    .Include(c => c.User)
+                    .OrderBy(c => c.CreatedDate)
+                    .ToListAsync();
+
+            return comments.Select(MapToCommentDto).ToList();
+        }
+
+        public async Task<CommentDto?> AddCommentAsync(int projectId, CreateCommentRequest request, int currentUserId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var comment = new Comments
+            {
+                ProjectId = request.TaskId.HasValue ? null : projectId,
+                TaskId = request.TaskId,
+                UserId = currentUserId,
+                CommentText = request.CommentText
+            };
+
+            _context.Comments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(comment).Reference(c => c.User).LoadAsync();
+            return MapToCommentDto(comment);
+        }
+
+        public async Task<bool> DeleteCommentAsync(long commentId)
+        {
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return false;
+
+            _context.Comments.Remove(comment);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // Attachments
+        // ===========================================================================
+        public async Task<List<AttachmentDto>?> GetAttachmentsAsync(int projectId, int? taskId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var attachments = taskId.HasValue
+                ? await _context.Attachments
+                    .Where(a => a.TaskId == taskId.Value)
+                    .Include(a => a.Uploader)
+                    .OrderByDescending(a => a.UploadedDate)
+                    .ToListAsync()
+                : await _context.Attachments
+                    .Where(a => a.ProjectId == projectId && a.TaskId == null)
+                    .Include(a => a.Uploader)
+                    .OrderByDescending(a => a.UploadedDate)
+                    .ToListAsync();
+
+            return attachments.Select(MapToAttachmentDto).ToList();
+        }
+
+        public async Task<AttachmentDto?> AddAttachmentAsync(int projectId, CreateAttachmentRequest request, int currentUserId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var attachment = new Attachments
+            {
+                ProjectId = request.TaskId.HasValue ? null : projectId,
+                TaskId = request.TaskId,
+                FileName = request.FileName,
+                FilePath = request.FilePath,
+                FileSizeByte = request.FileSizeByte,
+                UploadedBy = currentUserId
+            };
+
+            _context.Attachments.Add(attachment);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(attachment).Reference(a => a.Uploader).LoadAsync();
+            return MapToAttachmentDto(attachment);
+        }
+
+        public async Task<bool> DeleteAttachmentAsync(long attachmentId)
+        {
+            var attachment = await _context.Attachments.FindAsync(attachmentId);
+            if (attachment == null) return false;
+
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // Flow 1:1 Binding — สร้าง/ซิงก์ Flow.FlowDefinitions ให้ผูกกับ Project นี้เสมอ
+        // (ผู้ใช้กรอกข้อมูลที่หน้า Solo/Team เท่านั้น ฝั่ง Flow จะ Auto-Generate/Sync ให้อัตโนมัติ)
+        // ===========================================================================
+        private async Task EnsureFlowDefinitionAsync(Projects project, string workType)
+        {
+            var flow = await _context.FlowDefinitions.FirstOrDefaultAsync(f => f.ProjectId == project.ProjectId);
+
+            if (flow == null)
+            {
+                _context.FlowDefinitions.Add(new FlowDefinitions
+                {
+                    ProjectId = project.ProjectId,
+                    FlowCode = await GenerateFlowCodeAsync(),
+                    Name = project.ProjectName,
+                    Description = project.Description,
+                    Status = MapProjectStatusToFlowStatus(project.Status),
+                    WorkType = workType,
+                    StartDate = project.StartDate,
+                    EndDate = project.EndDate,
+                    CreatedBy = project.CreatedBy,
+                    IsActive = true
+                });
+            }
+            else
+            {
+                flow.Name = project.ProjectName;
+                flow.Description = project.Description;
+                flow.Status = MapProjectStatusToFlowStatus(project.Status);
+                flow.WorkType = workType;
+                flow.StartDate = project.StartDate;
+                flow.EndDate = project.EndDate;
+                flow.UpdatedDate = DateTimeOffset.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private static string MapProjectStatusToFlowStatus(string projectStatus) => projectStatus switch
+        {
+            "COMPLETED" => "COMPLETED",
+            "CANCELLED" => "COMPLETED",
+            "PLANNING" => "PLANNING",
+            _ => "IN_PROGRESS" // IN_PROGRESS, ON_HOLD
+        };
+
+        private async Task<string> GenerateFlowCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var prefix = $"FLOW-{year}-";
+
+            var lastCode = await _context.FlowDefinitions
+                .Where(f => f.FlowCode.StartsWith(prefix))
+                .OrderByDescending(f => f.FlowCode)
+                .Select(f => f.FlowCode)
+                .FirstOrDefaultAsync();
+
+            var nextSeq = 1;
+            if (lastCode != null && int.TryParse(lastCode.Substring(prefix.Length), out var lastSeq))
+            {
+                nextSeq = lastSeq + 1;
+            }
+
+            return $"{prefix}{nextSeq:D3}";
         }
 
         // ===========================================================================
@@ -666,6 +891,30 @@ namespace backend.Services
             FlowDescription = si.FlowDescription,
             ImageUrl = si.ImageUrl,
             CreatedDate = si.CreatedDate
+        };
+
+        private static CommentDto MapToCommentDto(Comments c) => new()
+        {
+            CommentId = c.CommentId,
+            ProjectId = c.ProjectId,
+            TaskId = c.TaskId,
+            UserId = c.UserId,
+            FullName = c.User?.FullName ?? string.Empty,
+            CommentText = c.CommentText,
+            CreatedDate = c.CreatedDate
+        };
+
+        private static AttachmentDto MapToAttachmentDto(Attachments a) => new()
+        {
+            AttachmentId = a.AttachmentId,
+            ProjectId = a.ProjectId,
+            TaskId = a.TaskId,
+            FileName = a.FileName,
+            FilePath = a.FilePath,
+            FileSizeByte = a.FileSizeByte,
+            UploadedBy = a.UploadedBy,
+            UploadedByName = a.Uploader?.FullName ?? string.Empty,
+            UploadedDate = a.UploadedDate
         };
     }
 }

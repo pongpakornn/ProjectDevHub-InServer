@@ -39,3 +39,23 @@ export interface WorkItem {
   imageUrl: string;
   date: string;
 }
+
+// เฉพาะ Team — ตรงกับ CommentDto ฝั่ง Backend (Project.Comments)
+export interface ProjectComment {
+  id: string;
+  userId: number;
+  fullName: string;
+  text: string;
+  createdDate: string;
+}
+
+// เฉพาะ Team — ตรงกับ AttachmentDto ฝั่ง Backend (Project.Attachments)
+export interface ProjectAttachment {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileSizeByte: number | null;
+  uploadedBy: number;
+  uploadedByName: string;
+  uploadedDate: string;
+}

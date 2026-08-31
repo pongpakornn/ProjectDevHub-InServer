@@ -3,13 +3,13 @@
 import React from "react";
 import Link from "next/link";
 import { GitFork, User, Users, ArrowRight } from "lucide-react";
-import { FlowProjectItem } from "../page";
+import { FlowListItem } from "@/types/flow";
 
 interface FlowProjectCardProps {
-  project: FlowProjectItem;
+  project: FlowListItem;
 }
 
-const statusBadgeClass = (status: FlowProjectItem["status"]) => {
+const statusBadgeClass = (status: FlowListItem["status"]) => {
   if (status === "เสร็จแล้ว") return "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (status === "กำลังทำ") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-slate-100 text-slate-600 border-slate-200";

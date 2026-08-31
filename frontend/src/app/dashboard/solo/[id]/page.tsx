@@ -15,8 +15,8 @@ import {
   getProjectDetail,
   updateProject,
   createWorkItem,
+  updateWorkItem,
   updateTaskItem,
-  deleteWorkItem,
   autoGeneratePhases,
 } from "@/lib/project-solo-api";
 
@@ -73,21 +73,9 @@ export default function ProjectDetailPage() {
   // ===========================================================================
   // Project
   // ===========================================================================
-  const handleUpdateProject = async (updatedProject: SoloProject) => {
+  const handleUpdateProject = async (formData: CreateProjectFormData) => {
     if (!projectInfo) return;
     try {
-      const formData: CreateProjectFormData = {
-        name: updatedProject.name,
-        description: updatedProject.description || "",
-        projectTypeId: updatedProject.projectTypeId,
-        department: updatedProject.department || "",
-        requester: updatedProject.requester || "",
-        ownerId: updatedProject.ownerId,
-        priority: updatedProject.priority,
-        status: updatedProject.status,
-        startDate: updatedProject.startDate || "",
-        endDate: updatedProject.endDate || "",
-      };
       const saved = await updateProject(projectInfo.id, formData, CURRENT_USER_ID);
       setProjectInfo(saved);
       setIsEditModalOpen(false);
@@ -146,19 +134,24 @@ export default function ProjectDetailPage() {
     if (!projectInfo) return;
     try {
       if (editingWork) {
-        // หมายเหตุ: Backend ยังไม่มี UpdateWorkItem endpoint (มีแค่ Create/Delete)
-        await deleteWorkItem(Number(editingWork.id));
-      }
-      await createWorkItem(
-        projectInfo.id,
-        {
+        await updateWorkItem(Number(editingWork.id), projectInfo.id, {
           title: workData.title,
           description: workData.desc,
           flowDescription: workData.flow,
           imageUrl: workData.image || "",
-        },
-        CURRENT_USER_ID
-      );
+        });
+      } else {
+        await createWorkItem(
+          projectInfo.id,
+          {
+            title: workData.title,
+            description: workData.desc,
+            flowDescription: workData.flow,
+            imageUrl: workData.image || "",
+          },
+          CURRENT_USER_ID
+        );
+      }
       await loadProjectDetail();
     } catch (err) {
       console.error(err);
@@ -212,6 +205,7 @@ export default function ProjectDetailPage() {
       <ProjectShowcaseSection
         works={works}
         setWorks={setWorks}
+        phases={phases}
         onOpenAddModal={handleOpenAddWorkModal}
         onOpenEditModal={handleOpenEditWorkModal}
       />

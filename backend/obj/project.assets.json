@@ -3673,11 +3673,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
+      "projectUniqueName": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
       "projectName": "backend",
-      "projectPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
+      "projectPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
       "packagesPath": "C:\\Users\\pongp\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\obj\\",
+      "outputPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

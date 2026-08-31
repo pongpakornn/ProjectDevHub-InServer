@@ -471,6 +471,12 @@ namespace backend.DTOs
         public string? ImageUrl { get; set; }
     }
 
+    public class UpdateWorkItemRequest : CreateWorkItemRequest
+    {
+        [Required]
+        public int ShowcaseItemId { get; set; }
+    }
+
     // ===========================================================================
     // Solo Project Detail — รวมทุกอย่างสำหรับหน้า Detail ในครั้งเดียว (ลด Round-trip)
     // ===========================================================================

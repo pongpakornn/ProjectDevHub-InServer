@@ -11,17 +11,21 @@ import TeamProjectStackSection from "@/components/projects/detail/team/team-proj
 import TeamProjectGanttTimeline from "@/components/projects/detail/team/team-project-gantt-timeline";
 import TeamProjectGallerySection from "@/components/projects/detail/team/team-project-gallery-section";
 import TeamAddWorkModal from "@/components/projects/detail/team/team-add-work-modal";
+import TeamProjectCommentsPanel from "@/components/projects/detail/team/team-project-comments-panel";
+import TeamProjectAttachmentsPanel from "@/components/projects/detail/team/team-project-attachments-panel";
 import { TeamProject, CreateProjectFormData } from "@/types/project";
-import { Phase, StackItem, WorkItem, TaskItem } from "@/types/project-detail";
+import { Phase, StackItem, WorkItem, TaskItem, ProjectComment, ProjectAttachment } from "@/types/project-detail";
 import {
   getProjectDetail,
   updateProject,
   createWorkItem,
+  updateWorkItem,
   updateTaskItem,
-  deleteWorkItem,
   autoGeneratePhases,
   addMember,
   removeMember,
+  getComments,
+  getAttachments,
 } from "@/lib/project-team-api";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
@@ -35,6 +39,8 @@ export default function TeamProjectDetailPage() {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [stacks, setStacks] = useState<StackItem[]>([]);
   const [works, setWorks] = useState<WorkItem[]>([]);
+  const [comments, setComments] = useState<ProjectComment[]>([]);
+  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,11 +54,17 @@ export default function TeamProjectDetailPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const detail = await getProjectDetail(projectId);
+      const [detail, commentList, attachmentList] = await Promise.all([
+        getProjectDetail(projectId),
+        getComments(projectId),
+        getAttachments(projectId),
+      ]);
       setProjectInfo(detail.project);
       setPhases(detail.phases);
       setStacks(detail.stacks);
       setWorks(detail.showcases);
+      setComments(commentList);
+      setAttachments(attachmentList);
     } catch (err) {
       console.error(err);
       setLoadError("ไม่สามารถโหลดข้อมูลโปรเจกต์ได้ กรุณาลองใหม่อีกครั้ง");
@@ -179,19 +191,24 @@ export default function TeamProjectDetailPage() {
     if (!projectInfo) return;
     try {
       if (editingWork) {
-        // หมายเหตุ: Backend ยังไม่มี UpdateWorkItem endpoint (มีแค่ Create/Delete) — ลบของเดิมแล้วสร้างใหม่แทน
-        await deleteWorkItem(Number(editingWork.id));
-      }
-      await createWorkItem(
-        projectInfo.id,
-        {
+        await updateWorkItem(Number(editingWork.id), projectInfo.id, {
           title: workData.title,
           description: workData.desc,
           flowDescription: workData.flow,
           imageUrl: workData.image || "",
-        },
-        CURRENT_USER_ID
-      );
+        });
+      } else {
+        await createWorkItem(
+          projectInfo.id,
+          {
+            title: workData.title,
+            description: workData.desc,
+            flowDescription: workData.flow,
+            imageUrl: workData.image || "",
+          },
+          CURRENT_USER_ID
+        );
+      }
       await loadProjectDetail();
     } catch (err) {
       console.error(err);
@@ -256,8 +273,23 @@ export default function TeamProjectDetailPage() {
       <TeamProjectGallerySection
         works={works}
         setWorks={setWorks}
+        phases={phases}
         onOpenAddModal={handleOpenAddWorkModal}
         onOpenEditModal={handleOpenEditWorkModal}
+      />
+
+      <TeamProjectAttachmentsPanel
+        projectId={projectInfo.id}
+        currentUserId={CURRENT_USER_ID}
+        attachments={attachments}
+        setAttachments={setAttachments}
+      />
+
+      <TeamProjectCommentsPanel
+        projectId={projectInfo.id}
+        currentUserId={CURRENT_USER_ID}
+        comments={comments}
+        setComments={setComments}
       />
 
       <TeamAddWorkModal

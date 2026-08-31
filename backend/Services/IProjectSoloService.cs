@@ -51,7 +51,7 @@ namespace backend.Services
         Task<SoloProjectDetailDto?> GetProjectDetailAsync(int projectId);
         Task<SoloProjectDto> CreateProjectAsync(CreateSoloProjectRequest request, int currentUserId);
         Task<SoloProjectDto?> UpdateProjectAsync(UpdateSoloProjectRequest request, int currentUserId);
-        Task<bool> DeleteProjectAsync(int projectId);
+        Task<bool> DeleteProjectAsync(int projectId, int currentUserId);
 
         // Phase (Milestone)
         Task<PhaseDto> CreatePhaseAsync(CreatePhaseRequest request);
@@ -70,6 +70,7 @@ namespace backend.Services
 
         // WorkItem (ShowcaseItem)
         Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId);
+        Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request);
         Task<bool> DeleteWorkItemAsync(int showcaseItemId);
     }
 }
