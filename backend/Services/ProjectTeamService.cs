@@ -544,6 +544,114 @@ namespace backend.Services
         }
 
         // ===========================================================================
+        // Comments
+        // ===========================================================================
+        public async Task<List<CommentDto>?> GetCommentsAsync(int projectId, int? taskId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var comments = taskId.HasValue
+                ? await _context.Comments
+                    .Where(c => c.TaskId == taskId.Value)
+                    .Include(c => c.User)
+                    .OrderBy(c => c.CreatedDate)
+                    .ToListAsync()
+                : await _context.Comments
+                    .Where(c => c.ProjectId == projectId && c.TaskId == null)
+                    .Include(c => c.User)
+                    .OrderBy(c => c.CreatedDate)
+                    .ToListAsync();
+
+            return comments.Select(MapToCommentDto).ToList();
+        }
+
+        public async Task<CommentDto?> AddCommentAsync(int projectId, CreateCommentRequest request, int currentUserId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var comment = new Comments
+            {
+                ProjectId = request.TaskId.HasValue ? null : projectId,
+                TaskId = request.TaskId,
+                UserId = currentUserId,
+                CommentText = request.CommentText
+            };
+
+            _context.Comments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(comment).Reference(c => c.User).LoadAsync();
+            return MapToCommentDto(comment);
+        }
+
+        public async Task<bool> DeleteCommentAsync(long commentId)
+        {
+            var comment = await _context.Comments.FindAsync(commentId);
+            if (comment == null) return false;
+
+            _context.Comments.Remove(comment);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // Attachments
+        // ===========================================================================
+        public async Task<List<AttachmentDto>?> GetAttachmentsAsync(int projectId, int? taskId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var attachments = taskId.HasValue
+                ? await _context.Attachments
+                    .Where(a => a.TaskId == taskId.Value)
+                    .Include(a => a.Uploader)
+                    .OrderByDescending(a => a.UploadedDate)
+                    .ToListAsync()
+                : await _context.Attachments
+                    .Where(a => a.ProjectId == projectId && a.TaskId == null)
+                    .Include(a => a.Uploader)
+                    .OrderByDescending(a => a.UploadedDate)
+                    .ToListAsync();
+
+            return attachments.Select(MapToAttachmentDto).ToList();
+        }
+
+        public async Task<AttachmentDto?> AddAttachmentAsync(int projectId, CreateAttachmentRequest request, int currentUserId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            var attachment = new Attachments
+            {
+                ProjectId = request.TaskId.HasValue ? null : projectId,
+                TaskId = request.TaskId,
+                FileName = request.FileName,
+                FilePath = request.FilePath,
+                FileSizeByte = request.FileSizeByte,
+                UploadedBy = currentUserId
+            };
+
+            _context.Attachments.Add(attachment);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(attachment).Reference(a => a.Uploader).LoadAsync();
+            return MapToAttachmentDto(attachment);
+        }
+
+        public async Task<bool> DeleteAttachmentAsync(long attachmentId)
+        {
+            var attachment = await _context.Attachments.FindAsync(attachmentId);
+            if (attachment == null) return false;
+
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
         // Helpers
         // ===========================================================================
         private async Task<string> GenerateProjectCodeAsync()
@@ -666,6 +774,30 @@ namespace backend.Services
             FlowDescription = si.FlowDescription,
             ImageUrl = si.ImageUrl,
             CreatedDate = si.CreatedDate
+        };
+
+        private static CommentDto MapToCommentDto(Comments c) => new()
+        {
+            CommentId = c.CommentId,
+            ProjectId = c.ProjectId,
+            TaskId = c.TaskId,
+            UserId = c.UserId,
+            FullName = c.User?.FullName ?? string.Empty,
+            CommentText = c.CommentText,
+            CreatedDate = c.CreatedDate
+        };
+
+        private static AttachmentDto MapToAttachmentDto(Attachments a) => new()
+        {
+            AttachmentId = a.AttachmentId,
+            ProjectId = a.ProjectId,
+            TaskId = a.TaskId,
+            FileName = a.FileName,
+            FilePath = a.FilePath,
+            FileSizeByte = a.FileSizeByte,
+            UploadedBy = a.UploadedBy,
+            UploadedByName = a.Uploader?.FullName ?? string.Empty,
+            UploadedDate = a.UploadedDate
         };
     }
 }

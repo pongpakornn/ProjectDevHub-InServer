@@ -46,4 +46,34 @@ public class UploadController : ControllerBase
         var url = $"{_requestPath}/{projectId}/{fileName}";
         return Ok(new { url });
     }
+
+    // POST /api/Upload/attachment?projectId=5 — ไฟล์แนบทั่วไปของ Project.Attachments (ไม่จำกัดเฉพาะรูปภาพ)
+    [HttpPost("attachment")]
+    public async Task<IActionResult> UploadAttachment(IFormFile file, [FromQuery] int projectId)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "ไม่พบไฟล์แนบ" });
+
+        if (projectId <= 0)
+            return BadRequest(new { message = "ไม่พบ projectId" });
+
+        const long maxSizeBytes = 25 * 1024 * 1024; // 25 MB
+        if (file.Length > maxSizeBytes)
+            return BadRequest(new { message = "ไฟล์มีขนาดใหญ่เกิน 25 MB" });
+
+        var attachmentFolder = Path.Combine(_photoRoot, "attachments", projectId.ToString());
+        Directory.CreateDirectory(attachmentFolder);
+
+        var ext = Path.GetExtension(file.FileName);
+        var storedFileName = $"{Guid.NewGuid()}{ext}";
+        var fullPath = Path.Combine(attachmentFolder, storedFileName);
+
+        using (var stream = new FileStream(fullPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var url = $"{_requestPath}/attachments/{projectId}/{storedFileName}";
+        return Ok(new { url, fileName = file.FileName, fileSizeByte = file.Length });
+    }
 }

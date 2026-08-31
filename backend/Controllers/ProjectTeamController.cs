@@ -373,5 +373,111 @@ namespace backend.Controllers
                 return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
             }
         }
+
+        // ===========================================================================
+        // Comments — GET/POST /api/ProjectTeam/{id}/comments, DELETE /api/ProjectTeam/comments/{commentId}
+        // ===========================================================================
+        [HttpGet("{id:int}/comments")]
+        public async Task<IActionResult> GetComments(int id, [FromQuery] int? taskId)
+        {
+            try
+            {
+                var result = await _projectTeamService.GetCommentsAsync(id, taskId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงความคิดเห็นของ Project {ProjectId}", id);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("{id:int}/comments")]
+        public async Task<IActionResult> AddComment(int id, [FromBody] CreateCommentRequest request, [FromQuery] int userId)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _projectTeamService.AddCommentAsync(id, request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการเพิ่มความคิดเห็นของ Project {ProjectId}", id);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpDelete("comments/{commentId:long}")]
+        public async Task<IActionResult> DeleteComment(long commentId)
+        {
+            try
+            {
+                var success = await _projectTeamService.DeleteCommentAsync(commentId);
+                if (!success) return NotFound(new { message = "ไม่พบความคิดเห็นนี้" });
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการลบความคิดเห็น {CommentId}", commentId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        // ===========================================================================
+        // Attachments — GET/POST /api/ProjectTeam/{id}/attachments, DELETE /api/ProjectTeam/attachments/{attachmentId}
+        // ===========================================================================
+        [HttpGet("{id:int}/attachments")]
+        public async Task<IActionResult> GetAttachments(int id, [FromQuery] int? taskId)
+        {
+            try
+            {
+                var result = await _projectTeamService.GetAttachmentsAsync(id, taskId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงไฟล์แนบของ Project {ProjectId}", id);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("{id:int}/attachments")]
+        public async Task<IActionResult> AddAttachment(int id, [FromBody] CreateAttachmentRequest request, [FromQuery] int userId)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _projectTeamService.AddAttachmentAsync(id, request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการเพิ่มไฟล์แนบของ Project {ProjectId}", id);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpDelete("attachments/{attachmentId:long}")]
+        public async Task<IActionResult> DeleteAttachment(long attachmentId)
+        {
+            try
+            {
+                var success = await _projectTeamService.DeleteAttachmentAsync(attachmentId);
+                if (!success) return NotFound(new { message = "ไม่พบไฟล์แนบนี้" });
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการลบไฟล์แนบ {AttachmentId}", attachmentId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
     }
 }

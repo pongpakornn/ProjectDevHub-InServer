@@ -35,5 +35,15 @@ namespace backend.Services
         // WorkItem (ShowcaseItem)
         Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId);
         Task<bool> DeleteWorkItemAsync(int showcaseItemId);
+
+        // Comments
+        Task<List<CommentDto>?> GetCommentsAsync(int projectId, int? taskId);
+        Task<CommentDto?> AddCommentAsync(int projectId, CreateCommentRequest request, int currentUserId);
+        Task<bool> DeleteCommentAsync(long commentId);
+
+        // Attachments
+        Task<List<AttachmentDto>?> GetAttachmentsAsync(int projectId, int? taskId);
+        Task<AttachmentDto?> AddAttachmentAsync(int projectId, CreateAttachmentRequest request, int currentUserId);
+        Task<bool> DeleteAttachmentAsync(long attachmentId);
     }
 }

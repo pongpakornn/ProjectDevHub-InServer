@@ -2,9 +2,9 @@
 // เชื่อมต่อ Backend จริง (ProjectTeamController) — mirror จาก project-solo-api.ts
 // Master Data (ProjectTypes / Users) ใช้ร่วมกับ Solo ได้เลยเพราะเป็นข้อมูลกลาง ไม่ผูกกับ Solo/Team
 // จึง re-export getProjectTypes / getUsers / uploadShowcaseImage จาก project-solo-api แทนการสร้างซ้ำ
-import { fetchApi, API_HOST } from "@/lib/api-client";
+import { fetchApi, API_HOST, API_BASE_URL } from "@/lib/api-client";
 import { TeamProject, TeamProjectDetail, ProjectMember, CreateProjectFormData } from "@/types/project";
-import { Phase, TaskItem, StackItem, WorkItem, TaskAssignee } from "@/types/project-detail";
+import { Phase, TaskItem, StackItem, WorkItem, TaskAssignee, ProjectComment, ProjectAttachment } from "@/types/project-detail";
 
 export { getProjectTypes, getUsers, uploadShowcaseImage } from "@/lib/project-solo-api";
 export type { ProjectType, UserOption } from "@/lib/project-solo-api";
@@ -93,6 +93,28 @@ interface TeamProjectDetailDtoRaw {
   phases: TeamPhaseDtoRaw[];
   stacks: StackItemDtoRaw[];
   showcases: WorkItemDtoRaw[];
+}
+
+interface CommentDtoRaw {
+  commentId: number;
+  projectId?: number | null;
+  taskId?: number | null;
+  userId: number;
+  fullName: string;
+  commentText: string;
+  createdDate: string;
+}
+
+interface AttachmentDtoRaw {
+  attachmentId: number;
+  projectId?: number | null;
+  taskId?: number | null;
+  fileName: string;
+  filePath: string;
+  fileSizeByte?: number | null;
+  uploadedBy: number;
+  uploadedByName: string;
+  uploadedDate: string;
 }
 
 function mapMember(raw: ProjectMemberDtoRaw): ProjectMember {
@@ -184,6 +206,28 @@ function toIsoDate(dateStr?: string | null): string | null {
     return `${y}-${m}-${d}`;
   }
   return dateStr;
+}
+
+function mapComment(raw: CommentDtoRaw): ProjectComment {
+  return {
+    id: String(raw.commentId),
+    userId: raw.userId,
+    fullName: raw.fullName,
+    text: raw.commentText,
+    createdDate: raw.createdDate,
+  };
+}
+
+function mapAttachment(raw: AttachmentDtoRaw): ProjectAttachment {
+  return {
+    id: String(raw.attachmentId),
+    fileName: raw.fileName,
+    fileUrl: `${API_HOST}${raw.filePath}`,
+    fileSizeByte: raw.fileSizeByte ?? null,
+    uploadedBy: raw.uploadedBy,
+    uploadedByName: raw.uploadedByName,
+    uploadedDate: raw.uploadedDate,
+  };
 }
 
 function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
@@ -426,4 +470,76 @@ export async function createWorkItem(
 
 export function deleteWorkItem(showcaseItemId: number): Promise<void> {
   return fetchApi<void>(`/ProjectTeam/showcases/${showcaseItemId}`, { method: "DELETE" });
+}
+
+// ===========================================================================
+// Comments — Project.Comments (คอมเมนต์ระดับโปรเจกต์ ไม่ผูก Task)
+// ===========================================================================
+export async function getComments(projectId: number): Promise<ProjectComment[]> {
+  const raw = await fetchApi<CommentDtoRaw[]>(`/ProjectTeam/${projectId}/comments`);
+  return raw.map(mapComment);
+}
+
+export async function addComment(
+  projectId: number,
+  commentText: string,
+  currentUserId: number
+): Promise<ProjectComment> {
+  const raw = await fetchApi<CommentDtoRaw>(`/ProjectTeam/${projectId}/comments?userId=${currentUserId}`, {
+    method: "POST",
+    body: JSON.stringify({ commentText }),
+  });
+  return mapComment(raw);
+}
+
+export function deleteComment(commentId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/comments/${commentId}`, { method: "DELETE" });
+}
+
+// ===========================================================================
+// Attachments — Project.Attachments (ไฟล์แนบระดับโปรเจกต์ ไม่ผูก Task)
+// ===========================================================================
+export async function getAttachments(projectId: number): Promise<ProjectAttachment[]> {
+  const raw = await fetchApi<AttachmentDtoRaw[]>(`/ProjectTeam/${projectId}/attachments`);
+  return raw.map(mapAttachment);
+}
+
+async function uploadAttachmentFile(
+  projectId: number,
+  file: File
+): Promise<{ url: string; fileName: string; fileSizeByte: number }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/Upload/attachment?projectId=${projectId}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("อัปโหลดไฟล์แนบไม่สำเร็จ");
+  }
+
+  return response.json();
+}
+
+export async function addAttachment(
+  projectId: number,
+  file: File,
+  currentUserId: number
+): Promise<ProjectAttachment> {
+  const uploaded = await uploadAttachmentFile(projectId, file);
+  const raw = await fetchApi<AttachmentDtoRaw>(`/ProjectTeam/${projectId}/attachments?userId=${currentUserId}`, {
+    method: "POST",
+    body: JSON.stringify({
+      fileName: uploaded.fileName,
+      filePath: uploaded.url,
+      fileSizeByte: uploaded.fileSizeByte,
+    }),
+  });
+  return mapAttachment(raw);
+}
+
+export function deleteAttachment(attachmentId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/attachments/${attachmentId}`, { method: "DELETE" });
 }

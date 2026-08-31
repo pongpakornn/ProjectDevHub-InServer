@@ -161,4 +161,57 @@ namespace backend.DTOs
         public List<StackItemDto> Stacks { get; set; } = new();
         public List<WorkItemDto> Showcases { get; set; } = new();
     }
+
+    // ===========================================================================
+    // Comments — ความคิดเห็น (Join Core.Users) ผูกกับ Project หรือ Task
+    // ===========================================================================
+    public class CommentDto
+    {
+        public long CommentId { get; set; }
+        public int? ProjectId { get; set; }
+        public int? TaskId { get; set; }
+        public int UserId { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string CommentText { get; set; } = string.Empty;
+        public DateTimeOffset CreatedDate { get; set; }
+    }
+
+    public class CreateCommentRequest
+    {
+        // ระบุ TaskId เมื่อเป็นคอมเมนต์ของ Task นั้น — ถ้าไม่ระบุ ถือเป็นคอมเมนต์ของ Project โดยตรง
+        public int? TaskId { get; set; }
+
+        [Required]
+        public string CommentText { get; set; } = string.Empty;
+    }
+
+    // ===========================================================================
+    // Attachments — ไฟล์แนบ (Join Core.Users) ผูกกับ Project หรือ Task
+    // ===========================================================================
+    public class AttachmentDto
+    {
+        public long AttachmentId { get; set; }
+        public int? ProjectId { get; set; }
+        public int? TaskId { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public long? FileSizeByte { get; set; }
+        public int UploadedBy { get; set; }
+        public string UploadedByName { get; set; } = string.Empty;
+        public DateTimeOffset UploadedDate { get; set; }
+    }
+
+    public class CreateAttachmentRequest
+    {
+        // ระบุ TaskId เมื่อเป็นไฟล์แนบของ Task นั้น — ถ้าไม่ระบุ ถือเป็นไฟล์แนบของ Project โดยตรง
+        public int? TaskId { get; set; }
+
+        [Required, StringLength(255)]
+        public string FileName { get; set; } = string.Empty;
+
+        [Required, StringLength(500)]
+        public string FilePath { get; set; } = string.Empty;
+
+        public long? FileSizeByte { get; set; }
+    }
 }
