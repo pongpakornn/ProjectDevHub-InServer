@@ -2,12 +2,12 @@
 
 import React from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { PresentItem } from "@/types/present";
+import { WorkItem } from "@/types/project-detail";
 
 interface PresentLightboxProps {
   isOpen: boolean;
   isVisible: boolean;
-  activeItem: PresentItem | null;
+  activeItem: WorkItem | null;
   activeIndex: number;
   totalItems: number;
   slideDirection: "left" | "right";
@@ -79,7 +79,7 @@ export function PresentLightbox({
             {String(activeIndex + 1).padStart(2, "0")} / {String(totalItems).padStart(2, "0")}
           </p>
           <p className="text-white font-extrabold text-lg sm:text-xl mt-1">{activeItem.title}</p>
-          <p className="text-white/70 text-sm mt-0.5">{activeItem.subtitle}</p>
+          <p className="text-white/70 text-sm mt-0.5">{activeItem.description}</p>
         </div>
       </div>
     </div>

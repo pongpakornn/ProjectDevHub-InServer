@@ -6,6 +6,7 @@ export interface TestRunItem {
   id: string | number;
   suiteName: string;
   subText?: string;
+  projectId: number;
   projectName: string;
   tool: TestTool;
   environment: TestEnvironment;

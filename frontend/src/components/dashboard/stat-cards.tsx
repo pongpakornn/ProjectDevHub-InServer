@@ -1,19 +1,26 @@
 "use client";
 
 import { User, Users, Activity, CheckCircle2, TestTube, TrendingUp, FlaskConical, Clock } from "lucide-react";
+import { DashboardSummary } from "@/types/dashboard";
 
-const stats = [
-  { id: "1", title: "ทำคนเดียว", value: "8", subtitle: "โปรเจค", icon: User, color: "from-emerald-500 to-teal-600", textColor: "text-emerald-800", bgBadge: "bg-emerald-100", borderAccent: "border-slate-300 hover:border-emerald-500" },
-  { id: "2", title: "ทำกับทีม", value: "0", subtitle: "โปรเจค", icon: Users, color: "from-blue-500 to-indigo-600", textColor: "text-blue-800", bgBadge: "bg-blue-100", borderAccent: "border-slate-300 hover:border-blue-500" },
-  { id: "3", title: "กำลังทำ", value: "2", subtitle: "อยู่ระหว่างพัฒนา", icon: Activity, color: "from-amber-500 to-orange-600", textColor: "text-amber-800", bgBadge: "bg-amber-100", borderAccent: "border-slate-300 hover:border-amber-500" },
-  { id: "4", title: "เสร็จแล้ว", value: "6", subtitle: "ส่งมอบสำเร็จ", icon: CheckCircle2, color: "from-emerald-500 to-green-600", textColor: "text-emerald-800", bgBadge: "bg-emerald-100", borderAccent: "border-slate-300 hover:border-emerald-500" },
-  { id: "5", title: "รอบเทสทั้งหมด", value: "1", subtitle: "TEST RUN", icon: FlaskConical, color: "from-purple-500 to-violet-600", textColor: "text-purple-800", bgBadge: "bg-purple-100", borderAccent: "border-slate-300 hover:border-purple-500" },
-  { id: "6", title: "อัตราผ่าน", value: "80%", subtitle: "PASS RATE", icon: TrendingUp, color: "from-teal-500 to-emerald-600", textColor: "text-teal-800", bgBadge: "bg-teal-100", borderAccent: "border-slate-300 hover:border-teal-500" },
-  { id: "7", title: "เคสทดสอบ", value: "5", subtitle: "TEST CASE", icon: TestTube, color: "from-sky-500 to-blue-600", textColor: "text-sky-800", bgBadge: "bg-sky-100", borderAccent: "border-slate-300 hover:border-sky-500" },
-  { id: "8", title: "เวลารวม", value: "0m", subtitle: "นาที", icon: Clock, color: "from-rose-500 to-pink-600", textColor: "text-rose-800", bgBadge: "bg-rose-100", borderAccent: "border-slate-300 hover:border-rose-500" },
-];
+interface StatCardsProps {
+  summary: DashboardSummary;
+}
 
-export default function StatCards() {
+export default function StatCards({ summary }: StatCardsProps) {
+  const totalDurationMinutes = Math.round(summary.totalDurationSeconds / 60);
+
+  const stats = [
+    { id: "1", title: "ทำคนเดียว", value: String(summary.soloCount), subtitle: "โปรเจค", icon: User, color: "from-emerald-500 to-teal-600", textColor: "text-emerald-800", bgBadge: "bg-emerald-100", borderAccent: "border-slate-300 hover:border-emerald-500" },
+    { id: "2", title: "ทำกับทีม", value: String(summary.teamCount), subtitle: "โปรเจค", icon: Users, color: "from-blue-500 to-indigo-600", textColor: "text-blue-800", bgBadge: "bg-blue-100", borderAccent: "border-slate-300 hover:border-blue-500" },
+    { id: "3", title: "กำลังทำ", value: String(summary.inProgressCount), subtitle: "อยู่ระหว่างพัฒนา", icon: Activity, color: "from-amber-500 to-orange-600", textColor: "text-amber-800", bgBadge: "bg-amber-100", borderAccent: "border-slate-300 hover:border-amber-500" },
+    { id: "4", title: "เสร็จแล้ว", value: String(summary.completedCount), subtitle: "ส่งมอบสำเร็จ", icon: CheckCircle2, color: "from-emerald-500 to-green-600", textColor: "text-emerald-800", bgBadge: "bg-emerald-100", borderAccent: "border-slate-300 hover:border-emerald-500" },
+    { id: "5", title: "รอบเทสทั้งหมด", value: String(summary.totalTestRuns), subtitle: "TEST RUN", icon: FlaskConical, color: "from-purple-500 to-violet-600", textColor: "text-purple-800", bgBadge: "bg-purple-100", borderAccent: "border-slate-300 hover:border-purple-500" },
+    { id: "6", title: "อัตราผ่าน", value: `${summary.passRate}%`, subtitle: "PASS RATE", icon: TrendingUp, color: "from-teal-500 to-emerald-600", textColor: "text-teal-800", bgBadge: "bg-teal-100", borderAccent: "border-slate-300 hover:border-teal-500" },
+    { id: "7", title: "เคสทดสอบ", value: String(summary.totalTestCases), subtitle: "TEST CASE", icon: TestTube, color: "from-sky-500 to-blue-600", textColor: "text-sky-800", bgBadge: "bg-sky-100", borderAccent: "border-slate-300 hover:border-sky-500" },
+    { id: "8", title: "เวลารวม", value: `${totalDurationMinutes}m`, subtitle: "นาที", icon: Clock, color: "from-rose-500 to-pink-600", textColor: "text-rose-800", bgBadge: "bg-rose-100", borderAccent: "border-slate-300 hover:border-rose-500" },
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((item) => {

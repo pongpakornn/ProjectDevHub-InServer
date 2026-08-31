@@ -1,42 +1,92 @@
 // path: app/dashboard/present/page.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Tv, User, Users, ArrowRight, Sparkles } from "lucide-react";
+import { getProjects as getSoloProjects } from "@/lib/project-solo-api";
+import { getProjects as getTeamProjects } from "@/lib/project-team-api";
 
-interface PresentProjectItem {
-  id: string;
+interface PresentProjectCard {
+  id: number;
+  routeType: "solo" | "team";
   name: string;
-  description: string;
-  status: "เสร็จแล้ว" | "กำลังทำ" | "วางแผน";
-  startDate: string;
-  endDate: string;
-  workType: "ทำคนเดียว" | "ทำกับทีม";
+  description?: string;
+  status: string; // PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+  startDate?: string;
+  endDate?: string;
+  workType: "SOLO" | "TEAM";
   progress: number;
 }
 
-// รายชื่อโปรเจคทั้งหมด (mockup) — ดึงจาก Solo + Team ในอนาคตได้
-export const presentProjects: PresentProjectItem[] = [
-  { id: "checkpallet-v1", name: "CheckPallet V.1", description: "โปรแกรม CheckPallet ที่บรรจุสินค้าไปส่งให้ลูกค้า...", status: "เสร็จแล้ว", startDate: "15/11/2025", endDate: "21/11/2025", workType: "ทำคนเดียว", progress: 100 },
-  { id: "storepc-v1", name: "StorePC V.1", description: "ระบบจัดการสินค้าและคลังสินค้า แบบ Real-Time...", status: "เสร็จแล้ว", startDate: "12/12/2025", endDate: "05/03/2026", workType: "ทำคนเดียว", progress: 100 },
-  { id: "storesp", name: "StoreSP - Spare Part", description: "ระบบจัดการวัตถุดิบคงคลังในการซ่อมบำรุงรักษาแม่พิมพ์", status: "เสร็จแล้ว", startDate: "05/03/2026", endDate: "10/04/2026", workType: "ทำคนเดียว", progress: 100 },
-  { id: "storerm", name: "StoreRM - Raw Material", description: "ระบบจัดการวัตถุดิบคงคลัง ควบคุมการใช้งานวัตถุดิบสิ้นเปลือง...", status: "เสร็จแล้ว", startDate: "11/04/2026", endDate: "13/04/2026", workType: "ทำคนเดียว", progress: 100 },
-  { id: "softpro-stock", name: "Softpro Core API - Stock", description: "ระบบดึงข้อมูล Stock เหล็กจากระบบ ERP มาแสดง...", status: "เสร็จแล้ว", startDate: "11/04/2026", endDate: "13/04/2026", workType: "ทำคนเดียว", progress: 100 },
-  { id: "ot-web-api", name: "OT Web API", description: "ระบบดึงข้อมูล Stock เหล็กจากระบบ ERP มาแสดง...", status: "เสร็จแล้ว", startDate: "11/04/2026", endDate: "13/04/2026", workType: "ทำคนเดียว", progress: 100 },
-  { id: "softpro-hr", name: "Softpro Core API - HR", description: "ระบบดึงข้อมูล Stock เหล็กจากระบบ ERP มาแสดง...", status: "กำลังทำ", startDate: "11/04/2026", endDate: "13/04/2026", workType: "ทำคนเดียว", progress: 40 },
-  { id: "smartops", name: "SmartOps System", description: "ระบบกรองข้อมูลจากไฟล์ PDF และ Export รายงาน...", status: "กำลังทำ", startDate: "03/08/2026", endDate: "-", workType: "ทำคนเดียว", progress: 10 },
-  { id: "erp-hub", name: "ERP Integration Hub", description: "ระบบเชื่อมต่อข้อมูล ERP ระหว่างสาขา...", status: "วางแผน", startDate: "01/08/2026", endDate: "15/08/2026", workType: "ทำกับทีม", progress: 5 },
-];
+const STATUS_LABEL: Record<string, string> = {
+  PLANNING: "วางแผน",
+  IN_PROGRESS: "กำลังทำ",
+  ON_HOLD: "พักไว้",
+  COMPLETED: "เสร็จแล้ว",
+  CANCELLED: "ยกเลิก",
+};
 
-const statusBadgeClass = (status: PresentProjectItem["status"]) => {
-  if (status === "เสร็จแล้ว") return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (status === "กำลังทำ") return "bg-amber-50 text-amber-700 border-amber-200";
+const statusBadgeClass = (status: string) => {
+  if (status === "COMPLETED") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (status === "IN_PROGRESS") return "bg-amber-50 text-amber-700 border-amber-200";
   return "bg-slate-100 text-slate-600 border-slate-200";
 };
 
 export default function PresentStationPage() {
-  const readyCount = presentProjects.filter((p) => p.status === "เสร็จแล้ว").length;
+  const [projects, setProjects] = useState<PresentProjectCard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const [soloProjects, teamProjects] = await Promise.all([getSoloProjects(), getTeamProjects()]);
+        if (cancelled) return;
+
+        const merged: PresentProjectCard[] = [
+          ...soloProjects.map((p) => ({
+            id: p.id,
+            routeType: "solo" as const,
+            name: p.name,
+            description: p.description,
+            status: p.status,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            workType: "SOLO" as const,
+            progress: p.progress,
+          })),
+          ...teamProjects.map((p) => ({
+            id: p.id,
+            routeType: "team" as const,
+            name: p.name,
+            description: p.description,
+            status: p.status,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            workType: "TEAM" as const,
+            progress: p.progress,
+          })),
+        ];
+        setProjects(merged);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setLoadError("ไม่สามารถโหลดรายการโปรเจกต์ได้ กรุณาลองใหม่อีกครั้ง");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const readyCount = projects.filter((p) => p.status === "COMPLETED").length;
 
   return (
     <div className="w-full select-none space-y-6">
@@ -70,78 +120,86 @@ export default function PresentStationPage() {
                   <Tv className="w-4 h-4 text-indigo-400" />
                   โปรเจคทั้งหมด
                 </span>
-                <span className="text-indigo-400 font-mono font-extrabold text-base">{presentProjects.length}</span>
+                <span className="text-indigo-400 font-mono font-extrabold text-base">{projects.length}</span>
               </div>
 
               <div className="w-full bg-slate-950/80 rounded-full h-2 overflow-hidden p-0.5 border border-slate-800">
                 <div
                   className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
-                  style={{ width: `${(readyCount / presentProjects.length) * 100}%` }}
+                  style={{ width: `${projects.length > 0 ? (readyCount / projects.length) * 100 : 0}%` }}
                 />
               </div>
 
               <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 pt-0.5">
                 <span>พร้อมนำเสนอ: <strong className="text-indigo-300">{readyCount}</strong> โปรเจค</span>
-                <span className="text-slate-500">อัปเดตล่าสุด: เมื่อครู่นี้</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grid การ์ดโปรเจค — คลิกที่การ์ดได้เลย, สี/หลอด progress/hover อ้างอิงหน้า Solo Work */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {presentProjects.map((p) => (
-          <Link
-            key={p.id}
-            href={`/dashboard/present/${p.id}`}
-            className="group bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-lg hover:shadow-indigo-500/10 hover:border-indigo-300 hover:-translate-y-1 transition-all duration-300 ease-out flex flex-col gap-3 cursor-pointer"
-          >
-            <div className="flex items-start gap-2.5">
-              <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 shrink-0 transition-colors duration-300 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600">
-                <Tv className="w-4 h-4" />
+      {isLoading ? (
+        <div className="w-full py-20 text-center text-slate-500 text-xs font-medium">กำลังโหลดรายการโปรเจกต์...</div>
+      ) : loadError ? (
+        <div className="w-full py-20 text-center text-red-500 text-xs font-medium">{loadError}</div>
+      ) : projects.length === 0 ? (
+        <div className="w-full py-20 text-center text-slate-400 text-xs font-medium">
+          ยังไม่มีโปรเจกต์ในระบบ — สร้างโปรเจกต์ที่หน้า Solo Work หรือ Team Work ก่อน
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {projects.map((p) => (
+            <Link
+              key={`${p.routeType}-${p.id}`}
+              href={`/dashboard/present/${p.id}?type=${p.routeType}`}
+              className="group bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:shadow-lg hover:shadow-indigo-500/10 hover:border-indigo-300 hover:-translate-y-1 transition-all duration-300 ease-out flex flex-col gap-3 cursor-pointer"
+            >
+              <div className="flex items-start gap-2.5">
+                <div className="p-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 shrink-0 transition-colors duration-300 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600">
+                  <Tv className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-sm truncate transition-colors duration-300 group-hover:text-indigo-600">{p.name}</h3>
+                  <p className="text-[11px] text-slate-500 line-clamp-1">{p.description || "-"}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h3 className="font-bold text-slate-900 text-sm truncate transition-colors duration-300 group-hover:text-indigo-600">{p.name}</h3>
-                <p className="text-[11px] text-slate-500 line-clamp-1">{p.description}</p>
+
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadgeClass(p.status)}`}>
+                  {STATUS_LABEL[p.status] ?? p.status}
+                </span>
+                <span className="text-slate-400 font-mono">
+                  {p.startDate || "-"} → {p.endDate || "-"}
+                </span>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border ${statusBadgeClass(p.status)}`}>
-                {p.status}
-              </span>
-              <span className="text-slate-400 font-mono">
-                {p.startDate} → {p.endDate}
-              </span>
-            </div>
-
-            {/* Progress — สไตล์เดียวกับตาราง Solo Work: หลอด indigo เรืองแสง + เปอร์เซ็นต์ตัวหนาสีเดียวกัน */}
-            <div className="flex items-center gap-2.5">
-              <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
-                <div
-                  className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.7)]"
-                  style={{ width: `${p.progress}%` }}
-                />
+              {/* Progress — สไตล์เดียวกับตาราง Solo Work: หลอด indigo เรืองแสง + เปอร์เซ็นต์ตัวหนาสีเดียวกัน */}
+              <div className="flex items-center gap-2.5">
+                <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+                  <div
+                    className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.7)]"
+                    style={{ width: `${p.progress}%` }}
+                  />
+                </div>
+                <span className="text-indigo-600 font-mono font-extrabold text-[11px] shrink-0 w-8 text-right">
+                  {p.progress}%
+                </span>
               </div>
-              <span className="text-indigo-600 font-mono font-extrabold text-[11px] shrink-0 w-8 text-right">
-                {p.progress}%
-              </span>
-            </div>
 
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-              <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                {p.workType === "ทำคนเดียว" ? <User className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
-                {p.workType}
-              </span>
-              <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-600">
-                เปิดสไลด์
-                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
-              </span>
-            </div>
-          </Link>
-        ))}
-      </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+                  {p.workType === "SOLO" ? <User className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                  {p.workType === "SOLO" ? "ทำคนเดียว" : "ทำกับทีม"}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-600">
+                  เปิดสไลด์
+                  <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

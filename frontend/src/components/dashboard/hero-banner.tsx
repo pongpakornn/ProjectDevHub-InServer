@@ -2,7 +2,11 @@
 
 import { Sparkles, Activity } from "lucide-react";
 
-export default function HeroBanner() {
+interface HeroBannerProps {
+  overallProgress: number;
+}
+
+export default function HeroBanner({ overallProgress }: HeroBannerProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-zinc-900 via-slate-900 to-emerald-950 p-6 sm:p-8 text-white shadow-xl border border-zinc-800/80">
       {/* Decorative Ambient Glow Background */}
@@ -29,15 +33,14 @@ export default function HeroBanner() {
             <span className="text-zinc-300 flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-emerald-400" /> ความคืบหน้ารวม
             </span>
-            <span className="text-emerald-400 font-extrabold text-sm font-mono">89%</span>
+            <span className="text-emerald-400 font-extrabold text-sm font-mono">{overallProgress}%</span>
           </div>
           <div className="w-full h-3 bg-zinc-900/80 rounded-full overflow-hidden p-0.5 border border-zinc-700/60 shadow-inner">
             <div
               className="h-full bg-linear-to-r from-emerald-500 via-teal-400 to-emerald-300 rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-              style={{ width: "89%" }}
+              style={{ width: `${overallProgress}%` }}
             ></div>
           </div>
-          <p className="text-[10px] text-zinc-400 text-right">อัปเดตล่าสุด: เมื่อครู่นี้</p>
         </div>
       </div>
     </div>

@@ -4,17 +4,19 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { TestRunItem, TestTool, TestEnvironment, TestStatus } from "@/types/test-automation";
+import { ProjectOption } from "@/lib/testing-api";
 
 interface TestRunModalProps {
   isOpen: boolean;
   mode?: "create" | "view" | "edit";
   initialData?: TestRunItem | null;
+  projects: ProjectOption[];
   onClose: () => void;
   onSubmit: (data: TestRunItem) => void;
 }
 
 const emptyFormData = {
-  projectName: "Softpro Core API - HR",
+  projectId: 0,
   suiteName: "",
   tool: "playwright" as TestTool,
   environment: "DEV" as TestEnvironment,
@@ -33,6 +35,7 @@ export default function TestRunModal({
   isOpen,
   mode = "create",
   initialData = null,
+  projects,
   onClose,
   onSubmit,
 }: TestRunModalProps) {
@@ -41,13 +44,13 @@ export default function TestRunModal({
   const isViewMode = mode === "view";
 
   // ทุกครั้งที่เปิดโมดัล — ถ้ามี initialData (view/edit) ให้โหลดข้อมูลจริงมาใส่ฟอร์ม
-  // ถ้าไม่มี (create) ให้รีเซ็ตเป็นค่าว่างเริ่มต้น
+  // ถ้าไม่มี (create) ให้รีเซ็ตเป็นค่าว่างเริ่มต้น (เลือกโปรเจกต์แรกในรายการจริงเป็นค่าเริ่มต้น)
   useEffect(() => {
     if (!isOpen) return;
 
     if (initialData) {
       setFormData({
-        projectName: initialData.projectName,
+        projectId: initialData.projectId,
         suiteName: initialData.suiteName,
         tool: initialData.tool,
         environment: initialData.environment,
@@ -62,19 +65,23 @@ export default function TestRunModal({
         note: (initialData as any).note ?? "",
       });
     } else {
-      setFormData(emptyFormData);
+      setFormData({ ...emptyFormData, projectId: projects[0]?.id ?? 0 });
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, projects]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isViewMode) return; // กันพลาด ไม่ให้ submit ตอนเป็นโหมดดูอย่างเดียว
+    if (!formData.projectId) return;
+
+    const projectName = projects.find((p) => p.id === formData.projectId)?.name ?? "";
 
     const newItem: TestRunItem = {
       id: initialData?.id ?? Date.now(),
       ...formData,
+      projectName,
       subText: formData.note ? formData.note.slice(0, 30) : undefined,
     };
     onSubmit(newItem);
@@ -113,13 +120,16 @@ export default function TestRunModal({
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">โปรเจกต์</label>
               <select
-                value={formData.projectName}
-                onChange={(e) => setFormData({ ...formData, projectName: e.target.value })}
+                value={formData.projectId}
+                onChange={(e) => setFormData({ ...formData, projectId: Number(e.target.value) })}
                 className={`${fieldClass} font-semibold bg-slate-50`}
               >
-                <option value="Softpro Core API - HR">Softpro Core API - HR</option>
-                <option value="StorePC V.1">StorePC V.1</option>
-                <option value="CheckPallet V.1">CheckPallet V.1</option>
+                {projects.length === 0 && <option value={0}>ไม่มีโปรเจกต์ในระบบ</option>}
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
 
