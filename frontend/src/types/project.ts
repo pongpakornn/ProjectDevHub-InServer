@@ -34,6 +34,29 @@ export interface SoloProjectDetail {
   showcases: WorkItem[];
 }
 
+// ===========================================================================
+// Team — ตรงกับ ProjectMemberDto / TeamProjectDto / TeamProjectDetailDto ฝั่ง Backend
+// ===========================================================================
+export interface ProjectMember {
+  projectMemberId: number;
+  userId: number;
+  empId: string;
+  fullName: string;
+  roleInProject: string; // OWNER, MEMBER, APPROVER, VIEWER
+  joinedDate: string;
+}
+
+export interface TeamProject extends SoloProject {
+  members: ProjectMember[];
+}
+
+export interface TeamProjectDetail {
+  project: TeamProject;
+  phases: Phase[];
+  stacks: StackItem[];
+  showcases: WorkItem[];
+}
+
 // ตรงกับ CreateSoloProjectRequest ฝั่ง Backend (ใช้ทั้ง Create/Edit Form)
 export interface CreateProjectFormData {
   name: string;

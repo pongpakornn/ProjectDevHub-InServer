@@ -1,8 +1,15 @@
+export interface TaskAssignee {
+  userId: number;
+  fullName: string;
+}
+
 export interface TaskItem {
   id: string;
   title: string;
   detail: string;
   completed: boolean;
+  // เฉพาะ Team — ผู้รับผิดชอบงาน (Join Project.TaskAssignees + Core.Users) ฝั่ง Solo จะเป็น undefined เสมอ
+  assignees?: TaskAssignee[];
 }
 
 export interface Phase {

@@ -1,44 +1,46 @@
 "use client";
 
 import React, { useState } from "react";
-import { Wand2, Plus, ChevronDown, GripVertical, CheckCircle2, Clock, CircleDashed } from "lucide-react";
+import { Wand2, Plus, ChevronDown, GripVertical, CheckCircle2, Clock, CircleDashed, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import Checkbox from "@/components/ui/inputs/checkbox";
 import DeleteButtonV2 from "@/components/ui/buttons/buttonv2/delete-buttonv2";
 import { TableDatePickerCell } from "@/components/projects/detail/table-date-picker-cell";
-
-export interface TaskItem {
-  id: string;
-  title: string;
-  detail: string;
-  completed: boolean;
-}
-
-export interface Phase {
-  id: string;
-  name: string;
-  owner: string;
-  startDate: string;
-  endDate: string;
-  status: "Done" | "In Progress" | "Not Started";
-  items: TaskItem[];
-  isExpanded?: boolean;
-}
+import { Phase, TaskItem } from "@/types/project-detail";
+import { ProjectMember } from "@/types/project";
+import {
+  createPhase,
+  deletePhase,
+  updatePhase,
+  createTaskItem,
+  deleteTaskItem,
+  assignTaskAssignees,
+} from "@/lib/project-team-api";
 
 interface TeamProjectPhaseTableProps {
+  projectId: number;
+  currentUserId: number;
+  members: ProjectMember[];
   phases: Phase[];
   setPhases: React.Dispatch<React.SetStateAction<Phase[]>>;
-  standardPhases: Phase[];
+  onAutoGeneratePhases: () => void;
+  onToggleTask?: (task: TaskItem) => void;
 }
 
 export default function TeamProjectPhaseTable({
+  projectId,
+  currentUserId,
+  members,
   phases,
   setPhases,
-  standardPhases,
+  onAutoGeneratePhases,
+  onToggleTask,
 }: TeamProjectPhaseTableProps) {
   const [newPhaseName, setNewPhaseName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState<{ [phaseId: string]: string }>({});
   const [newTaskDetail, setNewTaskDetail] = useState<{ [phaseId: string]: string }>({});
+  const [isSavingPhase, setIsSavingPhase] = useState(false);
+  const [assignPopoverTaskId, setAssignPopoverTaskId] = useState<string | null>(null);
 
   const calculatePhaseProgress = (phase: Phase) => {
     if (phase.items.length === 0) return phase.status === "Done" ? 100 : 0;
@@ -46,66 +48,133 @@ export default function TeamProjectPhaseTable({
     return Math.round((done / phase.items.length) * 100);
   };
 
-  const handleAutoGeneratePhases = () => setPhases(standardPhases);
-
-  const handleAddPhase = () => {
-    if (!newPhaseName.trim()) return;
-    const newP: Phase = {
-      id: Date.now().toString(),
-      name: newPhaseName,
-      owner: "",
-      startDate: "",
-      endDate: "",
-      status: "Not Started",
-      items: [],
-      isExpanded: true,
-    };
-    setPhases([...phases, newP]);
-    setNewPhaseName("");
+  // ===========================================================================
+  // Phase — สร้าง/ลบ/แก้ไข ยิง API จริง
+  // ===========================================================================
+  const handleAddPhase = async () => {
+    if (!newPhaseName.trim() || isSavingPhase) return;
+    setIsSavingPhase(true);
+    try {
+      const created = await createPhase(projectId, {
+        name: newPhaseName,
+        status: "Not Started",
+        sortOrder: phases.length + 1,
+      });
+      setPhases([...phases, { ...created, isExpanded: true }]);
+      setNewPhaseName("");
+    } catch (err) {
+      console.error("เพิ่ม Phase ไม่สำเร็จ", err);
+      alert("เพิ่ม Phase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsSavingPhase(false);
+    }
   };
 
   const togglePhaseExpand = (id: string) => {
     setPhases(phases.map((p) => (p.id === id ? { ...p, isExpanded: !p.isExpanded } : p)));
   };
 
-  const handleAddTask = (phaseId: string) => {
+  const syncPhaseUpdate = async (phase: Phase) => {
+    try {
+      await updatePhase(Number(phase.id), {
+        name: phase.name,
+        status: phase.status,
+        startDate: phase.startDate || undefined,
+        dueDate: phase.endDate || undefined,
+      });
+    } catch (err) {
+      console.error("อัปเดต Phase ไม่สำเร็จ", err);
+      alert("บันทึก Phase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
+  const handleAddTask = async (phaseId: string) => {
     const title = newTaskTitle[phaseId];
     if (!title || !title.trim()) return;
+    try {
+      const created = await createTaskItem(
+        projectId,
+        Number(phaseId),
+        { title, detail: newTaskDetail[phaseId] || "" },
+        currentUserId
+      );
+      setPhases(phases.map((p) => (p.id === phaseId ? { ...p, items: [...p.items, created] } : p)));
+      setNewTaskTitle({ ...newTaskTitle, [phaseId]: "" });
+      setNewTaskDetail({ ...newTaskDetail, [phaseId]: "" });
+    } catch (err) {
+      console.error("เพิ่ม Task ไม่สำเร็จ", err);
+      alert("เพิ่ม Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
+  const toggleTaskComplete = (phaseId: string, taskId: string) => {
+    let toggledTask: TaskItem | null = null;
     setPhases(
       phases.map((p) => {
         if (p.id === phaseId) {
-          const newTask: TaskItem = {
-            id: Date.now().toString(),
-            title,
-            detail: newTaskDetail[phaseId] || "",
-            completed: false,
-          };
-          return { ...p, items: [...p.items, newTask] };
+          const updatedItems = p.items.map((t) => {
+            if (t.id === taskId) {
+              toggledTask = { ...t, completed: !t.completed };
+              return toggledTask;
+            }
+            return t;
+          });
+          return { ...p, items: updatedItems };
         }
         return p;
       })
     );
-    setNewTaskTitle({ ...newTaskTitle, [phaseId]: "" });
-    setNewTaskDetail({ ...newTaskDetail, [phaseId]: "" });
+    if (toggledTask && onToggleTask) onToggleTask(toggledTask);
   };
 
-  const toggleTaskComplete = (phaseId: string, taskId: string) => {
-    setPhases(
-      phases.map((p) =>
-        p.id === phaseId
-          ? { ...p, items: p.items.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t)) }
-          : p
-      )
-    );
+  const handleDeleteTask = async (phaseId: string, taskId: string) => {
+    const prevPhases = phases;
+    setPhases(phases.map((p) => (p.id === phaseId ? { ...p, items: p.items.filter((t) => t.id !== taskId) } : p)));
+    try {
+      await deleteTaskItem(Number(taskId));
+    } catch (err) {
+      console.error("ลบ Task ไม่สำเร็จ", err);
+      alert("ลบ Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setPhases(prevPhases);
+    }
   };
 
-  const handleDeleteTask = (phaseId: string, taskId: string) => {
-    setPhases(
-      phases.map((p) => (p.id === phaseId ? { ...p, items: p.items.filter((t) => t.id !== taskId) } : p))
-    );
+  const handleDeletePhase = async (id: string) => {
+    const prevPhases = phases;
+    setPhases(phases.filter((p) => p.id !== id));
+    try {
+      await deletePhase(Number(id));
+    } catch (err) {
+      console.error("ลบ Phase ไม่สำเร็จ", err);
+      alert("ลบ Phase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      setPhases(prevPhases);
+    }
   };
 
-  const handleDeletePhase = (id: string) => setPhases(phases.filter((p) => p.id !== id));
+  // ===========================================================================
+  // Assignees — มอบหมายผู้รับผิดชอบงาน (Project.TaskAssignees)
+  // ===========================================================================
+  const toggleAssignee = async (phaseId: string, task: TaskItem, userId: number) => {
+    const current = task.assignees || [];
+    const isAssigned = current.some((a) => a.userId === userId);
+    const nextUserIds = isAssigned
+      ? current.filter((a) => a.userId !== userId).map((a) => a.userId)
+      : [...current.map((a) => a.userId), userId];
+
+    try {
+      const updated = await assignTaskAssignees(projectId, Number(task.id), nextUserIds);
+      setPhases(
+        phases.map((p) =>
+          p.id === phaseId
+            ? { ...p, items: p.items.map((t) => (t.id === task.id ? { ...t, assignees: updated } : t)) }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error("มอบหมายผู้รับผิดชอบไม่สำเร็จ", err);
+      alert("มอบหมายผู้รับผิดชอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData("text/plain", index.toString());
@@ -130,8 +199,8 @@ export default function TeamProjectPhaseTable({
           </div>
 
           <button
-            onClick={handleAutoGeneratePhases}
-            title="สร้าง Phase อัตโนมัติตามมาตรฐาน"
+            onClick={onAutoGeneratePhases}
+            title="สร้าง Phase อัตโนมัติตามมาตรฐาน (ถ้ามี Phase อยู่แล้วจะดึงชุดเดิมกลับมาแทน ไม่สร้างซ้ำ)"
             className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all flex items-center gap-1.5 text-xs font-semibold shadow-2xs group"
           >
             <Wand2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
@@ -145,14 +214,16 @@ export default function TeamProjectPhaseTable({
             placeholder="ชื่อขั้นตอนใหม่..."
             value={newPhaseName}
             onChange={(e) => setNewPhaseName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddPhase()}
             className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50 focus:bg-white"
           />
           <Button
             onClick={handleAddPhase}
-            className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.35)] normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0"
+            disabled={isSavingPhase}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.35)] normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 disabled:opacity-60"
           >
             <Plus className="w-3.5 h-3.5" />
-            เพิ่ม Phase
+            {isSavingPhase ? "กำลังบันทึก..." : "เพิ่ม Phase"}
           </Button>
         </div>
       </div>
@@ -224,6 +295,10 @@ export default function TeamProjectPhaseTable({
                             const val = e.target.value;
                             setPhases(phases.map((p) => (p.id === phase.id ? { ...p, name: val } : p)));
                           }}
+                          onBlur={() => {
+                            const current = phases.find((p) => p.id === phase.id);
+                            if (current) syncPhaseUpdate(current);
+                          }}
                           className="w-full px-2.5 py-1.5 bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-500 focus:bg-white rounded-md font-bold text-slate-900 text-sm tracking-tight transition-all focus:outline-none"
                         />
                       </td>
@@ -245,7 +320,11 @@ export default function TeamProjectPhaseTable({
                         <TableDatePickerCell
                           value={phase.startDate}
                           placeholder="DD-MM-YYYY"
-                          onChange={(val) => setPhases(phases.map((p) => (p.id === phase.id ? { ...p, startDate: val } : p)))}
+                          onChange={(val) => {
+                            const updated = { ...phase, startDate: val };
+                            setPhases(phases.map((p) => (p.id === phase.id ? updated : p)));
+                            syncPhaseUpdate(updated);
+                          }}
                         />
                       </td>
 
@@ -253,7 +332,11 @@ export default function TeamProjectPhaseTable({
                         <TableDatePickerCell
                           value={phase.endDate}
                           placeholder="DD-MM-YYYY"
-                          onChange={(val) => setPhases(phases.map((p) => (p.id === phase.id ? { ...p, endDate: val } : p)))}
+                          onChange={(val) => {
+                            const updated = { ...phase, endDate: val };
+                            setPhases(phases.map((p) => (p.id === phase.id ? updated : p)));
+                            syncPhaseUpdate(updated);
+                          }}
                         />
                       </td>
 
@@ -316,40 +399,96 @@ export default function TeamProjectPhaseTable({
                               </div>
 
                               <div className="space-y-2">
-                                {phase.items.map((task) => (
-                                  <div
-                                    key={task.id}
-                                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 ${
-                                      task.completed
-                                        ? "bg-slate-50/80 border-slate-200/60 shadow-2xs"
-                                        : "bg-white border-slate-200 shadow-xs hover:border-indigo-200"
-                                    }`}
-                                  >
-                                    <div className="pt-0.5">
-                                      <Checkbox checked={task.completed} onChange={() => toggleTaskComplete(phase.id, task.id)} />
-                                    </div>
+                                {phase.items.map((task) => {
+                                  const assignees = task.assignees || [];
+                                  const isPopoverOpen = assignPopoverTaskId === task.id;
 
-                                    <div className="flex-1 min-w-0">
-                                      <h5 className="relative inline-block text-xs font-bold text-slate-800 transition-colors duration-200">
-                                        <span className={`transition-all duration-300 ${task.completed ? "text-slate-400" : "text-slate-800"}`}>
-                                          {task.title}
-                                        </span>
-                                        <span
-                                          className={`absolute left-0 top-1/2 h-[1.5px] bg-slate-400 transition-all duration-300 ease-out pointer-events-none ${
-                                            task.completed ? "w-full" : "w-0"
-                                          }`}
-                                        />
-                                      </h5>
-                                      {task.detail && (
-                                        <p className={`text-[11px] mt-0.5 transition-colors duration-200 ${task.completed ? "text-slate-400/80" : "text-slate-500"}`}>
-                                          {task.detail}
-                                        </p>
-                                      )}
-                                    </div>
+                                  return (
+                                    <div
+                                      key={task.id}
+                                      className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 ${
+                                        task.completed
+                                          ? "bg-slate-50/80 border-slate-200/60 shadow-2xs"
+                                          : "bg-white border-slate-200 shadow-xs hover:border-indigo-200"
+                                      }`}
+                                    >
+                                      <div className="pt-0.5">
+                                        <Checkbox checked={task.completed} onChange={() => toggleTaskComplete(phase.id, task.id)} />
+                                      </div>
 
-                                    <DeleteButtonV2 onClick={() => handleDeleteTask(phase.id, task.id)} className="scale-75" title="ลบ Task" />
-                                  </div>
-                                ))}
+                                      <div className="flex-1 min-w-0">
+                                        <h5 className="relative inline-block text-xs font-bold text-slate-800 transition-colors duration-200">
+                                          <span className={`transition-all duration-300 ${task.completed ? "text-slate-400" : "text-slate-800"}`}>
+                                            {task.title}
+                                          </span>
+                                          <span
+                                            className={`absolute left-0 top-1/2 h-[1.5px] bg-slate-400 transition-all duration-300 ease-out pointer-events-none ${
+                                              task.completed ? "w-full" : "w-0"
+                                            }`}
+                                          />
+                                        </h5>
+                                        {task.detail && (
+                                          <p className={`text-[11px] mt-0.5 transition-colors duration-200 ${task.completed ? "text-slate-400/80" : "text-slate-500"}`}>
+                                            {task.detail}
+                                          </p>
+                                        )}
+
+                                        <div className="flex items-center flex-wrap gap-1 mt-1.5 relative">
+                                          {assignees.map((a) => (
+                                            <span
+                                              key={a.userId}
+                                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-bold text-[10px]"
+                                            >
+                                              {a.fullName}
+                                            </span>
+                                          ))}
+                                          <button
+                                            type="button"
+                                            onClick={() => setAssignPopoverTaskId(isPopoverOpen ? null : task.id)}
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-dashed border-slate-300 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 text-[10px] font-bold transition-colors"
+                                          >
+                                            <UserPlus className="w-3 h-3" />
+                                            มอบหมาย
+                                          </button>
+
+                                          {isPopoverOpen && (
+                                            <div className="absolute z-20 top-full left-0 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2 space-y-1">
+                                              <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-100">
+                                                <span className="text-[10px] font-bold text-slate-500">เลือกผู้รับผิดชอบ</span>
+                                                <button onClick={() => setAssignPopoverTaskId(null)} className="text-slate-400 hover:text-slate-600">
+                                                  <X className="w-3 h-3" />
+                                                </button>
+                                              </div>
+                                              {members.length === 0 ? (
+                                                <p className="text-[10px] text-slate-400 px-1 py-1">ยังไม่มีสมาชิกทีม</p>
+                                              ) : (
+                                                members.map((m) => {
+                                                  const checked = assignees.some((a) => a.userId === m.userId);
+                                                  return (
+                                                    <label
+                                                      key={m.userId}
+                                                      className="flex items-center gap-2 px-1 py-1 rounded hover:bg-slate-50 cursor-pointer text-[11px] font-medium text-slate-700"
+                                                    >
+                                                      <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={() => toggleAssignee(phase.id, task, m.userId)}
+                                                        className="rounded border-slate-300"
+                                                      />
+                                                      {m.fullName}
+                                                    </label>
+                                                  );
+                                                })
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <DeleteButtonV2 onClick={() => handleDeleteTask(phase.id, task.id)} className="scale-75" title="ลบ Task" />
+                                    </div>
+                                  );
+                                })}
                               </div>
 
                               <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-slate-200/50">

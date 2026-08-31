@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
-import { WorkItem } from "./team-project-gallery-section";
+import { WorkItem } from "@/types/project-detail";
+import { uploadShowcaseImage } from "@/lib/project-team-api";
 
 interface TeamAddWorkModalProps {
   isOpen: boolean;
   editingWork: WorkItem | null;
+  projectId: number;
   onClose: () => void;
   onSave: (workData: { title: string; desc: string; flow: string; image: string | null }) => void;
 }
@@ -15,6 +17,7 @@ interface TeamAddWorkModalProps {
 export default function TeamAddWorkModal({
   isOpen,
   editingWork,
+  projectId,
   onClose,
   onSave,
 }: TeamAddWorkModalProps) {
@@ -22,6 +25,8 @@ export default function TeamAddWorkModal({
   const [workDesc, setWorkDesc] = useState("");
   const [workFlow, setWorkFlow] = useState("");
   const [workImage, setWorkImage] = useState<string | null>(null);
+  const [workImageFile, setWorkImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (editingWork) {
@@ -29,11 +34,13 @@ export default function TeamAddWorkModal({
       setWorkDesc(editingWork.description);
       setWorkFlow(editingWork.flowDescription);
       setWorkImage(editingWork.imageUrl);
+      setWorkImageFile(null);
     } else {
       setWorkTitle("");
       setWorkDesc("");
       setWorkFlow("");
       setWorkImage(null);
+      setWorkImageFile(null);
     }
   }, [editingWork, isOpen]);
 
@@ -42,15 +49,27 @@ export default function TeamAddWorkModal({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setWorkImage(reader.result as string);
-      reader.readAsDataURL(file);
+      setWorkImageFile(file);
+      setWorkImage(URL.createObjectURL(file));
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!workTitle) return;
-    onSave({ title: workTitle, desc: workDesc, flow: workFlow, image: workImage });
+    let finalImageUrl = editingWork?.imageUrl || null;
+
+    try {
+      if (workImageFile) {
+        setIsUploading(true);
+        finalImageUrl = await uploadShowcaseImage(projectId, workImageFile);
+      }
+      onSave({ title: workTitle, desc: workDesc, flow: workFlow, image: finalImageUrl });
+    } catch (err) {
+      console.error(err);
+      alert("อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -100,6 +119,9 @@ export default function TeamAddWorkModal({
           <div>
             <label className="block font-semibold text-slate-700 mb-1">รูปภาพ</label>
             <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full text-slate-500 text-xs" />
+            {workImage && (
+              <img src={workImage} alt="preview" className="mt-2 w-full h-32 object-cover rounded-lg border border-slate-200" />
+            )}
           </div>
         </div>
 
@@ -107,8 +129,12 @@ export default function TeamAddWorkModal({
           <Button onClick={onClose} className="w-auto! bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 normal-case text-xs font-semibold py-2 px-4">
             ยกเลิก
           </Button>
-          <Button onClick={handleSave} className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-2 px-4">
-            บันทึก
+          <Button
+            onClick={handleSave}
+            disabled={isUploading}
+            className="w-auto! bg-indigo-600 hover:bg-indigo-700 shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] normal-case text-xs font-bold py-2 px-4 disabled:opacity-50"
+          >
+            {isUploading ? "กำลังอัปโหลด..." : "บันทึก"}
           </Button>
         </div>
       </div>

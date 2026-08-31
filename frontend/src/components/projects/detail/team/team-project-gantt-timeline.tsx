@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Phase } from "./team-project-phase-table";
+import { Phase } from "@/types/project-detail";
 
 interface TeamProjectGanttTimelineProps {
   phases: Phase[];

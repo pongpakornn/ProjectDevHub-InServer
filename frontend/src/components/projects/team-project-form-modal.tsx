@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import SearchableSelect from "@/components/ui/inputs/searchable-select";
 import MultiSearchableSelect from "@/components/ui/inputs/multi-searchable-select";
-import { SoloProject } from "@/types/project";
+import { TeamProject, CreateProjectFormData } from "@/types/project";
+import { getProjectTypes, getUsers, ProjectType, UserOption } from "@/lib/project-team-api";
 
 interface TeamProjectFormModalProps {
   isOpen: boolean;
   mode: "create" | "edit";
-  initialData?: SoloProject | null;
+  initialData?: TeamProject | null;
   onClose: () => void;
-  onSubmit: (project: SoloProject) => void;
+  onSubmit: (data: CreateProjectFormData, memberUserIds: number[]) => void;
 }
-
-const projectTypes = [
-  { label: "Web Application", value: "Web Application" },
-  { label: "Mobile Application", value: "Mobile Application" },
-  { label: "API / Microservice", value: "API / Microservice" },
-  { label: "Desktop Application", value: "Desktop Application" },
-];
 
 const departments = [
   { label: "ระบบดิจิตอลและIT", value: "ระบบดิจิตอลและIT" },
@@ -28,65 +22,17 @@ const departments = [
   { label: "ฝ่ายทรัพยากรบุคคล", value: "ฝ่ายทรัพยากรบุคคล" },
 ];
 
-const languages = [
-  { label: "TypeScript / JavaScript", value: "TypeScript" },
-  { label: "C# (.NET)", value: "C#" },
-  { label: "Python", value: "Python" },
-  { label: "Java", value: "Java" },
-  { label: "PHP", value: "PHP" },
-];
-
-const frameworks = [
-  { label: "Next.js / React", value: "Next.js" },
-  { label: "ASP.NET Core", value: "ASP.NET Core" },
-  { label: "FastAPI", value: "FastAPI" },
-  { label: "Express.js", value: "Express.js" },
-];
-
-const libraries = [
-  { label: "Tailwind CSS", value: "Tailwind CSS" },
-  { label: "Prisma ORM", value: "Prisma" },
-  { label: "Entity Framework Core", value: "EF Core" },
-  { label: "Zustand", value: "Zustand" },
-];
-
-const databases = [
-  { label: "SQL Server", value: "SQL Server" },
-  { label: "PostgreSQL", value: "PostgreSQL" },
-  { label: "MySQL", value: "MySQL" },
-  { label: "MongoDB", value: "MongoDB" },
-];
-
-const apiServices = [
-  { label: "REST API", value: "REST API" },
-  { label: "GraphQL", value: "GraphQL" },
-  { label: "SignalR / WebSocket", value: "SignalR" },
-];
-
-const teamMembersOptions = [
-  { label: "Pongpakorn", value: "Pongpakorn" },
-  { label: "Somchai", value: "Somchai" },
-  { label: "Anan", value: "Anan" },
-  { label: "Somsak", value: "Somsak" },
-];
-
-const defaultFormState: Partial<SoloProject> = {
+const defaultFormState: CreateProjectFormData = {
   name: "",
   description: "",
-  projectType: "Web Application",
+  projectTypeId: 0,
   department: "ระบบดิจิตอลและIT",
-  owner: "",
   requester: "",
-  priority: "ปกติ",
-  status: "กำลังทำ",
+  ownerId: 0,
+  priority: "MEDIUM",
+  status: "PLANNING",
   startDate: "",
   endDate: "",
-  language: "",
-  framework: "",
-  library: "",
-  database: "",
-  apiService: "",
-  otherTech: "",
 };
 
 export default function TeamProjectFormModal({
@@ -96,63 +42,88 @@ export default function TeamProjectFormModal({
   onClose,
   onSubmit,
 }: TeamProjectFormModalProps) {
-  const [formData, setFormData] = useState<Partial<SoloProject>>(defaultFormState);
-  const [teamMembers, setTeamMembers] = useState<string[]>([]);
+  const [formData, setFormData] = useState<CreateProjectFormData>(defaultFormState);
+  const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [selectedMemberLabels, setSelectedMemberLabels] = useState<string[]>([]);
   const [formError, setFormError] = useState<string>("");
 
   useEffect(() => {
+    if (!isOpen) return;
+    setIsLoadingOptions(true);
+    Promise.all([getProjectTypes(), getUsers()])
+      .then(([types, userList]) => {
+        setProjectTypes(types);
+        setUsers(userList);
+      })
+      .catch((err) => console.error("โหลด Master Data ไม่สำเร็จ", err))
+      .finally(() => setIsLoadingOptions(false));
+  }, [isOpen]);
+
+  useEffect(() => {
     if (mode === "edit" && initialData) {
-      setFormData({ ...initialData });
-      setTeamMembers(
-        initialData.owner
-          ? initialData.owner.split(",").map((name) => name.trim()).filter(Boolean)
-          : []
+      setFormData({
+        name: initialData.name,
+        description: initialData.description || "",
+        projectTypeId: initialData.projectTypeId,
+        department: initialData.department || "ระบบดิจิตอลและIT",
+        requester: initialData.requester || "",
+        ownerId: initialData.ownerId,
+        priority: initialData.priority,
+        status: initialData.status,
+        startDate: initialData.startDate || "",
+        endDate: initialData.endDate || "",
+      });
+      setSelectedMemberLabels(
+        (initialData.members || []).map((m) => `${m.fullName} (${m.empId})`)
       );
     } else {
       setFormData(defaultFormState);
-      setTeamMembers([]);
+      setSelectedMemberLabels([]);
     }
     setFormError("");
   }, [mode, initialData, isOpen]);
 
   if (!isOpen) return null;
 
+  const userOptions = users.map((u) => ({
+    label: `${u.fullName} (${u.empId})`,
+    value: String(u.userId),
+  }));
+
+  const labelToUserId = useMemo(
+    () => new Map(userOptions.map((o) => [o.label, Number(o.value)])),
+    [users]
+  );
+
+  const projectTypeOptions = projectTypes.map((pt) => ({
+    label: pt.typeName,
+    value: String(pt.projectTypeId),
+  }));
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name?.trim()) return;
-
-    if (teamMembers.length === 0) {
+    if (!formData.name.trim()) return;
+    if (!formData.projectTypeId) {
+      alert("กรุณาเลือก Project Type");
+      return;
+    }
+    if (!formData.ownerId) {
+      alert("กรุณาเลือกหัวหน้าโครงการ (Owner)");
+      return;
+    }
+    if (selectedMemberLabels.length === 0) {
       setFormError("กรุณาเพิ่มสมาชิกทีมอย่างน้อย 1 คน");
       return;
     }
     setFormError("");
 
-    const initialProgress = formData.status === "เสร็จแล้ว" ? 100 : 0;
+    const memberUserIds = selectedMemberLabels
+      .map((label) => labelToUserId.get(label))
+      .filter((id): id is number => id !== undefined);
 
-    const formattedProject: SoloProject = {
-      id: mode === "edit" && initialData ? initialData.id : Date.now().toString(),
-      name: formData.name,
-      description: formData.description || "ไม่มีรายละเอียดเพิ่มเติม",
-      projectType: formData.projectType || "Web Application",
-      department: formData.department || "ระบบดิจิตอลและIT",
-      owner: teamMembers.join(", "),
-      requester: formData.requester || "-",
-      priority: formData.priority || "ปกติ",
-      status: formData.status || "กำลังทำ",
-      startDate: formData.startDate || "-",
-      endDate: formData.endDate || "-",
-      progress: initialData?.progress !== undefined ? initialData.progress : initialProgress,
-      phases: initialData?.phases || [],
-      language: formData.language || "",
-      framework: formData.framework || "",
-      library: formData.library || "",
-      database: formData.database || "",
-      apiService: formData.apiService || "",
-      otherTech: formData.otherTech || "",
-    };
-
-    onSubmit(formattedProject);
-    onClose();
+    onSubmit(formData, memberUserIds);
   };
 
   const isEdit = mode === "edit";
@@ -168,7 +139,7 @@ export default function TeamProjectFormModal({
             </h2>
             <p className="text-xs font-medium text-slate-500">
               {isEdit
-                ? "ปรับปรุงข้อมูลรายละเอียดโครงการและสมาชิกทีม"
+                ? "ปรับปรุงข้อมูลรายละเอียดโครงการ"
                 : "บันทึกข้อมูลโครงการพร้อมสมาชิกที่ร่วมพัฒนา"}
             </p>
           </div>
@@ -188,7 +159,7 @@ export default function TeamProjectFormModal({
             <input
               type="text"
               required
-              value={formData.name || ""}
+              value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="เช่น ERP Integration Hub"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-emerald-500 focus:bg-white transition-all"
@@ -199,7 +170,7 @@ export default function TeamProjectFormModal({
             <label className="block text-xs font-bold text-slate-800 mb-1">Description</label>
             <textarea
               rows={3}
-              value={formData.description || ""}
+              value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
             />
@@ -207,29 +178,39 @@ export default function TeamProjectFormModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SearchableSelect
-              label="Project Type"
-              options={projectTypes}
-              value={formData.projectType || ""}
-              onChange={(val) => setFormData({ ...formData, projectType: val })}
+              label={`Project Type * ${isLoadingOptions ? "(กำลังโหลด...)" : ""}`}
+              options={projectTypeOptions}
+              value={formData.projectTypeId ? String(formData.projectTypeId) : ""}
+              onChange={(val) => setFormData({ ...formData, projectTypeId: Number(val) })}
             />
             <SearchableSelect
               label="หน่วยงาน"
               options={departments}
-              value={formData.department || ""}
+              value={formData.department}
               onChange={(val) => setFormData({ ...formData, department: val })}
             />
           </div>
 
           <div>
+            <SearchableSelect
+              label={`หัวหน้าโครงการ (Owner) * ${isLoadingOptions ? "(กำลังโหลด...)" : ""}`}
+              options={userOptions}
+              value={formData.ownerId ? String(formData.ownerId) : ""}
+              onChange={(val) => setFormData({ ...formData, ownerId: Number(val) })}
+            />
+          </div>
+
+          <div>
             <MultiSearchableSelect
-              label={`สมาชิกทีม (Team Members) *  —  เลือกแล้ว ${teamMembers.length} คน`}
-              options={teamMembersOptions}
-              value={teamMembers}
+              label={`สมาชิกทีม (Team Members) *  —  เลือกแล้ว ${selectedMemberLabels.length} คน`}
+              options={userOptions.map((o) => ({ label: o.label, value: o.label }))}
+              value={selectedMemberLabels}
               onChange={(members) => {
-                setTeamMembers(members);
+                setSelectedMemberLabels(members);
                 if (members.length > 0) setFormError("");
               }}
-              placeholder="ค้นหาชื่อ หรือพิมพ์ชื่อใหม่แล้วกดเพิ่ม..."
+              placeholder="ค้นหาชื่อสมาชิกจากรายชื่อ User ในระบบ..."
+              allowCustom={false}
             />
             {formError && (
               <p className="mt-1 text-[11px] font-bold text-rose-600">{formError}</p>
@@ -240,7 +221,7 @@ export default function TeamProjectFormModal({
             <label className="block text-xs font-bold text-slate-800 mb-1">Requester</label>
             <input
               type="text"
-              value={formData.requester || ""}
+              value={formData.requester}
               onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
               placeholder="ผู้ร้องขอ / หน่วยงานที่ร้องขอ"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-emerald-500"
@@ -251,24 +232,32 @@ export default function TeamProjectFormModal({
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">Priority</label>
               <select
-                value={formData.priority || "ปกติ"}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as "ปกติ" | "สูง" })}
+                value={formData.priority}
+                onChange={(e) =>
+                  setFormData({ ...formData, priority: e.target.value as CreateProjectFormData["priority"] })
+                }
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold"
               >
-                <option value="ปกติ">Medium (ปกติ)</option>
-                <option value="สูง">High (สูง)</option>
+                <option value="LOW">Low (ต่ำ)</option>
+                <option value="MEDIUM">Medium (ปกติ)</option>
+                <option value="HIGH">High (สูง)</option>
+                <option value="URGENT">Urgent (เร่งด่วน)</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">Status</label>
               <select
-                value={formData.status || "กำลังทำ"}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as "เสร็จแล้ว" | "กำลังทำ" | "Planning" })}
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value as CreateProjectFormData["status"] })
+                }
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold"
               >
-                <option value="Planning">Planning</option>
-                <option value="กำลังทำ">In Progress (กำลังทำ)</option>
-                <option value="เสร็จแล้ว">Completed (เสร็จแล้ว)</option>
+                <option value="PLANNING">Planning (วางแผน)</option>
+                <option value="IN_PROGRESS">In Progress (กำลังทำ)</option>
+                <option value="ON_HOLD">On Hold (พักไว้)</option>
+                <option value="COMPLETED">Completed (เสร็จแล้ว)</option>
+                <option value="CANCELLED">Cancelled (ยกเลิก)</option>
               </select>
             </div>
           </div>
@@ -277,9 +266,8 @@ export default function TeamProjectFormModal({
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">Start Date</label>
               <input
-                type="text"
-                placeholder="DD/MM/YYYY"
-                value={formData.startDate || ""}
+                type="date"
+                value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium"
               />
@@ -287,37 +275,12 @@ export default function TeamProjectFormModal({
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">End Date</label>
               <input
-                type="text"
-                placeholder="DD/MM/YYYY"
-                value={formData.endDate || ""}
+                type="date"
+                value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium"
               />
             </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-200/60">
-            <h3 className="text-xs font-bold text-slate-900 mb-3">Tech Stack ที่ใช้งาน</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SearchableSelect label="ภาษาที่ใช้ (Language)" options={languages} value={formData.language || ""} onChange={(val) => setFormData({ ...formData, language: val })} />
-              <SearchableSelect label="Framework" options={frameworks} value={formData.framework || ""} onChange={(val) => setFormData({ ...formData, framework: val })} />
-              <SearchableSelect label="Library / Package" options={libraries} value={formData.library || ""} onChange={(val) => setFormData({ ...formData, library: val })} />
-              <SearchableSelect label="Database" options={databases} value={formData.database || ""} onChange={(val) => setFormData({ ...formData, database: val })} />
-            </div>
-            <div className="mt-3">
-              <SearchableSelect label="API / Service" options={apiServices} value={formData.apiService || ""} onChange={(val) => setFormData({ ...formData, apiService: val })} />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">อื่น ๆ (พิมพ์เพิ่มเอง)</label>
-            <textarea
-              rows={2}
-              placeholder="เช่น Docker, Redis Cache, Nginx, CI/CD"
-              value={formData.otherTech || ""}
-              onChange={(e) => setFormData({ ...formData, otherTech: e.target.value })}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-emerald-500"
-            />
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">

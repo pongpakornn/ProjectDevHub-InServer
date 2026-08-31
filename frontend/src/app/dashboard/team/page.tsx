@@ -1,61 +1,107 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TeamHeaderBanner from "./components/team-header-banner";
 import TeamProjectTable from "./components/team-project-table";
 import TeamProjectFormModal from "@/components/projects/team-project-form-modal";
-import { SoloProject } from "@/types/project";
-import { calculateProjectProgress } from "@/lib/project-utils";
+import { TeamProject, CreateProjectFormData } from "@/types/project";
+import {
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  addMember,
+  removeMember,
+} from "@/lib/project-team-api";
 
-const initialTeamProjects: SoloProject[] = [
-  { id: 101, name: "ERP Integration Hub", description: "ระบบเชื่อมต่อข้อมูล ERP ระหว่างสาขา...", owner: "Pongpakorn, Somchai", priority: "สูง", startDate: "01/01/2026", endDate: "30/06/2026", status: "กำลังทำ" },
-  { id: 102, name: "Smart Warehouse System", description: "ระบบคลังสินค้าอัจฉริยะรองรับ Mobile Scanner...", owner: "Pongpakorn, Anan", priority: "สูง", startDate: "15/02/2026", endDate: "20/05/2026", status: "กำลังทำ" },
-  { id: 103, name: "HR Portal V.2", description: "ระบบพอร์ตัลพนักงานและลงเวลาทำงาน...", owner: "Somsak, Pongpakorn", priority: "ปกติ", startDate: "10/03/2026", endDate: "15/04/2026", status: "เสร็จแล้ว" },
-];
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
+const CURRENT_USER_ID = 1;
 
 export default function TeamWorkPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<SoloProject[]>(initialTeamProjects);
+  const [projects, setProjects] = useState<TeamProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     mode: "create" | "edit";
-    project: SoloProject | null;
+    project: TeamProject | null;
   }>({
     isOpen: false,
     mode: "create",
     project: null,
   });
 
-  const totalProjects = projects.length;
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await getProjects();
+      setProjects(data);
+    } catch (err: any) {
+      console.error("Load team projects error:", err);
+      setLoadError(err.message || "ไม่สามารถโหลดรายการโปรเจกต์ทีมได้ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const avgProgress = Math.round(
-    projects.reduce(
-      (acc, curr) =>
-        acc + calculateProjectProgress(curr.phases, curr.status, curr.progress),
-      0
-    ) / (totalProjects || 1)
-  );
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  const totalProjects = projects.length;
+  const avgProgress =
+    totalProjects > 0
+      ? Math.round(projects.reduce((acc, curr) => acc + curr.progress, 0) / totalProjects)
+      : 0;
 
   const handleOpenCreateModal = () => {
     setModalState({ isOpen: true, mode: "create", project: null });
   };
 
-  const handleOpenEditModal = (project: SoloProject) => {
+  const handleOpenEditModal = (project: TeamProject) => {
     setModalState({ isOpen: true, mode: "edit", project });
   };
 
   const handleCloseModal = () => {
+    if (isSubmitting) return;
     setModalState((prev) => ({ ...prev, isOpen: false }));
   };
 
-  const handleSaveProject = (savedProject: SoloProject) => {
-    if (modalState.mode === "create") {
-      setProjects((prev) => [savedProject, ...prev]);
-    } else {
-      setProjects((prev) =>
-        prev.map((p) => (p.id === savedProject.id ? savedProject : p))
-      );
+  const handleSaveProject = async (formData: CreateProjectFormData, memberUserIds: number[]) => {
+    setIsSubmitting(true);
+    try {
+      if (modalState.mode === "create") {
+        await createProject(formData, memberUserIds, CURRENT_USER_ID);
+      } else if (modalState.project) {
+        const projectId = modalState.project.id;
+        await updateProject(projectId, formData, memberUserIds, CURRENT_USER_ID);
+
+        // Sync สมาชิกทีม — เทียบชุดเดิม (จาก initialData) กับชุดใหม่ที่เลือกในฟอร์ม แล้วยิง Add/Remove เฉพาะส่วนต่าง
+        const prevUserIds = new Set(modalState.project.members.map((m) => m.userId));
+        const nextUserIds = new Set(memberUserIds);
+
+        const toAdd = memberUserIds.filter((id) => !prevUserIds.has(id));
+        const toRemove = modalState.project.members
+          .map((m) => m.userId)
+          .filter((id) => !nextUserIds.has(id) && id !== formData.ownerId);
+
+        await Promise.all([
+          ...toAdd.map((userId) => addMember(projectId, userId, "MEMBER")),
+          ...toRemove.map((userId) => removeMember(projectId, userId)),
+        ]);
+      }
+      await loadProjects();
+      handleCloseModal();
+    } catch (err: any) {
+      console.error("Save team project error:", err);
+      alert(`บันทึกโปรเจกต์ไม่สำเร็จ: ${err.message || "กรุณาตรวจสอบข้อมูลที่กรอกอีกครั้ง"}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -63,11 +109,20 @@ export default function TeamWorkPage() {
     router.push(`/dashboard/team/projects/${id}`);
   };
 
-  const handleDelete = (id: number | string) => {
-    if (confirm("คุณต้องการลบโปรเจกต์นี้ใช่หรือไม่?")) {
+  const handleDelete = async (id: number | string) => {
+    if (!confirm("คุณต้องการลบโปรเจกต์นี้ใช่หรือไม่?")) return;
+    try {
+      await deleteProject(Number(id));
       setProjects((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      console.error("Delete team project error:", err);
+      alert(`ลบโปรเจกต์ไม่สำเร็จ: ${err.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์"}`);
     }
   };
+
+  if (isLoading) {
+    return <div className="w-full py-20 text-center text-slate-500">กำลังโหลดรายการโปรเจกต์ทีม...</div>;
+  }
 
   return (
     <div className="w-full select-none space-y-6">
@@ -76,6 +131,12 @@ export default function TeamWorkPage() {
         totalProjects={totalProjects}
         onOpenCreateModal={handleOpenCreateModal}
       />
+
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600">
+          {loadError}
+        </div>
+      )}
 
       <TeamProjectTable
         projects={projects}

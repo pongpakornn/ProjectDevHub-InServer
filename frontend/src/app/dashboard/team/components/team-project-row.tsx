@@ -5,16 +5,30 @@ import { FolderGit2, Users, CheckCircle2, Clock } from "lucide-react";
 import ViewButton from "@/components/ui/buttons/view-button";
 import EditButton from "@/components/ui/buttons/edit-button";
 import DeleteButton from "@/components/ui/buttons/delete-button";
-import { SoloProject } from "@/types/project";
-import { calculateProjectProgress } from "@/lib/project-utils";
+import { TeamProject } from "@/types/project";
 
 interface TeamProjectRowProps {
-  project: SoloProject;
+  project: TeamProject;
   index: number;
   onProjectClick: (id: number | string) => void;
-  onEdit: (project: SoloProject) => void;
+  onEdit: (project: TeamProject) => void;
   onDelete: (id: number | string) => void;
 }
+
+const STATUS_LABEL: Record<TeamProject["status"], string> = {
+  PLANNING: "วางแผน",
+  IN_PROGRESS: "กำลังทำ",
+  ON_HOLD: "พักไว้",
+  COMPLETED: "เสร็จแล้ว",
+  CANCELLED: "ยกเลิก",
+};
+
+const PRIORITY_LABEL: Record<TeamProject["priority"], string> = {
+  LOW: "ต่ำ",
+  MEDIUM: "ปกติ",
+  HIGH: "สูง",
+  URGENT: "เร่งด่วน",
+};
 
 export default function TeamProjectRow({
   project,
@@ -23,11 +37,10 @@ export default function TeamProjectRow({
   onEdit,
   onDelete,
 }: TeamProjectRowProps) {
-  const currentProgress = calculateProjectProgress(
-    project.phases,
-    project.status,
-    project.progress
-  );
+  const currentProgress = project.progress;
+  const isHighPriority = project.priority === "HIGH" || project.priority === "URGENT";
+  const isCompleted = project.status === "COMPLETED";
+  const members = project.members || [];
 
   return (
     <tr className="hover:bg-slate-50/80 transition-colors group">
@@ -54,21 +67,39 @@ export default function TeamProjectRow({
         </div>
       </td>
 
-      <td className="py-3.5 px-3.5 font-mono text-[11px] font-bold text-slate-600">
-        <div className="flex items-center gap-1.5">
+      <td className="py-3.5 px-3.5">
+        <div className="flex items-center gap-1 flex-wrap max-w-45">
           <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-          <span>{project.owner}</span>
+          {members.length > 0 ? (
+            <>
+              {members.slice(0, 2).map((m) => (
+                <span
+                  key={m.userId}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono text-[10px] font-bold"
+                >
+                  {m.fullName}
+                </span>
+              ))}
+              {members.length > 2 && (
+                <span className="text-[10px] font-mono font-bold text-slate-400">
+                  +{members.length - 2}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[10px] font-mono font-bold text-slate-400">-</span>
+          )}
         </div>
       </td>
 
       <td className="py-3.5 px-3.5">
-        {project.priority === "สูง" ? (
+        {isHighPriority ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-700 border border-rose-200">
-            สูง
+            {PRIORITY_LABEL[project.priority]}
           </span>
         ) : (
           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-200 text-slate-600 border border-slate-200">
-            ปกติ
+            {PRIORITY_LABEL[project.priority]}
           </span>
         )}
       </td>
@@ -79,15 +110,15 @@ export default function TeamProjectRow({
         {project.endDate}
       </td>
       <td className="py-3.5 px-3.5">
-        {project.status === "เสร็จแล้ว" ? (
+        {isCompleted ? (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            เสร็จแล้ว
+            {STATUS_LABEL[project.status]}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
             <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
-            กำลังทำ
+            {STATUS_LABEL[project.status]}
           </span>
         )}
       </td>

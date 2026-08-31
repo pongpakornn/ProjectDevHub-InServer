@@ -12,6 +12,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // 2. Add Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IProjectSoloService, ProjectSoloService>();
+builder.Services.AddScoped<IProjectTeamService, ProjectTeamService>();
 
 // 3. Add CORS Policy for Next.js Frontend
 builder.Services.AddCors(options =>

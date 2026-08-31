@@ -1,0 +1,671 @@
+using Microsoft.EntityFrameworkCore;
+using backend.Data;
+using backend.DTOs;
+using backend.Models.Project;
+
+namespace backend.Services
+{
+    // หมายเหตุ: โปรเจกต์ "Team" ใช้ตาราง Project.* ชุดเดียวกับ Solo ทั้งหมด (Projects/Milestones/Tasks/
+    // TechStacks/ShowcaseItems) ต่างกันแค่ Team ผูก Project.ProjectMembers ไว้จริง (Solo สร้าง Project
+    // แล้วไม่เคยเติมแถวใน ProjectMembers เลย) — จึงใช้ "มีสมาชิกใน ProjectMembers" เป็นตัวคัดกรองว่า
+    // เป็นโปรเจกต์ทีมหรือไม่ โดยไม่ต้องเพิ่มคอลัมน์ใหม่ในตาราง Projects
+    public class ProjectTeamService : IProjectTeamService
+    {
+        private readonly AppDbContext _context;
+
+        public ProjectTeamService(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        private static readonly Dictionary<string, string[]> PhaseTemplates = new()
+        {
+            ["Web Application"] = new[]
+            {
+                "Requirement Gathering", "UI/UX Design", "Frontend Development",
+                "Backend Development", "API Integration", "Testing (QA)", "Deployment"
+            },
+            ["Mobile Application"] = new[]
+            {
+                "Requirement Gathering", "UI/UX Design", "Mobile App Development",
+                "API Integration", "Testing on Devices", "App Store / Play Store Submission", "Deployment / Release"
+            },
+            ["API / Microservice"] = new[]
+            {
+                "Requirement & Endpoint Design", "Database Schema Design", "API Development",
+                "Authentication & Security", "API Testing (Unit/Postman)", "Documentation", "Deployment"
+            },
+            ["Desktop Application"] = new[]
+            {
+                "Requirement Gathering", "UI Design", "Core Development",
+                "Database Integration", "Testing", "Packaging & Installer", "Deployment / Rollout"
+            }
+        };
+
+        // ===========================================================================
+        // Project
+        // ===========================================================================
+        public async Task<List<TeamProjectDto>> GetProjectsAsync()
+        {
+            var projects = await _context.Projects
+                .Where(p => p.IsActive && p.Members.Any())
+                .Include(p => p.ProjectType)
+                .Include(p => p.Owner)
+                .Include(p => p.Members).ThenInclude(m => m.User)
+                .OrderByDescending(p => p.CreatedDate)
+                .ToListAsync();
+
+            return projects.Select(MapToTeamProjectDto).ToList();
+        }
+
+        public async Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId)
+        {
+            var project = await _context.Projects
+                .Include(p => p.ProjectType)
+                .Include(p => p.Owner)
+                .Include(p => p.Members).ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
+
+            if (project == null) return null;
+
+            var phases = await _context.Milestones
+                .Where(m => m.ProjectId == projectId)
+                .Include(m => m.Owner)
+                .Include(m => m.Tasks)
+                .OrderBy(m => m.SortOrder)
+                .ToListAsync();
+
+            var taskIds = phases.SelectMany(m => m.Tasks).Select(t => t.TaskId).ToList();
+            var assigneesByTask = await _context.TaskAssignees
+                .Where(ta => taskIds.Contains(ta.TaskId))
+                .Include(ta => ta.User)
+                .ToListAsync();
+            var assigneesLookup = assigneesByTask
+                .GroupBy(ta => ta.TaskId)
+                .ToDictionary(g => g.Key, g => g.Select(MapToTaskAssigneeDto).ToList());
+
+            var stacks = await _context.TechStacks
+                .Where(ts => ts.ProjectId == projectId)
+                .OrderBy(ts => ts.SortOrder)
+                .ToListAsync();
+
+            var showcases = await _context.ShowcaseItems
+                .Where(si => si.ProjectId == projectId)
+                .OrderBy(si => si.SortOrder)
+                .ToListAsync();
+
+            return new TeamProjectDetailDto
+            {
+                Project = MapToTeamProjectDto(project),
+                Phases = phases.Select(m => MapToTeamPhaseDto(m, assigneesLookup)).ToList(),
+                Stacks = stacks.Select(MapToStackItemDto).ToList(),
+                Showcases = showcases.Select(MapToWorkItemDto).ToList()
+            };
+        }
+
+        public async Task<TeamProjectDto> CreateProjectAsync(CreateTeamProjectRequest request, int currentUserId)
+        {
+            var project = new Projects
+            {
+                ProjectCode = await GenerateProjectCodeAsync(),
+                ProjectName = request.ProjectName,
+                Description = request.Description,
+                ProjectTypeId = request.ProjectTypeId,
+                DivisionName = request.DivisionName,
+                RequesterName = request.RequesterName,
+                ProjectOwnerId = request.ProjectOwnerId,
+                Priority = request.Priority,
+                Status = request.Status,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                CreatedBy = currentUserId,
+                IsActive = true
+            };
+
+            _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
+
+            // เพิ่ม Owner เป็นสมาชิกทีม role OWNER + สมาชิกที่เลือกมาเป็น MEMBER (กันซ้ำกับ Owner)
+            var memberUserIds = request.MemberUserIds
+                .Where(id => id != request.ProjectOwnerId)
+                .Distinct()
+                .ToList();
+
+            _context.ProjectMembers.Add(new ProjectMembers
+            {
+                ProjectId = project.ProjectId,
+                UserId = request.ProjectOwnerId,
+                RoleInProject = "OWNER"
+            });
+
+            foreach (var userId in memberUserIds)
+            {
+                _context.ProjectMembers.Add(new ProjectMembers
+                {
+                    ProjectId = project.ProjectId,
+                    UserId = userId,
+                    RoleInProject = "MEMBER"
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(project).Reference(p => p.ProjectType).LoadAsync();
+            await _context.Entry(project).Reference(p => p.Owner).LoadAsync();
+            await _context.Entry(project).Collection(p => p.Members).LoadAsync();
+            foreach (var m in project.Members)
+            {
+                await _context.Entry(m).Reference(x => x.User).LoadAsync();
+            }
+
+            return MapToTeamProjectDto(project);
+        }
+
+        public async Task<TeamProjectDto?> UpdateProjectAsync(UpdateTeamProjectRequest request, int currentUserId)
+        {
+            var project = await _context.Projects
+                .Include(p => p.ProjectType)
+                .Include(p => p.Owner)
+                .Include(p => p.Members).ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId && p.IsActive);
+
+            if (project == null) return null;
+
+            if (project.Status != request.Status)
+            {
+                _context.StatusHistory.Add(new StatusHistory
+                {
+                    ProjectId = project.ProjectId,
+                    OldStatus = project.Status,
+                    NewStatus = request.Status,
+                    ChangedBy = currentUserId
+                });
+            }
+
+            project.ProjectName = request.ProjectName;
+            project.Description = request.Description;
+            project.ProjectTypeId = request.ProjectTypeId;
+            project.DivisionName = request.DivisionName;
+            project.RequesterName = request.RequesterName;
+            project.ProjectOwnerId = request.ProjectOwnerId;
+            project.Priority = request.Priority;
+            project.Status = request.Status;
+            project.StartDate = request.StartDate;
+            project.EndDate = request.EndDate;
+            project.UpdatedDate = DateTimeOffset.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // การจัดการสมาชิกทีมหลังสร้างโครงการ ให้ใช้ Endpoint /members โดยเฉพาะ (Add/Remove ทีละคน)
+            // ไม่ Sync MemberUserIds ที่นี่ เพื่อไม่ให้ทับ Role/JoinedDate ที่ตั้งไว้แล้วโดยไม่ตั้งใจ
+
+            await _context.Entry(project).Reference(p => p.Owner).LoadAsync();
+
+            return MapToTeamProjectDto(project);
+        }
+
+        public async Task<bool> DeleteProjectAsync(int projectId)
+        {
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null) return false;
+
+            project.IsActive = false;
+            project.UpdatedDate = DateTimeOffset.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // ProjectMembers
+        // ===========================================================================
+        public async Task<List<ProjectMemberDto>?> GetMembersAsync(int projectId)
+        {
+            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!exists) return null;
+
+            return await _context.ProjectMembers
+                .Where(pm => pm.ProjectId == projectId && pm.IsActive)
+                .Include(pm => pm.User)
+                .OrderBy(pm => pm.JoinedDate)
+                .Select(pm => MapToProjectMemberDto(pm))
+                .ToListAsync();
+        }
+
+        public async Task<ProjectMemberDto?> AddMemberAsync(int projectId, AddProjectMemberRequest request)
+        {
+            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+            if (!projectExists) return null;
+
+            var existing = await _context.ProjectMembers
+                .Include(pm => pm.User)
+                .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == request.UserId);
+
+            if (existing != null)
+            {
+                // เคยเป็นสมาชิกมาก่อนแล้วถูกลบออก (Soft Delete) — เพิ่มกลับเข้าทีมแทนการสร้างแถวซ้ำ (กัน Unique Constraint)
+                existing.IsActive = true;
+                existing.RoleInProject = request.RoleInProject;
+                existing.JoinedDate = DateTimeOffset.UtcNow;
+                await _context.SaveChangesAsync();
+                return MapToProjectMemberDto(existing);
+            }
+
+            var member = new ProjectMembers
+            {
+                ProjectId = projectId,
+                UserId = request.UserId,
+                RoleInProject = request.RoleInProject
+            };
+
+            _context.ProjectMembers.Add(member);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(member).Reference(m => m.User).LoadAsync();
+            return MapToProjectMemberDto(member);
+        }
+
+        public async Task<bool> RemoveMemberAsync(int projectId, int userId)
+        {
+            var member = await _context.ProjectMembers
+                .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == userId && pm.IsActive);
+
+            if (member == null) return false;
+
+            member.IsActive = false;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // Phase (Milestone)
+        // ===========================================================================
+        public async Task<TeamPhaseDto> CreatePhaseAsync(CreatePhaseRequest request)
+        {
+            var maxSort = await _context.Milestones
+                .Where(m => m.ProjectId == request.ProjectId)
+                .Select(m => (int?)m.SortOrder)
+                .MaxAsync() ?? 0;
+
+            var milestone = new Milestones
+            {
+                ProjectId = request.ProjectId,
+                MilestoneName = request.MilestoneName,
+                OwnerId = request.OwnerId,
+                StartDate = request.StartDate,
+                DueDate = request.DueDate,
+                Status = request.Status,
+                SortOrder = request.SortOrder > 0 ? request.SortOrder : maxSort + 1
+            };
+
+            _context.Milestones.Add(milestone);
+            await _context.SaveChangesAsync();
+
+            await _context.Entry(milestone).Reference(m => m.Owner).LoadAsync();
+            milestone.Tasks = new List<Tasks>();
+
+            return MapToTeamPhaseDto(milestone, new Dictionary<int, List<TaskAssigneeDto>>());
+        }
+
+        public async Task<TeamPhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request)
+        {
+            var milestone = await _context.Milestones
+                .Include(m => m.Owner)
+                .Include(m => m.Tasks)
+                .FirstOrDefaultAsync(m => m.MilestoneId == request.MilestoneId);
+
+            if (milestone == null) return null;
+
+            milestone.MilestoneName = request.MilestoneName;
+            milestone.OwnerId = request.OwnerId;
+            milestone.StartDate = request.StartDate;
+            milestone.DueDate = request.DueDate;
+            milestone.Status = request.Status;
+            if (request.SortOrder > 0) milestone.SortOrder = request.SortOrder;
+
+            if (request.Status == "COMPLETED" && milestone.CompletedDate == null)
+                milestone.CompletedDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            await _context.SaveChangesAsync();
+
+            var taskIds = milestone.Tasks.Select(t => t.TaskId).ToList();
+            var assigneesLookup = await LoadAssigneesLookupAsync(taskIds);
+
+            return MapToTeamPhaseDto(milestone, assigneesLookup);
+        }
+
+        public async Task<bool> DeletePhaseAsync(int milestoneId)
+        {
+            var milestone = await _context.Milestones.FindAsync(milestoneId);
+            if (milestone == null) return false;
+
+            var tasks = _context.Tasks.Where(t => t.MilestoneId == milestoneId);
+            _context.Tasks.RemoveRange(tasks);
+
+            _context.Milestones.Remove(milestone);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<TeamPhaseDto>> AutoGeneratePhasesAsync(int projectId)
+        {
+            var project = await _context.Projects
+                .Include(p => p.ProjectType)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
+
+            if (project == null)
+                throw new InvalidOperationException("ไม่พบโปรเจกต์นี้");
+
+            var existing = await _context.Milestones
+                .Where(m => m.ProjectId == projectId)
+                .Include(m => m.Owner)
+                .Include(m => m.Tasks)
+                .OrderBy(m => m.SortOrder)
+                .ToListAsync();
+
+            if (existing.Any())
+            {
+                var existingTaskIds = existing.SelectMany(m => m.Tasks).Select(t => t.TaskId).ToList();
+                var existingAssignees = await LoadAssigneesLookupAsync(existingTaskIds);
+                return existing.Select(m => MapToTeamPhaseDto(m, existingAssignees)).ToList();
+            }
+
+            var typeName = project.ProjectType?.TypeName ?? string.Empty;
+            if (!PhaseTemplates.TryGetValue(typeName, out var template))
+            {
+                template = PhaseTemplates["Web Application"];
+            }
+
+            var milestones = template.Select((name, index) => new Milestones
+            {
+                ProjectId = projectId,
+                MilestoneName = name,
+                Status = "PENDING",
+                SortOrder = index + 1
+            }).ToList();
+
+            _context.Milestones.AddRange(milestones);
+            await _context.SaveChangesAsync();
+
+            foreach (var m in milestones)
+            {
+                m.Tasks = new List<Tasks>();
+            }
+
+            return milestones.Select(m => MapToTeamPhaseDto(m, new Dictionary<int, List<TaskAssigneeDto>>())).ToList();
+        }
+
+        // ===========================================================================
+        // TaskItem (Task) + TaskAssignees
+        // ===========================================================================
+        public async Task<TeamTaskItemDto> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId)
+        {
+            var task = new Tasks
+            {
+                ProjectId = request.ProjectId,
+                MilestoneId = request.MilestoneId,
+                TaskName = request.Title,
+                Description = request.Detail,
+                Status = "TODO",
+                CreatedBy = currentUserId
+            };
+
+            _context.Tasks.Add(task);
+            await _context.SaveChangesAsync();
+
+            return MapToTeamTaskItemDto(task, new List<TaskAssigneeDto>());
+        }
+
+        public async Task<TeamTaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request)
+        {
+            var task = await _context.Tasks.FindAsync(request.TaskId);
+            if (task == null) return null;
+
+            task.TaskName = request.Title;
+            task.Description = request.Detail;
+
+            var wasCompleted = task.Status == "DONE";
+            if (request.Completed && !wasCompleted)
+            {
+                task.Status = "DONE";
+                task.CompletedDate = DateOnly.FromDateTime(DateTime.UtcNow);
+                task.ProgressPercent = 100;
+            }
+            else if (!request.Completed && wasCompleted)
+            {
+                task.Status = "TODO";
+                task.CompletedDate = null;
+                task.ProgressPercent = 0;
+            }
+
+            task.UpdatedDate = DateTimeOffset.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var assignees = await _context.TaskAssignees
+                .Where(ta => ta.TaskId == task.TaskId)
+                .Include(ta => ta.User)
+                .Select(ta => MapToTaskAssigneeDto(ta))
+                .ToListAsync();
+
+            return MapToTeamTaskItemDto(task, assignees);
+        }
+
+        public async Task<bool> DeleteTaskItemAsync(int taskId)
+        {
+            var task = await _context.Tasks.FindAsync(taskId);
+            if (task == null) return false;
+
+            _context.Tasks.Remove(task);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<TaskAssigneeDto>?> AssignTaskAssigneesAsync(int taskId, AssignTaskAssigneesRequest request)
+        {
+            var task = await _context.Tasks.FindAsync(taskId);
+            if (task == null) return null;
+
+            var current = await _context.TaskAssignees.Where(ta => ta.TaskId == taskId).ToListAsync();
+            var requestedIds = request.UserIds.Distinct().ToList();
+
+            var toRemove = current.Where(ta => !requestedIds.Contains(ta.UserId)).ToList();
+            _context.TaskAssignees.RemoveRange(toRemove);
+
+            var currentIds = current.Select(ta => ta.UserId).ToHashSet();
+            var toAdd = requestedIds.Where(id => !currentIds.Contains(id))
+                .Select(id => new TaskAssignees { TaskId = taskId, UserId = id });
+            _context.TaskAssignees.AddRange(toAdd);
+
+            await _context.SaveChangesAsync();
+
+            return await _context.TaskAssignees
+                .Where(ta => ta.TaskId == taskId)
+                .Include(ta => ta.User)
+                .Select(ta => MapToTaskAssigneeDto(ta))
+                .ToListAsync();
+        }
+
+        // ===========================================================================
+        // StackItem (TechStack)
+        // ===========================================================================
+        public async Task<StackItemDto> CreateStackItemAsync(CreateStackItemRequest request)
+        {
+            var stack = new TechStacks
+            {
+                ProjectId = request.ProjectId,
+                StackType = request.Type,
+                StackName = request.Name,
+                Version = request.Version,
+                Layer = request.Layer
+            };
+
+            _context.TechStacks.Add(stack);
+            await _context.SaveChangesAsync();
+            return MapToStackItemDto(stack);
+        }
+
+        public async Task<bool> DeleteStackItemAsync(int techStackId)
+        {
+            var stack = await _context.TechStacks.FindAsync(techStackId);
+            if (stack == null) return false;
+
+            _context.TechStacks.Remove(stack);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // WorkItem (ShowcaseItem)
+        // ===========================================================================
+        public async Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId)
+        {
+            var showcase = new ShowcaseItems
+            {
+                ProjectId = request.ProjectId,
+                Title = request.Title,
+                Description = request.Description,
+                FlowDescription = request.FlowDescription,
+                ImageUrl = request.ImageUrl,
+                CreatedBy = currentUserId
+            };
+
+            _context.ShowcaseItems.Add(showcase);
+            await _context.SaveChangesAsync();
+            return MapToWorkItemDto(showcase);
+        }
+
+        public async Task<bool> DeleteWorkItemAsync(int showcaseItemId)
+        {
+            var showcase = await _context.ShowcaseItems.FindAsync(showcaseItemId);
+            if (showcase == null) return false;
+
+            _context.ShowcaseItems.Remove(showcase);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ===========================================================================
+        // Helpers
+        // ===========================================================================
+        private async Task<string> GenerateProjectCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var prefix = $"PRJ-{year}-";
+
+            var lastCode = await _context.Projects
+                .Where(p => p.ProjectCode.StartsWith(prefix))
+                .OrderByDescending(p => p.ProjectCode)
+                .Select(p => p.ProjectCode)
+                .FirstOrDefaultAsync();
+
+            var nextSeq = 1;
+            if (lastCode != null && int.TryParse(lastCode.Substring(prefix.Length), out var lastSeq))
+            {
+                nextSeq = lastSeq + 1;
+            }
+
+            return $"{prefix}{nextSeq:D3}";
+        }
+
+        private async Task<Dictionary<int, List<TaskAssigneeDto>>> LoadAssigneesLookupAsync(List<int> taskIds)
+        {
+            if (taskIds.Count == 0) return new Dictionary<int, List<TaskAssigneeDto>>();
+
+            var assignees = await _context.TaskAssignees
+                .Where(ta => taskIds.Contains(ta.TaskId))
+                .Include(ta => ta.User)
+                .ToListAsync();
+
+            return assignees
+                .GroupBy(ta => ta.TaskId)
+                .ToDictionary(g => g.Key, g => g.Select(MapToTaskAssigneeDto).ToList());
+        }
+
+        private static TeamProjectDto MapToTeamProjectDto(Projects p) => new()
+        {
+            ProjectId = p.ProjectId,
+            ProjectCode = p.ProjectCode,
+            ProjectName = p.ProjectName,
+            Description = p.Description,
+            ProjectTypeId = p.ProjectTypeId ?? 0,
+            ProjectTypeName = p.ProjectType?.TypeName ?? string.Empty,
+            DivisionName = p.DivisionName,
+            RequesterName = p.RequesterName,
+            ProjectOwnerId = p.ProjectOwnerId,
+            OwnerName = p.Owner?.FullName ?? string.Empty,
+            Status = p.Status,
+            Priority = p.Priority,
+            StartDate = p.StartDate,
+            EndDate = p.EndDate,
+            ProgressPercent = p.ProgressPercent,
+            Members = p.Members?.Where(m => m.IsActive).Select(MapToProjectMemberDto).ToList() ?? new List<ProjectMemberDto>()
+        };
+
+        private static ProjectMemberDto MapToProjectMemberDto(ProjectMembers pm) => new()
+        {
+            ProjectMemberId = pm.ProjectMemberId,
+            ProjectId = pm.ProjectId,
+            UserId = pm.UserId,
+            EmpId = pm.User?.EmpId ?? string.Empty,
+            FullName = pm.User?.FullName ?? string.Empty,
+            RoleInProject = pm.RoleInProject,
+            JoinedDate = pm.JoinedDate
+        };
+
+        private static TaskAssigneeDto MapToTaskAssigneeDto(TaskAssignees ta) => new()
+        {
+            TaskAssigneeId = ta.TaskAssigneeId,
+            TaskId = ta.TaskId,
+            UserId = ta.UserId,
+            FullName = ta.User?.FullName ?? string.Empty,
+            AssignedDate = ta.AssignedDate
+        };
+
+        private static TeamPhaseDto MapToTeamPhaseDto(Milestones m, Dictionary<int, List<TaskAssigneeDto>> assigneesLookup) => new()
+        {
+            MilestoneId = m.MilestoneId,
+            ProjectId = m.ProjectId,
+            MilestoneName = m.MilestoneName,
+            OwnerId = m.OwnerId,
+            OwnerName = m.Owner?.FullName,
+            StartDate = m.StartDate,
+            DueDate = m.DueDate,
+            CompletedDate = m.CompletedDate,
+            Status = m.Status,
+            SortOrder = m.SortOrder,
+            Items = m.Tasks?
+                .Select(t => MapToTeamTaskItemDto(t, assigneesLookup.TryGetValue(t.TaskId, out var list) ? list : new List<TaskAssigneeDto>()))
+                .ToList() ?? new List<TeamTaskItemDto>()
+        };
+
+        private static TeamTaskItemDto MapToTeamTaskItemDto(Tasks t, List<TaskAssigneeDto> assignees) => new()
+        {
+            TaskId = t.TaskId,
+            MilestoneId = t.MilestoneId ?? 0,
+            Title = t.TaskName,
+            Detail = t.Description,
+            Completed = t.Status == "DONE",
+            Assignees = assignees
+        };
+
+        private static StackItemDto MapToStackItemDto(TechStacks ts) => new()
+        {
+            TechStackId = ts.TechStackId,
+            ProjectId = ts.ProjectId,
+            Type = ts.StackType,
+            Name = ts.StackName,
+            Version = ts.Version,
+            Layer = ts.Layer
+        };
+
+        private static WorkItemDto MapToWorkItemDto(ShowcaseItems si) => new()
+        {
+            ShowcaseItemId = si.ShowcaseItemId,
+            ProjectId = si.ProjectId,
+            Title = si.Title,
+            Description = si.Description,
+            FlowDescription = si.FlowDescription,
+            ImageUrl = si.ImageUrl,
+            CreatedDate = si.CreatedDate
+        };
+    }
+}
