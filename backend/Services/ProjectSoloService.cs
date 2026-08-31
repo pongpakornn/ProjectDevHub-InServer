@@ -550,16 +550,19 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.DTOs;
 using backend.Models.Project;
+using backend.Models.Flow;
 
 namespace backend.Services
 {
     public class ProjectSoloService : IProjectSoloService
     {
         private readonly AppDbContext _context;
+        private readonly IAuditLogService _auditLogService;
 
-        public ProjectSoloService(AppDbContext context)
+        public ProjectSoloService(AppDbContext context, IAuditLogService auditLogService)
         {
             _context = context;
+            _auditLogService = auditLogService;
         }
 
         private static readonly Dictionary<string, string[]> PhaseTemplates = new()
@@ -682,6 +685,10 @@ namespace backend.Services
             await _context.Entry(project).Reference(p => p.ProjectType).LoadAsync();
             await _context.Entry(project).Reference(p => p.Owner).LoadAsync();
 
+            await EnsureFlowDefinitionAsync(project, "SOLO");
+            await _auditLogService.LogAsync(currentUserId, "SOLO", "INSERT",
+                $"สร้างโปรเจกต์ Solo: {project.ProjectName} ({project.ProjectCode})", project.ProjectId.ToString());
+
             return MapToSoloProjectDto(project);
         }
 
@@ -718,17 +725,49 @@ namespace backend.Services
             project.UpdatedDate = DateTimeOffset.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            await EnsureFlowDefinitionAsync(project, "SOLO");
+            await _auditLogService.LogAsync(currentUserId, "SOLO", "UPDATE",
+                $"แก้ไขโปรเจกต์ Solo: {project.ProjectName} ({project.ProjectCode})", project.ProjectId.ToString());
+
             return MapToSoloProjectDto(project);
         }
 
-        public async Task<bool> DeleteProjectAsync(int projectId)
+        public async Task<bool> DeleteProjectAsync(int projectId, int currentUserId)
         {
             var project = await _context.Projects.FindAsync(projectId);
             if (project == null) return false;
 
-            project.IsActive = false;
-            project.UpdatedDate = DateTimeOffset.UtcNow;
+            var projectName = project.ProjectName;
+            var projectCode = project.ProjectCode;
+
+            // Hard Delete: ตัดความสัมพันธ์ที่ไม่ได้ตั้ง Cascade ไว้ (รักษาประวัติ/ไม่ผูกกับ Project โดยตรง) ก่อนลบจริง
+            // ส่วนตารางลูกที่ Cascade อยู่แล้ว (Members/Milestones/Tasks/TechStacks/ShowcaseItems/Comments/Attachments/FlowDefinitions)
+            // จะถูกลบอัตโนมัติโดย Database เมื่อลบแถว Project
+            var taskIds = await _context.Tasks
+                .Where(t => t.ProjectId == projectId)
+                .Select(t => t.TaskId)
+                .ToListAsync();
+
+            var histories = _context.StatusHistory
+                .Where(h => h.ProjectId == projectId || (h.TaskId != null && taskIds.Contains(h.TaskId.Value)));
+            _context.StatusHistory.RemoveRange(histories);
+
+            var linkedEvents = await _context.Events
+                .Where(e => e.LinkedProjectId == projectId || (e.LinkedTaskId != null && taskIds.Contains(e.LinkedTaskId.Value)))
+                .ToListAsync();
+            foreach (var ev in linkedEvents)
+            {
+                if (ev.LinkedProjectId == projectId) ev.LinkedProjectId = null;
+                if (ev.LinkedTaskId != null && taskIds.Contains(ev.LinkedTaskId.Value)) ev.LinkedTaskId = null;
+            }
+
+            _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
+
+            await _auditLogService.LogAsync(currentUserId, "SOLO", "DELETE",
+                $"ลบโปรเจกต์ Solo: {projectName} ({projectCode})", projectId.ToString());
+
             return true;
         }
 
@@ -967,6 +1006,21 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
+        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request)
+        {
+            var showcase = await _context.ShowcaseItems.FindAsync(request.ShowcaseItemId);
+            if (showcase == null) return null;
+
+            showcase.Title = request.Title;
+            showcase.Description = request.Description;
+            showcase.FlowDescription = request.FlowDescription;
+            showcase.ImageUrl = request.ImageUrl;
+            showcase.UpdatedDate = DateTimeOffset.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return MapToWorkItemDto(showcase);
+        }
+
         public async Task<bool> DeleteWorkItemAsync(int showcaseItemId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(showcaseItemId);
@@ -975,6 +1029,72 @@ namespace backend.Services
             _context.ShowcaseItems.Remove(showcase);
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        // ===========================================================================
+        // Flow 1:1 Binding — สร้าง/ซิงก์ Flow.FlowDefinitions ให้ผูกกับ Project นี้เสมอ
+        // (ผู้ใช้กรอกข้อมูลที่หน้า Solo/Team เท่านั้น ฝั่ง Flow จะ Auto-Generate/Sync ให้อัตโนมัติ)
+        // ===========================================================================
+        private async Task EnsureFlowDefinitionAsync(Projects project, string workType)
+        {
+            var flow = await _context.FlowDefinitions.FirstOrDefaultAsync(f => f.ProjectId == project.ProjectId);
+
+            if (flow == null)
+            {
+                _context.FlowDefinitions.Add(new FlowDefinitions
+                {
+                    ProjectId = project.ProjectId,
+                    FlowCode = await GenerateFlowCodeAsync(),
+                    Name = project.ProjectName,
+                    Description = project.Description,
+                    Status = MapProjectStatusToFlowStatus(project.Status),
+                    WorkType = workType,
+                    StartDate = project.StartDate,
+                    EndDate = project.EndDate,
+                    CreatedBy = project.CreatedBy,
+                    IsActive = true
+                });
+            }
+            else
+            {
+                flow.Name = project.ProjectName;
+                flow.Description = project.Description;
+                flow.Status = MapProjectStatusToFlowStatus(project.Status);
+                flow.WorkType = workType;
+                flow.StartDate = project.StartDate;
+                flow.EndDate = project.EndDate;
+                flow.UpdatedDate = DateTimeOffset.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        private static string MapProjectStatusToFlowStatus(string projectStatus) => projectStatus switch
+        {
+            "COMPLETED" => "COMPLETED",
+            "CANCELLED" => "COMPLETED",
+            "PLANNING" => "PLANNING",
+            _ => "IN_PROGRESS" // IN_PROGRESS, ON_HOLD
+        };
+
+        private async Task<string> GenerateFlowCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var prefix = $"FLOW-{year}-";
+
+            var lastCode = await _context.FlowDefinitions
+                .Where(f => f.FlowCode.StartsWith(prefix))
+                .OrderByDescending(f => f.FlowCode)
+                .Select(f => f.FlowCode)
+                .FirstOrDefaultAsync();
+
+            var nextSeq = 1;
+            if (lastCode != null && int.TryParse(lastCode.Substring(prefix.Length), out var lastSeq))
+            {
+                nextSeq = lastSeq + 1;
+            }
+
+            return $"{prefix}{nextSeq:D3}";
         }
 
         // ===========================================================================

@@ -26,6 +26,7 @@ export interface FlowTechStackTag {
 
 export interface FlowListItem {
   id: string; // FlowDefinitionId
+  projectId: number | null; // ผูก 1:1 กับ Project.Projects (Solo/Team) — null เฉพาะ Flow เก่าก่อนรอบผูก 1:1
   flowCode: string;
   name: string;
   description: string;

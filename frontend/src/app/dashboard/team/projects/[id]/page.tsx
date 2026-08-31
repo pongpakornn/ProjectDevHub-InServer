@@ -19,8 +19,8 @@ import {
   getProjectDetail,
   updateProject,
   createWorkItem,
+  updateWorkItem,
   updateTaskItem,
-  deleteWorkItem,
   autoGeneratePhases,
   addMember,
   removeMember,
@@ -191,19 +191,24 @@ export default function TeamProjectDetailPage() {
     if (!projectInfo) return;
     try {
       if (editingWork) {
-        // หมายเหตุ: Backend ยังไม่มี UpdateWorkItem endpoint (มีแค่ Create/Delete) — ลบของเดิมแล้วสร้างใหม่แทน
-        await deleteWorkItem(Number(editingWork.id));
-      }
-      await createWorkItem(
-        projectInfo.id,
-        {
+        await updateWorkItem(Number(editingWork.id), projectInfo.id, {
           title: workData.title,
           description: workData.desc,
           flowDescription: workData.flow,
           imageUrl: workData.image || "",
-        },
-        CURRENT_USER_ID
-      );
+        });
+      } else {
+        await createWorkItem(
+          projectInfo.id,
+          {
+            title: workData.title,
+            description: workData.desc,
+            flowDescription: workData.flow,
+            imageUrl: workData.image || "",
+          },
+          CURRENT_USER_ID
+        );
+      }
       await loadProjectDetail();
     } catch (err) {
       console.error(err);
@@ -268,6 +273,7 @@ export default function TeamProjectDetailPage() {
       <TeamProjectGallerySection
         works={works}
         setWorks={setWorks}
+        phases={phases}
         onOpenAddModal={handleOpenAddWorkModal}
         onOpenEditModal={handleOpenEditWorkModal}
       />

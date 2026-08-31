@@ -9,6 +9,7 @@ namespace backend.DTOs
     public class FlowDefinitionDto
     {
         public int FlowDefinitionId { get; set; }
+        public int? ProjectId { get; set; }
         public string FlowCode { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }

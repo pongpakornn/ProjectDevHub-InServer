@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.DTOs;
 using backend.Models.Flow;
+using backend.Models.Project;
 
 namespace backend.Services
 {
@@ -19,6 +20,8 @@ namespace backend.Services
         // ===========================================================================
         public async Task<List<FlowDefinitionDto>> GetFlowsAsync()
         {
+            await SyncFlowDefinitionsWithProjectsAsync();
+
             var flows = await _context.FlowDefinitions
                 .Where(f => f.IsActive)
                 .Include(f => f.Creator)
@@ -30,6 +33,8 @@ namespace backend.Services
 
         public async Task<FlowDefinitionDetailDto?> GetFlowDetailAsync(int flowDefinitionId)
         {
+            await SyncFlowDefinitionsWithProjectsAsync();
+
             var flow = await _context.FlowDefinitions
                 .Include(f => f.Creator)
                 .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
@@ -278,11 +283,100 @@ namespace backend.Services
         }
 
         // ===========================================================================
+        // Flow 1:1 Binding — Backfill/Sync ให้ทุก Project (Solo/Team) ที่ Active มี FlowDefinition ผูกอยู่เสมอ
+        // (ครอบคลุม Project เก่าที่สร้างก่อนมีการผูก Flow 1:1 — ProjectSoloService/ProjectTeamService
+        // จะ Ensure ให้ทันทีตอน Create/Update อยู่แล้ว ส่วนนี้คือ Fallback สำหรับข้อมูลเก่า)
+        // ===========================================================================
+        private async Task SyncFlowDefinitionsWithProjectsAsync()
+        {
+            var projects = await _context.Projects
+                .Where(p => p.IsActive)
+                .Include(p => p.Members)
+                .ToListAsync();
+
+            if (projects.Count == 0) return;
+
+            var projectIds = projects.Select(p => p.ProjectId).ToList();
+            var existingFlows = await _context.FlowDefinitions
+                .Where(f => f.ProjectId != null && projectIds.Contains(f.ProjectId.Value))
+                .ToListAsync();
+            var flowByProjectId = existingFlows.ToDictionary(f => f.ProjectId!.Value);
+
+            var hasChanges = false;
+            var nextFlowSeq = -1; // เติมค่าจาก DB แค่ครั้งแรกที่ต้องใช้ แล้วนับต่อในหน่วยความจำ กัน FlowCode ซ้ำในลูปเดียวกัน
+            var flowCodeYear = DateTime.UtcNow.Year;
+
+            foreach (var project in projects)
+            {
+                var workType = project.Members.Any() ? "TEAM" : "SOLO";
+                var status = MapProjectStatusToFlowStatus(project.Status);
+
+                if (flowByProjectId.TryGetValue(project.ProjectId, out var flow))
+                {
+                    if (flow.Name != project.ProjectName || flow.Description != project.Description ||
+                        flow.Status != status || flow.WorkType != workType ||
+                        flow.StartDate != project.StartDate || flow.EndDate != project.EndDate)
+                    {
+                        flow.Name = project.ProjectName;
+                        flow.Description = project.Description;
+                        flow.Status = status;
+                        flow.WorkType = workType;
+                        flow.StartDate = project.StartDate;
+                        flow.EndDate = project.EndDate;
+                        flow.UpdatedDate = DateTimeOffset.UtcNow;
+                        hasChanges = true;
+                    }
+                }
+                else
+                {
+                    if (nextFlowSeq < 0)
+                    {
+                        nextFlowSeq = await GetNextFlowSeqAsync(flowCodeYear);
+                    }
+
+                    _context.FlowDefinitions.Add(new FlowDefinitions
+                    {
+                        ProjectId = project.ProjectId,
+                        FlowCode = $"FLOW-{flowCodeYear}-{nextFlowSeq++:D3}",
+                        Name = project.ProjectName,
+                        Description = project.Description,
+                        Status = status,
+                        WorkType = workType,
+                        StartDate = project.StartDate,
+                        EndDate = project.EndDate,
+                        CreatedBy = project.CreatedBy,
+                        IsActive = true
+                    });
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private static string MapProjectStatusToFlowStatus(string projectStatus) => projectStatus switch
+        {
+            "COMPLETED" => "COMPLETED",
+            "CANCELLED" => "COMPLETED",
+            "PLANNING" => "PLANNING",
+            _ => "IN_PROGRESS" // IN_PROGRESS, ON_HOLD
+        };
+
+        // ===========================================================================
         // Helpers
         // ===========================================================================
         private async Task<string> GenerateFlowCodeAsync()
         {
             var year = DateTime.UtcNow.Year;
+            var nextSeq = await GetNextFlowSeqAsync(year);
+            return $"FLOW-{year}-{nextSeq:D3}";
+        }
+
+        private async Task<int> GetNextFlowSeqAsync(int year)
+        {
             var prefix = $"FLOW-{year}-";
 
             var lastCode = await _context.FlowDefinitions
@@ -291,18 +385,18 @@ namespace backend.Services
                 .Select(f => f.FlowCode)
                 .FirstOrDefaultAsync();
 
-            var nextSeq = 1;
             if (lastCode != null && int.TryParse(lastCode.Substring(prefix.Length), out var lastSeq))
             {
-                nextSeq = lastSeq + 1;
+                return lastSeq + 1;
             }
 
-            return $"{prefix}{nextSeq:D3}";
+            return 1;
         }
 
         private static FlowDefinitionDto MapToFlowDefinitionDto(FlowDefinitions f) => new()
         {
             FlowDefinitionId = f.FlowDefinitionId,
+            ProjectId = f.ProjectId,
             FlowCode = f.FlowCode,
             Name = f.Name,
             Description = f.Description,

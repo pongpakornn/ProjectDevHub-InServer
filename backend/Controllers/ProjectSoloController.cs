@@ -125,11 +125,11 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{projectId:int}")]
-        public async Task<IActionResult> DeleteProject(int projectId)
+        public async Task<IActionResult> DeleteProject(int projectId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectSoloService.DeleteProjectAsync(projectId);
+                var success = await _projectSoloService.DeleteProjectAsync(projectId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return NoContent();
             }
@@ -319,6 +319,24 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการสร้าง Showcase Item");
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpPut("showcases")]
+        public async Task<IActionResult> UpdateWorkItem([FromBody] UpdateWorkItemRequest request)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _projectSoloService.UpdateWorkItemAsync(request);
+                if (result == null) return NotFound(new { message = "ไม่พบ Showcase Item นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการแก้ไข Showcase Item {ShowcaseItemId}", request.ShowcaseItemId);
                 return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
             }
         }

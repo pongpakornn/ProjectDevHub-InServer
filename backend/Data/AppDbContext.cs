@@ -662,15 +662,21 @@ namespace backend.Data
             // ---------- Flow Schema ----------
             // ===========================================================================
 
-            // FlowDefinitions
+            // FlowDefinitions (ผูก 1:1 กับ Project.Projects — Cascade เมื่อลบ Project ต้นทาง เพราะ Flow ไม่มีความหมายถ้าไม่มี Project แล้ว)
             modelBuilder.Entity<FlowDefinitions>(entity =>
             {
                 entity.HasIndex(f => f.FlowCode).IsUnique();
+                entity.HasIndex(f => f.ProjectId).IsUnique();
 
                 entity.HasOne(f => f.Creator)
                     .WithMany()
                     .HasForeignKey(f => f.CreatedBy)
                     .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(f => f.Project)
+                    .WithMany()
+                    .HasForeignKey(f => f.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // FlowSteps (มี Trigger คำนวณ FlowDefinitions.ProgressPercent อัตโนมัติ, Cascade เมื่อลบ FlowDefinition)

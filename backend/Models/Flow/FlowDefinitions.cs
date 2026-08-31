@@ -11,6 +11,9 @@ namespace backend.Models.Flow
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int FlowDefinitionId { get; set; }
 
+        // ผูก 1:1 กับ Project.Projects (Solo/Team) — NULL ได้เฉพาะ Flow เก่าที่สร้างแบบ Standalone ก่อนรอบนี้
+        public int? ProjectId { get; set; }
+
         [Required]
         [StringLength(30)]
         public string FlowCode { get; set; } = string.Empty; // เช่น "FLOW-2026-001"
@@ -43,6 +46,9 @@ namespace backend.Models.Flow
         // Navigation Properties
         [ForeignKey(nameof(CreatedBy))]
         public User? Creator { get; set; }
+
+        [ForeignKey(nameof(ProjectId))]
+        public Projects? Project { get; set; }
 
         public ICollection<FlowSteps> Steps { get; set; } = new List<FlowSteps>();
         public ICollection<FlowTechStacks> TechStacks { get; set; } = new List<FlowTechStacks>();

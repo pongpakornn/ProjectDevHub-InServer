@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7WNCqYFQnRU=",
+  "dgSpecHash": "LyMlkzK+fAY=",
   "success": true,
-  "projectFilePath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
+  "projectFilePath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\pongp\\.nuget\\packages\\azure.core\\1.50.0\\azure.core.1.50.0.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\azure.identity\\1.17.1\\azure.identity.1.17.1.nupkg.sha512",

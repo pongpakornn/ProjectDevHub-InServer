@@ -18,6 +18,7 @@ import {
 
 interface FlowDefinitionDtoRaw {
   flowDefinitionId: number;
+  projectId?: number | null;
   flowCode: string;
   name: string;
   description?: string | null;
@@ -85,12 +86,6 @@ function mapFlowStatus(status: string): FlowStatus {
   return "วางแผน";
 }
 
-function mapFlowStatusToBackend(status: FlowStatus): string {
-  if (status === "เสร็จแล้ว") return "COMPLETED";
-  if (status === "กำลังทำ") return "IN_PROGRESS";
-  return "PLANNING";
-}
-
 function mapStepStatus(status: string): FlowStepStatus {
   if (status === "DONE") return "เสร็จแล้ว";
   if (status === "IN_PROGRESS") return "กำลังทำ";
@@ -107,10 +102,6 @@ function mapWorkType(workType: string): FlowWorkType {
   return workType === "TEAM" ? "ทำกับทีม" : "ทำคนเดียว";
 }
 
-function mapWorkTypeToBackend(workType: FlowWorkType): string {
-  return workType === "ทำกับทีม" ? "TEAM" : "SOLO";
-}
-
 function toDisplayDate(iso?: string | null): string {
   if (!iso) return "-";
   const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -121,19 +112,10 @@ function toDisplayDate(iso?: string | null): string {
   return iso;
 }
 
-function toIsoDate(dateStr?: string | null): string | null {
-  if (!dateStr || dateStr === "-") return null;
-  const match = dateStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
-  if (match) {
-    const [, d, m, y] = match;
-    return `${y}-${m}-${d}`;
-  }
-  return dateStr;
-}
-
 function mapListItem(raw: FlowDefinitionDtoRaw): FlowListItem {
   return {
     id: String(raw.flowDefinitionId),
+    projectId: raw.projectId ?? null,
     flowCode: raw.flowCode,
     name: raw.name,
     description: raw.description || "",
@@ -201,57 +183,6 @@ export async function getFlowDetail(flowDefinitionId: number): Promise<FlowDetai
     techStacks: raw.techStacks.map(mapTechStack),
     phases: raw.steps.map(mapStep),
   };
-}
-
-export async function createFlow(
-  data: {
-    name: string;
-    description: string;
-    status: FlowStatus;
-    workType: FlowWorkType;
-    startDate: string;
-    endDate: string;
-  },
-  currentUserId: number
-): Promise<FlowListItem> {
-  const raw = await fetchApi<FlowDefinitionDtoRaw>(`/Flow?userId=${currentUserId}`, {
-    method: "POST",
-    body: JSON.stringify({
-      name: data.name,
-      description: data.description,
-      status: mapFlowStatusToBackend(data.status),
-      workType: mapWorkTypeToBackend(data.workType),
-      startDate: toIsoDate(data.startDate),
-      endDate: toIsoDate(data.endDate),
-    }),
-  });
-  return mapListItem(raw);
-}
-
-export async function updateFlow(
-  flowDefinitionId: number,
-  data: {
-    name: string;
-    description: string;
-    status: FlowStatus;
-    workType: FlowWorkType;
-    startDate: string;
-    endDate: string;
-  }
-): Promise<FlowListItem> {
-  const raw = await fetchApi<FlowDefinitionDtoRaw>("/Flow", {
-    method: "PUT",
-    body: JSON.stringify({
-      flowDefinitionId,
-      name: data.name,
-      description: data.description,
-      status: mapFlowStatusToBackend(data.status),
-      workType: mapWorkTypeToBackend(data.workType),
-      startDate: toIsoDate(data.startDate),
-      endDate: toIsoDate(data.endDate),
-    }),
-  });
-  return mapListItem(raw);
 }
 
 export function deleteFlow(flowDefinitionId: number): Promise<void> {

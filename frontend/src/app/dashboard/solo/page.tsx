@@ -89,7 +89,7 @@ export default function SoloWorkPage() {
   const handleDelete = async (id: number) => {
     if (!confirm("คุณต้องการลบโปรเจกต์นี้ใช่หรือไม่?")) return;
     try {
-      await deleteProject(id);
+      await deleteProject(id, CURRENT_USER_ID);
       setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err: any) {
       console.error("Delete project error:", err);

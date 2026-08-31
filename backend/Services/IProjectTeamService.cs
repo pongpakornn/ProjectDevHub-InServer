@@ -9,7 +9,7 @@ namespace backend.Services
         Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId);
         Task<TeamProjectDto> CreateProjectAsync(CreateTeamProjectRequest request, int currentUserId);
         Task<TeamProjectDto?> UpdateProjectAsync(UpdateTeamProjectRequest request, int currentUserId);
-        Task<bool> DeleteProjectAsync(int projectId);
+        Task<bool> DeleteProjectAsync(int projectId, int currentUserId);
 
         // ProjectMembers
         Task<List<ProjectMemberDto>?> GetMembersAsync(int projectId);
@@ -34,6 +34,7 @@ namespace backend.Services
 
         // WorkItem (ShowcaseItem)
         Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId);
+        Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request);
         Task<bool> DeleteWorkItemAsync(int showcaseItemId);
 
         // Comments

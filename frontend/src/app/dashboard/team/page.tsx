@@ -112,7 +112,7 @@ export default function TeamWorkPage() {
   const handleDelete = async (id: number | string) => {
     if (!confirm("คุณต้องการลบโปรเจกต์นี้ใช่หรือไม่?")) return;
     try {
-      await deleteProject(Number(id));
+      await deleteProject(Number(id), CURRENT_USER_ID);
       setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err: any) {
       console.error("Delete team project error:", err);

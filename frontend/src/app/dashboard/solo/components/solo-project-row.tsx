@@ -2,9 +2,9 @@
 
 import React from "react";
 import { FolderGit2, Users, CheckCircle2, Clock } from "lucide-react";
-import ViewButton from "@/components/ui/buttons/view-button";
-import EditButton from "@/components/ui/buttons/edit-button";
-import DeleteButton from "@/components/ui/buttons/delete-button";
+import ViewButtonV2 from "@/components/ui/buttons/buttonv2/view-buttonv2";
+import EditButtonV2 from "@/components/ui/buttons/buttonv2/edit-buttonv2";
+import DeleteButtonV2 from "@/components/ui/buttons/buttonv2/delete-buttonv2";
 import { SoloProject } from "@/types/project";
 
 interface SoloProjectRowProps {
@@ -116,9 +116,9 @@ export default function SoloProjectRow({
 
       <td className="py-3.5 px-3.5 text-center">
         <div className="flex items-center justify-center gap-2">
-          <ViewButton title="ดูรายละเอียดโปรเจกต์" onClick={() => onProjectClick(project.id)} />
-          <EditButton title="แก้ไขโปรเจกต์" onClick={() => onEdit(project)} />
-          <DeleteButton title="ลบโปรเจกต์" onClick={() => onDelete(project.id)} />
+          <ViewButtonV2 title="ดูรายละเอียดโปรเจกต์" onClick={() => onProjectClick(project.id)} />
+          <EditButtonV2 title="แก้ไขโปรเจกต์" onClick={() => onEdit(project)} />
+          <DeleteButtonV2 title="ลบโปรเจกต์" onClick={() => onDelete(project.id)} />
         </div>
       </td>
     </tr>

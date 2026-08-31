@@ -300,8 +300,8 @@ export async function updateProject(
   return mapProject(raw);
 }
 
-export function deleteProject(projectId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/${projectId}`, { method: "DELETE" });
+export function deleteProject(projectId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/${projectId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -464,6 +464,18 @@ export async function createWorkItem(
   const raw = await fetchApi<WorkItemDtoRaw>(`/ProjectTeam/showcases?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ projectId, ...data }),
+  });
+  return mapWorkItem(raw);
+}
+
+export async function updateWorkItem(
+  showcaseItemId: number,
+  projectId: number,
+  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">
+): Promise<WorkItem> {
+  const raw = await fetchApi<WorkItemDtoRaw>("/ProjectTeam/showcases", {
+    method: "PUT",
+    body: JSON.stringify({ showcaseItemId, projectId, ...data }),
   });
   return mapWorkItem(raw);
 }
