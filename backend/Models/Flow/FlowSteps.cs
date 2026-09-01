@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using backend.Models.Project;
 
 namespace backend.Models.Flow
 {
@@ -11,6 +12,9 @@ namespace backend.Models.Flow
         public int FlowStepId { get; set; }
 
         public int FlowDefinitionId { get; set; }
+
+        // ผูกย้อนกลับไปที่ Project.Milestones ต้นทาง เมื่อ Step นี้ถูกสร้างจาก Auto-Generate (NULL ได้สำหรับ Step ที่ผู้ใช้เพิ่มเอง)
+        public int? MilestoneId { get; set; }
 
         [Required]
         [StringLength(20)]
@@ -34,5 +38,8 @@ namespace backend.Models.Flow
         // Navigation Properties
         [ForeignKey(nameof(FlowDefinitionId))]
         public FlowDefinitions? FlowDefinition { get; set; }
+
+        [ForeignKey(nameof(MilestoneId))]
+        public Milestones? Milestone { get; set; }
     }
 }

@@ -6,8 +6,9 @@ import FlowDetailHeader from "@/components/flow/flow-detail-header";
 import FlowDiagramSection from "@/components/flow/flow-diagram-section";
 import ArchitectureDiagramSection from "@/components/flow/architecture-diagram-section";
 import FlowGanttQaSections from "@/components/flow/flow-gantt-qa-sections";
+import { GitBranch } from "lucide-react";
 import { FlowDetail, FlowStep, FlowTechStackTag, FlowExecution } from "@/types/flow";
-import { getFlowDetail, getExecutions } from "@/lib/flow-api";
+import { getFlowDetail, getExecutions, autoGenerateSteps, autoGenerateTechStacks } from "@/lib/flow-api";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
@@ -23,6 +24,7 @@ export default function FlowProjectDetailPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const loadFlowDetail = useCallback(async () => {
     if (!flowDefinitionId) return;
@@ -49,6 +51,24 @@ export default function FlowProjectDetailPage() {
     loadFlowDetail();
   }, [loadFlowDetail]);
 
+  const handleGenerateFromProject = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      const [newPhases, newTechStacks] = await Promise.all([
+        autoGenerateSteps(flowDefinitionId),
+        autoGenerateTechStacks(flowDefinitionId),
+      ]);
+      setPhases(newPhases);
+      setTechStacks(newTechStacks);
+    } catch (err) {
+      console.error("Generate Flow จากข้อมูลโปรเจกต์ไม่สำเร็จ", err);
+      alert(err instanceof Error ? err.message : "Generate Flow จากข้อมูลโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="w-full py-20 text-center text-slate-500 text-xs font-medium">กำลังโหลดข้อมูล Flow...</div>;
   }
@@ -70,6 +90,18 @@ export default function FlowProjectDetailPage() {
         endDate={flow.endDate}
         workType={flow.workType}
       />
+
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={handleGenerateFromProject}
+          disabled={isGenerating}
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5"
+        >
+          <GitBranch className="w-3.5 h-3.5" />
+          {isGenerating ? "กำลัง Generate..." : "Generate จากข้อมูลโปรเจกต์"}
+        </button>
+      </div>
 
       <FlowDiagramSection
         flowDefinitionId={flowDefinitionId}

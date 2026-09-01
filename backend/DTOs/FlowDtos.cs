@@ -52,6 +52,7 @@ namespace backend.DTOs
     {
         public int FlowStepId { get; set; }
         public int FlowDefinitionId { get; set; }
+        public int? MilestoneId { get; set; }
         public string StepNo { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Status { get; set; } = "PENDING"; // PENDING, IN_PROGRESS, DONE
@@ -94,6 +95,7 @@ namespace backend.DTOs
     {
         public int FlowTechStackId { get; set; }
         public int FlowDefinitionId { get; set; }
+        public int? TechStackId { get; set; }
         public string Layer { get; set; } = string.Empty; // FRONTEND, BACKEND, DATABASE
         public string Name { get; set; } = string.Empty;
         public int SortOrder { get; set; }

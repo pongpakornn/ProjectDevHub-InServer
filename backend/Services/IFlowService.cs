@@ -15,10 +15,12 @@ namespace backend.Services
         Task<FlowStepDto?> CreateStepAsync(CreateFlowStepRequest request);
         Task<FlowStepDto?> UpdateStepAsync(UpdateFlowStepRequest request);
         Task<bool> DeleteStepAsync(int flowStepId);
+        Task<List<FlowStepDto>> AutoGenerateStepsAsync(int flowDefinitionId);
 
         // FlowTechStacks
         Task<FlowTechStackDto?> CreateTechStackAsync(CreateFlowTechStackRequest request);
         Task<bool> DeleteTechStackAsync(int flowTechStackId);
+        Task<List<FlowTechStackDto>> AutoGenerateTechStacksAsync(int flowDefinitionId);
 
         // FlowExecutions
         Task<List<FlowExecutionDto>?> GetExecutionsAsync(int flowDefinitionId);

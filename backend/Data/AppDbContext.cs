@@ -693,6 +693,12 @@ namespace backend.Data
                     .WithMany(f => f.Steps)
                     .HasForeignKey(s => s.FlowDefinitionId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                // ไม่ Cascade — ลบ Milestone ต้นทางแล้ว Step ที่ Auto-Generate ไว้ยังอยู่ (แค่ตัดการอ้างอิง)
+                entity.HasOne(s => s.Milestone)
+                    .WithMany()
+                    .HasForeignKey(s => s.MilestoneId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // FlowTechStacks (Cascade เมื่อลบ FlowDefinition)
@@ -702,6 +708,12 @@ namespace backend.Data
                     .WithMany(f => f.TechStacks)
                     .HasForeignKey(ts => ts.FlowDefinitionId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                // ไม่ Cascade — ลบ TechStack ต้นทางแล้วรายการที่ Auto-Generate ไว้ยังอยู่ (แค่ตัดการอ้างอิง)
+                entity.HasOne(ts => ts.TechStack)
+                    .WithMany()
+                    .HasForeignKey(ts => ts.TechStackId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // FlowExecutions (Cascade เมื่อลบ FlowDefinition)

@@ -10,6 +10,7 @@ export type FlowLogLevel = "INFO" | "WARN" | "ERROR";
 
 export interface FlowStep {
   id: string;
+  milestoneId?: number | null;
   stepNo: string;
   title: string;
   status: FlowStepStatus;
@@ -20,6 +21,7 @@ export interface FlowStep {
 
 export interface FlowTechStackTag {
   id: string;
+  techStackId?: number | null;
   layer: FlowTechLayer;
   name: string;
 }

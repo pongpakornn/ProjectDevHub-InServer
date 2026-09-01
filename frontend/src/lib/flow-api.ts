@@ -34,6 +34,7 @@ interface FlowDefinitionDtoRaw {
 interface FlowStepDtoRaw {
   flowStepId: number;
   flowDefinitionId: number;
+  milestoneId?: number | null;
   stepNo: string;
   title: string;
   status: string;
@@ -46,6 +47,7 @@ interface FlowStepDtoRaw {
 interface FlowTechStackDtoRaw {
   flowTechStackId: number;
   flowDefinitionId: number;
+  techStackId?: number | null;
   layer: string;
   name: string;
   sortOrder: number;
@@ -130,6 +132,7 @@ function mapListItem(raw: FlowDefinitionDtoRaw): FlowListItem {
 function mapStep(raw: FlowStepDtoRaw): FlowStep {
   return {
     id: String(raw.flowStepId),
+    milestoneId: raw.milestoneId ?? null,
     stepNo: raw.stepNo,
     title: raw.title,
     status: mapStepStatus(raw.status),
@@ -142,6 +145,7 @@ function mapStep(raw: FlowStepDtoRaw): FlowStep {
 function mapTechStack(raw: FlowTechStackDtoRaw): FlowTechStackTag {
   return {
     id: String(raw.flowTechStackId),
+    techStackId: raw.techStackId ?? null,
     layer: raw.layer as FlowTechLayer,
     name: raw.name,
   };
@@ -254,6 +258,13 @@ export function deleteStep(flowStepId: number): Promise<void> {
   return fetchApi<void>(`/Flow/steps/${flowStepId}`, { method: "DELETE" });
 }
 
+export async function autoGenerateSteps(flowDefinitionId: number): Promise<FlowStep[]> {
+  const raw = await fetchApi<FlowStepDtoRaw[]>(`/Flow/${flowDefinitionId}/steps/auto-generate`, {
+    method: "POST",
+  });
+  return raw.map(mapStep);
+}
+
 // ===========================================================================
 // FlowTechStacks
 // ===========================================================================
@@ -271,6 +282,13 @@ export async function createTechStack(
 
 export function deleteTechStack(flowTechStackId: number): Promise<void> {
   return fetchApi<void>(`/Flow/techstacks/${flowTechStackId}`, { method: "DELETE" });
+}
+
+export async function autoGenerateTechStacks(flowDefinitionId: number): Promise<FlowTechStackTag[]> {
+  const raw = await fetchApi<FlowTechStackDtoRaw[]>(`/Flow/${flowDefinitionId}/techstacks/auto-generate`, {
+    method: "POST",
+  });
+  return raw.map(mapTechStack);
 }
 
 // ===========================================================================

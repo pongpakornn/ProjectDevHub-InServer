@@ -160,9 +160,47 @@ namespace backend.Controllers
             }
         }
 
+        [HttpPost("{flowDefinitionId:int}/steps/auto-generate")]
+        public async Task<IActionResult> AutoGenerateSteps(int flowDefinitionId)
+        {
+            try
+            {
+                var result = await _flowService.AutoGenerateStepsAsync(flowDefinitionId);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการ Auto-Generate Flow Steps ของ Flow {FlowDefinitionId}", flowDefinitionId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
         // ===========================================================================
         // FlowTechStacks
         // ===========================================================================
+        [HttpPost("{flowDefinitionId:int}/techstacks/auto-generate")]
+        public async Task<IActionResult> AutoGenerateTechStacks(int flowDefinitionId)
+        {
+            try
+            {
+                var result = await _flowService.AutoGenerateTechStacksAsync(flowDefinitionId);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการ Auto-Generate Flow Tech Stacks ของ Flow {FlowDefinitionId}", flowDefinitionId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
         [HttpPost("techstacks")]
         public async Task<IActionResult> CreateTechStack([FromBody] CreateFlowTechStackRequest request)
         {

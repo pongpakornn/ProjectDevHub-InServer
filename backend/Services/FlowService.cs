@@ -196,6 +196,138 @@ namespace backend.Services
         }
 
         // ===========================================================================
+        // Auto-Generate — สร้าง FlowSteps/FlowTechStacks จากข้อมูลจริงของ Project ที่ผูกอยู่
+        // (Pattern เดียวกับ ProjectSoloService.AutoGeneratePhasesAsync — Idempotent: มีอยู่แล้วคืนของเดิม ไม่สร้างซ้ำ)
+        // ===========================================================================
+        public async Task<List<FlowStepDto>> AutoGenerateStepsAsync(int flowDefinitionId)
+        {
+            var flow = await _context.FlowDefinitions
+                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+
+            if (flow == null)
+                throw new InvalidOperationException("ไม่พบ Flow นี้");
+
+            if (flow.ProjectId == null)
+                throw new InvalidOperationException("Flow นี้ยังไม่ได้ผูกกับโปรเจกต์ ไม่สามารถ Auto-Generate ได้");
+
+            var existing = await _context.FlowSteps
+                .Where(s => s.FlowDefinitionId == flowDefinitionId)
+                .OrderBy(s => s.SortOrder)
+                .ToListAsync();
+
+            if (existing.Any())
+            {
+                return existing.Select(MapToFlowStepDto).ToList();
+            }
+
+            var milestones = await _context.Milestones
+                .Where(m => m.ProjectId == flow.ProjectId)
+                .Include(m => m.Tasks)
+                .OrderBy(m => m.SortOrder)
+                .ToListAsync();
+
+            if (!milestones.Any())
+                throw new InvalidOperationException("โปรเจกต์นี้ยังไม่มี Phase/Milestone ให้ Generate เป็น Flow Step");
+
+            var steps = milestones.Select((m, index) =>
+            {
+                var status = MapMilestoneStatusToStepStatus(m.Status);
+                var title = m.MilestoneName;
+
+                if (m.Tasks.Any())
+                {
+                    var taskNames = string.Join(", ", m.Tasks.OrderBy(t => t.TaskId).Select(t => t.TaskName));
+                    var candidate = $"{m.MilestoneName} — {taskNames}";
+                    title = candidate.Length > 255 ? candidate.Substring(0, 252) + "..." : candidate;
+                }
+
+                return new FlowSteps
+                {
+                    FlowDefinitionId = flowDefinitionId,
+                    MilestoneId = m.MilestoneId,
+                    StepNo = $"STEP {index + 1:D2}",
+                    Title = title,
+                    Status = status,
+                    ProgressPercent = MapStepStatusToProgress(status),
+                    StartDate = m.StartDate,
+                    EndDate = m.DueDate,
+                    SortOrder = index + 1
+                };
+            }).ToList();
+
+            _context.FlowSteps.AddRange(steps);
+            await _context.SaveChangesAsync();
+
+            return steps.Select(MapToFlowStepDto).ToList();
+        }
+
+        public async Task<List<FlowTechStackDto>> AutoGenerateTechStacksAsync(int flowDefinitionId)
+        {
+            var flow = await _context.FlowDefinitions
+                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+
+            if (flow == null)
+                throw new InvalidOperationException("ไม่พบ Flow นี้");
+
+            if (flow.ProjectId == null)
+                throw new InvalidOperationException("Flow นี้ยังไม่ได้ผูกกับโปรเจกต์ ไม่สามารถ Auto-Generate ได้");
+
+            var existing = await _context.FlowTechStacks
+                .Where(ts => ts.FlowDefinitionId == flowDefinitionId)
+                .OrderBy(ts => ts.SortOrder)
+                .ToListAsync();
+
+            if (existing.Any())
+            {
+                return existing.Select(MapToFlowTechStackDto).ToList();
+            }
+
+            var projectStacks = await _context.TechStacks
+                .Where(ts => ts.ProjectId == flow.ProjectId)
+                .OrderBy(ts => ts.SortOrder)
+                .ToListAsync();
+
+            if (!projectStacks.Any())
+                throw new InvalidOperationException("โปรเจกต์นี้ยังไม่มี Tech Stack ให้ Generate เป็น Architecture Diagram");
+
+            var flowStacks = projectStacks.Select((ts, index) => new FlowTechStacks
+            {
+                FlowDefinitionId = flowDefinitionId,
+                TechStackId = ts.TechStackId,
+                Layer = MapProjectLayerToFlowLayer(ts.Layer),
+                Name = ts.StackName,
+                SortOrder = index + 1
+            }).ToList();
+
+            _context.FlowTechStacks.AddRange(flowStacks);
+            await _context.SaveChangesAsync();
+
+            return flowStacks.Select(MapToFlowTechStackDto).ToList();
+        }
+
+        private static string MapMilestoneStatusToStepStatus(string milestoneStatus) => milestoneStatus switch
+        {
+            "COMPLETED" => "DONE",
+            "IN_PROGRESS" => "IN_PROGRESS",
+            "DELAYED" => "IN_PROGRESS",
+            _ => "PENDING" // PENDING
+        };
+
+        private static int MapStepStatusToProgress(string flowStepStatus) => flowStepStatus switch
+        {
+            "DONE" => 100,
+            "IN_PROGRESS" => 50,
+            _ => 0
+        };
+
+        private static string MapProjectLayerToFlowLayer(string projectLayer) => projectLayer.ToUpperInvariant() switch
+        {
+            "FRONTEND" => "FRONTEND",
+            "DATABASE" => "DATABASE",
+            _ => "BACKEND" // Backend, DevOps, Other → รวมเข้า BACKEND เพราะ Flow รองรับแค่ 3 Layer
+        };
+
+        // ===========================================================================
         // FlowExecutions
         // ===========================================================================
         public async Task<List<FlowExecutionDto>?> GetExecutionsAsync(int flowDefinitionId)
@@ -413,6 +545,7 @@ namespace backend.Services
         {
             FlowStepId = s.FlowStepId,
             FlowDefinitionId = s.FlowDefinitionId,
+            MilestoneId = s.MilestoneId,
             StepNo = s.StepNo,
             Title = s.Title,
             Status = s.Status,
@@ -426,6 +559,7 @@ namespace backend.Services
         {
             FlowTechStackId = ts.FlowTechStackId,
             FlowDefinitionId = ts.FlowDefinitionId,
+            TechStackId = ts.TechStackId,
             Layer = ts.Layer,
             Name = ts.Name,
             SortOrder = ts.SortOrder

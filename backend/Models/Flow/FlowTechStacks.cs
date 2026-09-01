@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using backend.Models.Project;
 
 namespace backend.Models.Flow
 {
@@ -11,6 +12,9 @@ namespace backend.Models.Flow
         public int FlowTechStackId { get; set; }
 
         public int FlowDefinitionId { get; set; }
+
+        // ผูกย้อนกลับไปที่ Project.TechStacks ต้นทาง เมื่อรายการนี้ถูกสร้างจาก Auto-Generate (NULL ได้สำหรับรายการที่ผู้ใช้เพิ่มเอง)
+        public int? TechStackId { get; set; }
 
         [Required]
         [StringLength(20)]
@@ -25,5 +29,8 @@ namespace backend.Models.Flow
         // Navigation Properties
         [ForeignKey(nameof(FlowDefinitionId))]
         public FlowDefinitions? FlowDefinition { get; set; }
+
+        [ForeignKey(nameof(TechStackId))]
+        public TechStacks? TechStack { get; set; }
     }
 }
