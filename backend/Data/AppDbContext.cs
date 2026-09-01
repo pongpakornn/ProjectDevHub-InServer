@@ -358,11 +358,8 @@ namespace backend.Data
         public DbSet<Milestones> Milestones => Set<Milestones>();
         public DbSet<Tasks> Tasks => Set<Tasks>();
         public DbSet<TaskAssignees> TaskAssignees => Set<TaskAssignees>();
-        public DbSet<TimeLogs> TimeLogs => Set<TimeLogs>();
         public DbSet<Comments> Comments => Set<Comments>();
         public DbSet<Attachments> Attachments => Set<Attachments>();
-        public DbSet<Tags> Tags => Set<Tags>();
-        public DbSet<TaskTags> TaskTags => Set<TaskTags>();
         public DbSet<StatusHistory> StatusHistory => Set<StatusHistory>();
         public DbSet<TechStacks> TechStacks => Set<TechStacks>();
         public DbSet<ShowcaseItems> ShowcaseItems => Set<ShowcaseItems>();
@@ -521,20 +518,6 @@ namespace backend.Data
                     .OnDelete(DeleteBehavior.NoAction);
             });
 
-            // TimeLogs (Cascade เมื่อลบ Task)
-            modelBuilder.Entity<TimeLogs>(entity =>
-            {
-                entity.HasOne(tl => tl.Task)
-                    .WithMany(t => t.TimeLogs)
-                    .HasForeignKey(tl => tl.TaskId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(tl => tl.User)
-                    .WithMany()
-                    .HasForeignKey(tl => tl.UserId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
             // Comments (ต้องมี ProjectId หรือ TaskId อย่างน้อย 1 อัน, Cascade เฉพาะฝั่ง Project)
             modelBuilder.Entity<Comments>(entity =>
             {
@@ -579,28 +562,6 @@ namespace backend.Data
                     .WithMany()
                     .HasForeignKey(a => a.UploadedBy)
                     .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // Tags
-            modelBuilder.Entity<Tags>(entity =>
-            {
-                entity.HasIndex(tg => tg.TagName).IsUnique();
-            });
-
-            // TaskTags (Composite PK, Cascade ทั้ง 2 ฝั่ง)
-            modelBuilder.Entity<TaskTags>(entity =>
-            {
-                entity.HasKey(tt => new { tt.TaskId, tt.TagId });
-
-                entity.HasOne(tt => tt.Task)
-                    .WithMany(t => t.TaskTags)
-                    .HasForeignKey(tt => tt.TaskId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(tt => tt.Tag)
-                    .WithMany(tg => tg.TaskTags)
-                    .HasForeignKey(tt => tt.TagId)
-                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // StatusHistory (ไม่ Cascade เลย เพื่อรักษาประวัติไว้แม้ Project/Task จะถูกลบ)

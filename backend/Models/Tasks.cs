@@ -57,9 +57,7 @@ namespace backend.Models.Project
 
         public ICollection<Tasks> SubTasks { get; set; } = new List<Tasks>();
         public ICollection<TaskAssignees> Assignees { get; set; } = new List<TaskAssignees>();
-        public ICollection<TimeLogs> TimeLogs { get; set; } = new List<TimeLogs>();
         public ICollection<Comments> Comments { get; set; } = new List<Comments>();
         public ICollection<Attachments> Attachments { get; set; } = new List<Attachments>();
-        public ICollection<TaskTags> TaskTags { get; set; } = new List<TaskTags>();
     }
 }
