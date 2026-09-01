@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import SearchableSelect from "@/components/ui/inputs/searchable-select";
 import { SoloProject, CreateProjectFormData } from "@/types/project";
-import { getProjectTypes, getUsers, ProjectType, UserOption } from "@/lib/project-solo-api";
+import { getProjectTypes, getUsers, getDepartments, ProjectType, UserOption, Department } from "@/lib/project-solo-api";
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -13,13 +13,6 @@ interface ProjectFormModalProps {
   onClose: () => void;
   onSubmit: (data: CreateProjectFormData) => void;
 }
-
-const departments = [
-  { label: "ระบบดิจิตอลและIT", value: "ระบบดิจิตอลและIT" },
-  { label: "ฝ่ายซ่อมบำรุง", value: "ฝ่ายซ่อมบำรุง" },
-  { label: "ฝ่ายคลังสินค้าและจัดส่ง", value: "ฝ่ายคลังสินค้าและจัดส่ง" },
-  { label: "ฝ่ายทรัพยากรบุคคล", value: "ฝ่ายทรัพยากรบุคคล" },
-];
 
 const defaultFormState: CreateProjectFormData = {
   name: "",
@@ -44,16 +37,18 @@ export default function ProjectFormModal({
   const [formData, setFormData] = useState<CreateProjectFormData>(defaultFormState);
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
 
-  // โหลด Master Data (ProjectTypes / Users) ตอนเปิด Modal ครั้งแรก
+  // โหลด Master Data (ProjectTypes / Users / Departments) ตอนเปิด Modal ครั้งแรก
   useEffect(() => {
     if (!isOpen) return;
     setIsLoadingOptions(true);
-    Promise.all([getProjectTypes(), getUsers()])
-      .then(([types, userList]) => {
+    Promise.all([getProjectTypes(), getUsers(), getDepartments()])
+      .then(([types, userList, departmentList]) => {
         setProjectTypes(types);
         setUsers(userList);
+        setDepartments(departmentList);
       })
       .catch((err) => console.error("โหลด Master Data ไม่สำเร็จ", err))
       .finally(() => setIsLoadingOptions(false));
@@ -104,6 +99,11 @@ export default function ProjectFormModal({
   const userOptions = users.map((u) => ({
     label: `${u.fullName} (${u.empId})`,
     value: String(u.userId),
+  }));
+
+  const departmentOptions = departments.map((d) => ({
+    label: d.departmentName,
+    value: d.departmentName,
   }));
 
   return (
@@ -161,7 +161,7 @@ export default function ProjectFormModal({
             />
             <SearchableSelect
               label="หน่วยงาน"
-              options={departments}
+              options={departmentOptions}
               value={formData.department}
               onChange={(val) => setFormData({ ...formData, department: val })}
             />

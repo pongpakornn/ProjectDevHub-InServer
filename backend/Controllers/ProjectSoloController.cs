@@ -55,6 +55,36 @@ namespace backend.Controllers
             }
         }
 
+        [HttpGet("departments")]
+        public async Task<IActionResult> GetDepartments()
+        {
+            try
+            {
+                var result = await _projectSoloService.GetDepartmentsAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงรายการ Departments");
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("techstack-catalog")]
+        public async Task<IActionResult> GetTechStackCatalog()
+        {
+            try
+            {
+                var result = await _projectSoloService.GetTechStackCatalogAsync();
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงรายการ TechStackCatalog");
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
         // ===========================================================================
         // Project
         // ===========================================================================

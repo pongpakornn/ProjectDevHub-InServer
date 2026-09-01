@@ -193,6 +193,27 @@ export function getUsers(): Promise<UserOption[]> {
   return fetchApi<UserOption[]>("/ProjectSolo/users");
 }
 
+export interface Department {
+  departmentId: number;
+  departmentName: string;
+}
+
+export function getDepartments(): Promise<Department[]> {
+  return fetchApi<Department[]>("/ProjectSolo/departments");
+}
+
+export type TechStackCatalogGroup = "TYPE" | "NAME" | "LAYER";
+
+export interface TechStackCatalogOption {
+  catalogId: number;
+  optionGroup: TechStackCatalogGroup;
+  optionValue: string;
+}
+
+export function getTechStackCatalog(): Promise<TechStackCatalogOption[]> {
+  return fetchApi<TechStackCatalogOption[]>("/ProjectSolo/techstack-catalog");
+}
+
 export async function getProjects(): Promise<SoloProject[]> {
   const raw = await fetchApi<SoloProjectDtoRaw[]>("/ProjectSolo");
   return raw.map(mapProject);

@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Dropdown, DropdownOption } from "@/components/ui/inputs/dropdown";
 import { Button } from "@/components/ui/buttons/button";
 import { StackItem } from "@/types/project-detail";
-import { createStackItem, deleteStackItem } from "@/lib/project-team-api";
+import { createStackItem, deleteStackItem, getTechStackCatalog } from "@/lib/project-team-api";
 
 interface TeamProjectStackSectionProps {
   projectId: number;
@@ -13,41 +13,34 @@ interface TeamProjectStackSectionProps {
   setStacks: React.Dispatch<React.SetStateAction<StackItem[]>>;
 }
 
-const stackTypeOptions: DropdownOption[] = [
-  { label: "ภาษา (Language)", value: "ภาษา (Language)" },
-  { label: "Framework", value: "Framework" },
-  { label: "Library / Package", value: "Library / Package" },
-  { label: "Database", value: "Database" },
-];
-
-const stackNameOptions: DropdownOption[] = [
-  { label: "Next.js", value: "Next.js" },
-  { label: "React", value: "React" },
-  { label: "TypeScript", value: "TypeScript" },
-  { label: "ASP.NET Core", value: "ASP.NET Core" },
-  { label: "SQL Server", value: "SQL Server" },
-  { label: "Tailwind CSS", value: "Tailwind CSS" },
-  { label: "Zustand", value: "Zustand" },
-  { label: "Docker", value: "Docker" },
-];
-
-const stackLayerOptions: DropdownOption[] = [
-  { label: "Frontend", value: "Frontend" },
-  { label: "Backend", value: "Backend" },
-  { label: "Database", value: "Database" },
-  { label: "DevOps", value: "DevOps" },
-];
-
 export default function TeamProjectStackSection({
   projectId,
   stacks,
   setStacks,
 }: TeamProjectStackSectionProps) {
-  const [stackType, setStackType] = useState("ภาษา (Language)");
+  const [stackTypeOptions, setStackTypeOptions] = useState<DropdownOption[]>([]);
+  const [stackNameOptions, setStackNameOptions] = useState<DropdownOption[]>([]);
+  const [stackLayerOptions, setStackLayerOptions] = useState<DropdownOption[]>([]);
+  const [stackType, setStackType] = useState("");
   const [stackName, setStackName] = useState("");
   const [stackVersion, setStackVersion] = useState("");
   const [stackLayer, setStackLayer] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // โหลดตัวเลือก Dropdown (ประเภท/ชื่อ/Layer) จาก Project.TechStackCatalog แทนการ Hardcode
+  useEffect(() => {
+    getTechStackCatalog()
+      .then((catalog) => {
+        const toOptions = (group: string) =>
+          catalog.filter((c) => c.optionGroup === group).map((c) => ({ label: c.optionValue, value: c.optionValue }));
+        const typeOptions = toOptions("TYPE");
+        setStackTypeOptions(typeOptions);
+        setStackNameOptions(toOptions("NAME"));
+        setStackLayerOptions(toOptions("LAYER"));
+        if (typeOptions.length > 0) setStackType(typeOptions[0].value);
+      })
+      .catch((err) => console.error("โหลด Tech Stack Catalog ไม่สำเร็จ", err));
+  }, []);
 
   const handleAddStack = async () => {
     if (!stackName || isSaving) return;

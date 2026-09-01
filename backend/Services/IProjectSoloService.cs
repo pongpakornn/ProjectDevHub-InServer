@@ -45,6 +45,8 @@ namespace backend.Services
         // Master Data
         Task<List<ProjectTypeDto>> GetProjectTypesAsync();
         Task<List<UserOptionDto>> GetUsersAsync();
+        Task<List<DepartmentDto>> GetDepartmentsAsync();
+        Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync();
 
         // Project
         Task<List<SoloProjectDto>> GetProjectsAsync();

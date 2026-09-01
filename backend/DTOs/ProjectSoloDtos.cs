@@ -260,6 +260,19 @@ namespace backend.DTOs
         public string FullName { get; set; } = string.Empty;
     }
 
+    public class DepartmentDto
+    {
+        public int DepartmentId { get; set; }
+        public string DepartmentName { get; set; } = string.Empty;
+    }
+
+    public class TechStackCatalogDto
+    {
+        public int CatalogId { get; set; }
+        public string OptionGroup { get; set; } = string.Empty; // TYPE, NAME, LAYER
+        public string OptionValue { get; set; } = string.Empty;
+    }
+
     // ===========================================================================
     // Project (Solo) — ตรงกับ SoloProject ในหน้า Solo (ตัด language/framework/... ออกแล้ว)
     // ===========================================================================

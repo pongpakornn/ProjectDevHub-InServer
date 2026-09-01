@@ -611,6 +611,25 @@ namespace backend.Services
                 .ToListAsync();
         }
 
+        public async Task<List<DepartmentDto>> GetDepartmentsAsync()
+        {
+            return await _context.Departments
+                .Where(d => d.IsActive)
+                .OrderBy(d => d.SortOrder)
+                .Select(d => new DepartmentDto { DepartmentId = d.DepartmentId, DepartmentName = d.DepartmentName })
+                .ToListAsync();
+        }
+
+        public async Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync()
+        {
+            return await _context.TechStackCatalog
+                .Where(c => c.IsActive)
+                .OrderBy(c => c.OptionGroup)
+                .ThenBy(c => c.SortOrder)
+                .Select(c => new TechStackCatalogDto { CatalogId = c.CatalogId, OptionGroup = c.OptionGroup, OptionValue = c.OptionValue })
+                .ToListAsync();
+        }
+
         // ===========================================================================
         // Project
         // ===========================================================================

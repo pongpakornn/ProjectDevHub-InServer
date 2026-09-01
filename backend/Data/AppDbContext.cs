@@ -363,6 +363,8 @@ namespace backend.Data
         public DbSet<StatusHistory> StatusHistory => Set<StatusHistory>();
         public DbSet<TechStacks> TechStacks => Set<TechStacks>();
         public DbSet<ShowcaseItems> ShowcaseItems => Set<ShowcaseItems>();
+        public DbSet<Departments> Departments => Set<Departments>();
+        public DbSet<TechStackCatalog> TechStackCatalog => Set<TechStackCatalog>();
 
         // ---------- Planning ----------
         public DbSet<Events> Events => Set<Events>();

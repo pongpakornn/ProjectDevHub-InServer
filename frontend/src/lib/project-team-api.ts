@@ -6,8 +6,8 @@ import { fetchApi, API_HOST, API_BASE_URL } from "@/lib/api-client";
 import { TeamProject, TeamProjectDetail, ProjectMember, CreateProjectFormData } from "@/types/project";
 import { Phase, TaskItem, StackItem, WorkItem, TaskAssignee, ProjectComment, ProjectAttachment } from "@/types/project-detail";
 
-export { getProjectTypes, getUsers, uploadShowcaseImage } from "@/lib/project-solo-api";
-export type { ProjectType, UserOption } from "@/lib/project-solo-api";
+export { getProjectTypes, getUsers, uploadShowcaseImage, getDepartments, getTechStackCatalog } from "@/lib/project-solo-api";
+export type { ProjectType, UserOption, Department, TechStackCatalogOption, TechStackCatalogGroup } from "@/lib/project-solo-api";
 
 interface TaskAssigneeDtoRaw {
   taskAssigneeId: number;

@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import SearchableSelect from "@/components/ui/inputs/searchable-select";
 import MultiSearchableSelect from "@/components/ui/inputs/multi-searchable-select";
 import { TeamProject, CreateProjectFormData } from "@/types/project";
-import { getProjectTypes, getUsers, ProjectType, UserOption } from "@/lib/project-team-api";
+import { getProjectTypes, getUsers, getDepartments, ProjectType, UserOption, Department } from "@/lib/project-team-api";
 
 interface TeamProjectFormModalProps {
   isOpen: boolean;
@@ -14,13 +14,6 @@ interface TeamProjectFormModalProps {
   onClose: () => void;
   onSubmit: (data: CreateProjectFormData, memberUserIds: number[]) => void;
 }
-
-const departments = [
-  { label: "ระบบดิจิตอลและIT", value: "ระบบดิจิตอลและIT" },
-  { label: "ฝ่ายซ่อมบำรุง", value: "ฝ่ายซ่อมบำรุง" },
-  { label: "ฝ่ายคลังสินค้าและจัดส่ง", value: "ฝ่ายคลังสินค้าและจัดส่ง" },
-  { label: "ฝ่ายทรัพยากรบุคคล", value: "ฝ่ายทรัพยากรบุคคล" },
-];
 
 const defaultFormState: CreateProjectFormData = {
   name: "",
@@ -45,6 +38,7 @@ export default function TeamProjectFormModal({
   const [formData, setFormData] = useState<CreateProjectFormData>(defaultFormState);
   const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [selectedMemberLabels, setSelectedMemberLabels] = useState<string[]>([]);
   const [formError, setFormError] = useState<string>("");
@@ -52,10 +46,11 @@ export default function TeamProjectFormModal({
   useEffect(() => {
     if (!isOpen) return;
     setIsLoadingOptions(true);
-    Promise.all([getProjectTypes(), getUsers()])
-      .then(([types, userList]) => {
+    Promise.all([getProjectTypes(), getUsers(), getDepartments()])
+      .then(([types, userList, departmentList]) => {
         setProjectTypes(types);
         setUsers(userList);
+        setDepartments(departmentList);
       })
       .catch((err) => console.error("โหลด Master Data ไม่สำเร็จ", err))
       .finally(() => setIsLoadingOptions(false));
@@ -100,6 +95,11 @@ export default function TeamProjectFormModal({
   const projectTypeOptions = projectTypes.map((pt) => ({
     label: pt.typeName,
     value: String(pt.projectTypeId),
+  }));
+
+  const departmentOptions = departments.map((d) => ({
+    label: d.departmentName,
+    value: d.departmentName,
   }));
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -185,7 +185,7 @@ export default function TeamProjectFormModal({
             />
             <SearchableSelect
               label="หน่วยงาน"
-              options={departments}
+              options={departmentOptions}
               value={formData.department}
               onChange={(val) => setFormData({ ...formData, department: val })}
             />
