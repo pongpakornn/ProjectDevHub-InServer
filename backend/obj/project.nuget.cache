@@ -1,14 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "LyMlkzK+fAY=",
+  "dgSpecHash": "WQG2gjMZEFI=",
   "success": true,
-  "projectFilePath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
+  "projectFilePath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\pongp\\.nuget\\packages\\azure.core\\1.50.0\\azure.core.1.50.0.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\azure.identity\\1.17.1\\azure.identity.1.17.1.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
-    "C:\\Users\\pongp\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.8\\microsoft.aspnetcore.openapi.10.0.8.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\8.0.0\\microsoft.bcl.asyncinterfaces.8.0.0.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\microsoft.build.framework\\18.0.2\\microsoft.build.framework.18.0.2.nupkg.sha512",
     "C:\\Users\\pongp\\.nuget\\packages\\microsoft.codeanalysis.analyzers\\3.11.0\\microsoft.codeanalysis.analyzers.3.11.0.nupkg.sha512",

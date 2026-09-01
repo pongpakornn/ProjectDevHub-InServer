@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj": {}
+    "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj": {
+    "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
+        "projectUniqueName": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
         "projectName": "backend",
-        "projectPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\backend.csproj",
+        "projectPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
         "packagesPath": "C:\\Users\\pongp\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\.claude\\worktrees\\projectdevhub-refactor\\backend\\obj\\",
+        "outputPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -55,10 +55,6 @@
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.2.0, )"
-            },
-            "Microsoft.AspNetCore.OpenApi": {
-              "target": "Package",
-              "version": "[10.0.8, )"
             },
             "Microsoft.EntityFrameworkCore.Design": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",

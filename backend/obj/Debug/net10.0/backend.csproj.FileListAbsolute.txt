@@ -10,7 +10,6 @@ C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Azure.Identity.dll
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\BCrypt-Net-Next.dll
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Humanizer.dll
-C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Microsoft.Build.Framework.dll
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\backend\bin\Debug\net10.0\Microsoft.CodeAnalysis.dll
