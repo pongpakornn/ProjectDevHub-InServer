@@ -8,8 +8,10 @@ import ProjectFormModal from "@/components/projects/project-form-modal";
 import { SoloProject, CreateProjectFormData } from "@/types/project";
 import { getProjects, createProject, updateProject, deleteProject } from "@/lib/project-solo-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function SoloWorkPage() {
   const router = useRouter();
@@ -33,7 +35,7 @@ export default function SoloWorkPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await getProjects();
+      const data = await getProjects(CURRENT_USER_ID);
       setProjects(data);
     } catch (err: any) {
       console.error("Load projects error:", err);

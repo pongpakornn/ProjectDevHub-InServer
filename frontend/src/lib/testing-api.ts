@@ -30,8 +30,9 @@ export interface ProjectOption {
 }
 
 // รวมรายชื่อโปรเจกต์ Solo + Team เข้าด้วยกัน — ใช้กับ Dropdown เลือกโปรเจกต์ในฟอร์มบันทึกผลทดสอบ
-export async function getProjectOptions(): Promise<ProjectOption[]> {
-  const [soloProjects, teamProjects] = await Promise.all([getSoloProjects(), getTeamProjects()]);
+// ★ Data Isolation: ส่ง userId ต่อให้ getSoloProjects/getTeamProjects เพื่อให้ Dropdown เห็นแค่โปรเจกต์ของตัวเอง
+export async function getProjectOptions(userId: number): Promise<ProjectOption[]> {
+  const [soloProjects, teamProjects] = await Promise.all([getSoloProjects(userId), getTeamProjects(userId)]);
   return [
     ...soloProjects.map((p) => ({ id: p.id, name: p.name })),
     ...teamProjects.map((p) => ({ id: p.id, name: p.name })),
@@ -91,8 +92,9 @@ function toRunBody(data: {
   };
 }
 
-export async function getTestRuns(): Promise<TestRunItem[]> {
-  const raw = await fetchApi<TestRunDtoRaw[]>("/Testing/runs");
+// ★ Data Isolation: ต้องส่ง userId เสมอ — Backend Filter ให้เห็นเฉพาะผลทดสอบของโปรเจกต์ที่เข้าถึงได้เท่านั้น
+export async function getTestRuns(userId: number): Promise<TestRunItem[]> {
+  const raw = await fetchApi<TestRunDtoRaw[]>(`/Testing/runs?userId=${userId}`);
   return raw.map(mapTestRun);
 }
 

@@ -14,11 +14,16 @@ namespace backend.Services
             _context = context;
         }
 
-        public async Task<List<TestRunDto>> GetTestRunsAsync()
+        public async Task<List<TestRunDto>> GetTestRunsAsync(int userId)
         {
+            // ★ Data Isolation: เห็นเฉพาะผลทดสอบของโปรเจกต์ที่ตัวเองเป็นเจ้าของหรือเป็นสมาชิกทีม
             var runs = await _context.TestRuns
                 .Include(r => r.TestSuite)
                     .ThenInclude(s => s!.Project)
+                        .ThenInclude(p => p!.Members)
+                .Where(r => r.TestSuite != null && r.TestSuite.Project != null
+                    && (r.TestSuite.Project.ProjectOwnerId == userId
+                        || r.TestSuite.Project.Members.Any(m => m.UserId == userId && m.IsActive)))
                 .OrderByDescending(r => r.RunDate)
                 .ThenByDescending(r => r.CreatedDate)
                 .ToListAsync();
@@ -28,8 +33,10 @@ namespace backend.Services
 
         public async Task<TestRunDto?> CreateTestRunAsync(CreateTestRunRequest request, int currentUserId)
         {
-            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == request.ProjectId);
-            if (!projectExists) return null;
+            // ★ Data Isolation: บันทึกผลทดสอบได้เฉพาะกับโปรเจกต์ที่ตัวเองเข้าถึงได้เท่านั้น
+            var hasAccess = await _context.Projects.AnyAsync(p => p.ProjectId == request.ProjectId
+                && (p.ProjectOwnerId == currentUserId || p.Members.Any(m => m.UserId == currentUserId && m.IsActive)));
+            if (!hasAccess) return null;
 
             var suite = await FindOrCreateSuiteAsync(request.ProjectId, request.SuiteName, currentUserId);
 
@@ -66,8 +73,10 @@ namespace backend.Services
                 .FirstOrDefaultAsync(r => r.TestRunId == request.TestRunId);
             if (run == null) return null;
 
-            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == request.ProjectId);
-            if (!projectExists) return null;
+            // ★ Data Isolation: ย้ายผลทดสอบไปผูกกับโปรเจกต์ที่ตัวเองเข้าถึงไม่ได้ไม่ได้
+            var hasAccess = await _context.Projects.AnyAsync(p => p.ProjectId == request.ProjectId
+                && (p.ProjectOwnerId == currentUserId || p.Members.Any(m => m.UserId == currentUserId && m.IsActive)));
+            if (!hasAccess) return null;
 
             var suite = await FindOrCreateSuiteAsync(request.ProjectId, request.SuiteName, currentUserId);
 

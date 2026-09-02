@@ -5,8 +5,8 @@ namespace backend.Services
     public interface IFlowService
     {
         // FlowDefinitions
-        Task<List<FlowDefinitionDto>> GetFlowsAsync();
-        Task<FlowDefinitionDetailDto?> GetFlowDetailAsync(int flowDefinitionId);
+        Task<List<FlowDefinitionDto>> GetFlowsAsync(int userId);
+        Task<FlowDefinitionDetailDto?> GetFlowDetailAsync(int flowDefinitionId, int userId);
         Task<FlowDefinitionDto> CreateFlowAsync(CreateFlowDefinitionRequest request, int currentUserId);
         Task<FlowDefinitionDto?> UpdateFlowAsync(UpdateFlowDefinitionRequest request);
         Task<bool> DeleteFlowAsync(int flowDefinitionId);

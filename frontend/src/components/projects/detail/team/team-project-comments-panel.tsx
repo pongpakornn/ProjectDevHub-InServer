@@ -159,7 +159,7 @@ export default function TeamProjectCommentsPanel({
         <button
           type="submit"
           disabled={!text.trim() || isSubmitting}
-          className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white shadow-md shadow-emerald-900/10 text-xs font-bold px-4 py-2 h-[38px] rounded-lg flex items-center gap-1.5 shrink-0"
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] text-xs font-bold px-4 py-2 h-[38px] rounded-lg flex items-center gap-1.5 shrink-0 cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0"
         >
           <Send className="w-3.5 h-3.5" />
           ส่ง

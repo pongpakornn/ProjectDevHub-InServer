@@ -28,9 +28,10 @@ import {
   getAttachments,
 } from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function TeamProjectDetailPage() {
   const params = useParams();
@@ -57,7 +58,7 @@ export default function TeamProjectDetailPage() {
     setLoadError(null);
     try {
       const [detail, commentList, attachmentList] = await Promise.all([
-        getProjectDetail(projectId),
+        getProjectDetail(projectId, CURRENT_USER_ID),
         getComments(projectId),
         getAttachments(projectId),
       ]);

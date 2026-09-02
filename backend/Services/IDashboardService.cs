@@ -4,6 +4,6 @@ namespace backend.Services
 {
     public interface IDashboardService
     {
-        Task<DashboardSummaryDto> GetSummaryAsync();
+        Task<DashboardSummaryDto> GetSummaryAsync(int userId);
     }
 }

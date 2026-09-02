@@ -18,11 +18,11 @@ namespace backend.Controllers
         }
 
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary()
+        public async Task<IActionResult> GetSummary([FromQuery] int userId)
         {
             try
             {
-                var result = await _dashboardService.GetSummaryAsync();
+                var result = await _dashboardService.GetSummaryAsync(userId);
                 return Ok(result);
             }
             catch (Exception ex)

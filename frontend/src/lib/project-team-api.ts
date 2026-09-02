@@ -260,13 +260,14 @@ function toCreateProjectBody(data: CreateProjectFormData, memberUserIds: number[
 // ===========================================================================
 // Project
 // ===========================================================================
-export async function getProjects(): Promise<TeamProject[]> {
-  const raw = await fetchApi<TeamProjectDtoRaw[]>("/ProjectTeam");
+// ★ Data Isolation: ต้องส่ง userId เสมอ — Backend Filter ให้เห็นเฉพาะโปรเจกต์ที่เป็นเจ้าของ/สมาชิกทีมเท่านั้น
+export async function getProjects(userId: number): Promise<TeamProject[]> {
+  const raw = await fetchApi<TeamProjectDtoRaw[]>(`/ProjectTeam?userId=${userId}`);
   return raw.map(mapProject);
 }
 
-export async function getProjectDetail(projectId: number): Promise<TeamProjectDetail> {
-  const raw = await fetchApi<TeamProjectDetailDtoRaw>(`/ProjectTeam/${projectId}`);
+export async function getProjectDetail(projectId: number, userId: number): Promise<TeamProjectDetail> {
+  const raw = await fetchApi<TeamProjectDetailDtoRaw>(`/ProjectTeam/${projectId}?userId=${userId}`);
   return {
     project: mapProject(raw.project),
     phases: raw.phases.map(mapPhase),

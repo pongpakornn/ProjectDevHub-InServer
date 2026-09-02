@@ -5,6 +5,10 @@ import FlowHeaderBanner from "./components/flow-header-banner";
 import FlowProjectCard from "./components/flow-project-card";
 import { FlowListItem } from "@/types/flow";
 import { getFlows } from "@/lib/flow-api";
+import { getStoredUser } from "@/lib/session";
+
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function FlowListPage() {
   const [flows, setFlows] = useState<FlowListItem[]>([]);
@@ -15,7 +19,7 @@ export default function FlowListPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await getFlows();
+      const data = await getFlows(CURRENT_USER_ID);
       setFlows(data);
     } catch (err) {
       console.error(err);

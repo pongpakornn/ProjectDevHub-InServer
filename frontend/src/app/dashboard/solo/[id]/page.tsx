@@ -20,10 +20,10 @@ import {
   autoGeneratePhases,
 } from "@/lib/project-solo-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ตอนนี้ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-// พอมี Login/Session จริงแล้ว ให้เปลี่ยนไปดึงจาก Auth Context/Token แทน
-const CURRENT_USER_ID = 1;
+// TODO: ตอนนี้ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -50,7 +50,7 @@ export default function ProjectDetailPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const detail = await getProjectDetail(projectId);
+      const detail = await getProjectDetail(projectId, CURRENT_USER_ID);
       setProjectInfo(detail.project);
       setPhases(detail.phases);
       setStacks(detail.stacks);

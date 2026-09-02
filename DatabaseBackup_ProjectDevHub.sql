@@ -19,9 +19,33 @@
 -- intended text. A full sweep of every nvarchar/nchar column in every table
 -- confirmed no other rows were affected.
 --
--- Restore into an empty database with:
---   sqlcmd -S "DESKTOP-TJ7525D\SQLEXPRESS" -U sa -P 1234 -C -d ProjectDevHub -i DatabaseBackup_ProjectDevHub.sql
+-- ⚠ UTF-8 / Thai Text Safety — ต้องระบุ Codepage ทุกครั้งที่รัน ⚠
+-- sqlcmd อ่านไฟล์สคริปต์นี้ด้วย Codepage เริ่มต้นของเครื่อง (ไม่ใช่ UTF-8) เว้นแต่จะสั่งชัดเจนด้วย -f 65001
+-- ถ้าลืม Flag นี้ ข้อความไทยทุกจุดใน Seed Data ด้านล่าง (SystemList/Departments/TechStackCatalog/ผู้ดูแลระบบ)
+-- จะถูกอ่านผิด Codepage แล้ว Insert เป็นตัวอักษรมั่ว (Mojibake) ทันที — เคยเกิดเหตุการณ์นี้มาแล้ว 2 ครั้ง
+-- (รอบแรก: SOLO/TEAM/FLOW/Departments/TechStackCatalog, รอบสอง: แถว PRESENT ที่เพิ่มเข้ามาทีหลัง)
+--
+-- สคริปต์นี้ออกแบบไว้สำหรับ "สร้างฐานข้อมูลใหม่ทั้งก้อน" เท่านั้น (CREATE TABLE ด้านล่างไม่ได้ Guard ด้วย
+-- IF NOT EXISTS) — ถ้าฐานข้อมูล ProjectDevHub มีอยู่แล้วและมี Schema ครบ ให้ DROP DATABASE ProjectDevHub
+-- ทิ้งก่อน (หรือใช้ชื่อฐานข้อมูลใหม่) แล้วค่อยรันสคริปต์นี้ ไม่เช่นนั้นจะเจอ Error "There is already an
+-- object named ... in the database" ที่ CREATE TABLE ตัวแรกที่ชนกัน
+--
+-- Restore แบบสร้างฐานข้อมูลใหม่ทั้งก้อน (เชื่อมต่อไปที่ master ก่อน เพราะฐานข้อมูล ProjectDevHub ยังไม่มีอยู่จริง —
+-- สคริปต์จะ CREATE DATABASE ให้เองที่บรรทัดถัดไป แล้ว USE เข้าไปสร้าง Schema/Table/Seed Data ต่ออัตโนมัติ):
+--   sqlcmd -S "DESKTOP-TJ7525D\SQLEXPRESS" -U sa -P 1234 -C -d master -f 65001 -i DatabaseBackup_ProjectDevHub.sql
+--
+-- Default Admin สำหรับ Login ครั้งแรกหลัง Restore (Seed ไว้ใน Section 6):
+--   EmpId: ADMIN   Password: Admin@123   (แนะนำให้เปลี่ยนรหัสผ่านทันทีหลังใช้งานจริง)
 -- =============================================================================
+
+IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = 'ProjectDevHub')
+BEGIN
+    CREATE DATABASE ProjectDevHub;
+END
+GO
+
+USE ProjectDevHub;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Core')     EXEC('CREATE SCHEMA Core');
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Project')  EXEC('CREATE SCHEMA Project');
@@ -557,7 +581,8 @@ GO
 -- =============================================================================
 
 -- Core.SystemList — module registry (Permissions.SystemId FKs into this)
-SET IDENTITY_INSERT Core.SystemList ON;
+-- หมายเหตุ: SystemId เป็น VARCHAR(50) PRIMARY KEY ธรรมดา ไม่ใช่ Identity Column จึงไม่ต้องใช้
+-- SET IDENTITY_INSERT (เดิมสคริปต์นี้เคยใส่ไว้ผิด ซึ่งจะทำให้รันจริงแล้วพัง — แก้ไขแล้ว)
 INSERT INTO Core.SystemList (SystemId, SystemName, Description, IsActive) VALUES
     (N'CORE',     N'Core Management',            N'ระบบบริหารจัดการหลัก สิทธิ์ และความปลอดภัย', 1),
     (N'PLANNING', N'งานเดี่ยว (Solo)',           N'ระบบวางแผนงานเดี่ยว — บริหารจัดการโปรเจกต์ที่ทำคนเดียว', 1),
@@ -566,7 +591,22 @@ INSERT INTO Core.SystemList (SystemId, SystemName, Description, IsActive) VALUES
     (N'TEAM',     N'Project Team Management',    N'ระบบบริหารจัดการโปรเจกต์ทีม', 1),
     (N'FLOW',     N'Project Flow Architecture',  N'ระบบออกแบบและติดตามผังการทำงานของโปรเจกต์', 1),
     (N'PRESENT',  N'สถานีนำเสนอผลงาน (Present Station)', N'ศูนย์รวม Showcase ผลงาน การสาธิตระบบ และ Media Lightbox Gallery', 1);
-SET IDENTITY_INSERT Core.SystemList OFF;
+GO
+
+-- Core.Users — Default Admin Account (ให้ Login เข้าใช้งานได้ทันทีหลัง Restore บนฐานข้อมูลเปล่า)
+-- EmpId: ADMIN   Password: Admin@123   — แนะนำให้เปลี่ยนรหัสผ่านทันทีหลังใช้งานจริง
+-- PasswordHash ด้านล่าง Hash มาจริงด้วย BCrypt.Net-Next (Work Factor 11, Library เดียวกับที่ AuthService ใช้
+-- Verify) ผ่าน UsersController จริงแล้ว Capture ค่ามาใส่ — ไม่ใช่ค่าที่เดา/พิมพ์เอง จึง Login ได้จริงทันที
+INSERT INTO Core.Users (EmpId, PasswordHash, FullName, UserLevel, IsSuperAdmin, IsSuspended, IsOnline, IsActive)
+VALUES (N'ADMIN', '$2a$11$yTVHao/VxKY0R7Xs3Ty7g.ckZerG72aQUFJVqnR1uNeMbC8Fx5Qfu', N'System Administrator', 7, 1, 0, 0, 1);
+GO
+
+-- Core.Permissions — ให้สิทธิ์ Default Admin เข้าถึงทุกโมดูลใน Core.SystemList แบบเต็มสิทธิ์
+INSERT INTO Core.Permissions (UserId, SystemId, CanView, CanAdd, CanEdit, CanDelete, CanApprove, CanReject)
+SELECT u.UserId, s.SystemId, 1, 1, 1, 1, 1, 1
+FROM Core.Users u
+CROSS JOIN Core.SystemList s
+WHERE u.EmpId = N'ADMIN';
 GO
 
 -- Project.ProjectTypes — project-type templates used by AutoGeneratePhasesAsync

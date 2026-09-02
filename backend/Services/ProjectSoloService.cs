@@ -633,12 +633,13 @@ namespace backend.Services
         // ===========================================================================
         // Project
         // ===========================================================================
-        public async Task<List<SoloProjectDto>> GetProjectsAsync()
+        public async Task<List<SoloProjectDto>> GetProjectsAsync(int userId)
         {
             // Solo = ไม่มีสมาชิกใน ProjectMembers เลย (ตรงข้ามกับเงื่อนไข Team ใน ProjectTeamService)
             // เดิม Query นี้ไม่มีเงื่อนไขนี้ ทำให้ Project ที่มีสมาชิกทีม (Team Project) หลุดมาแสดงในหน้า Solo ด้วย
+            // ★ Data Isolation: เห็นเฉพาะโปรเจกต์ของตัวเอง (Solo ไม่มีสมาชิก จึงเท่ากับ ProjectOwnerId == userId เสมอ)
             return await _context.Projects
-                .Where(p => p.IsActive && !p.Members.Any())
+                .Where(p => p.IsActive && !p.Members.Any() && p.ProjectOwnerId == userId)
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
                 .OrderByDescending(p => p.CreatedDate)
@@ -646,12 +647,13 @@ namespace backend.Services
                 .ToListAsync();
         }
 
-        public async Task<SoloProjectDetailDto?> GetProjectDetailAsync(int projectId)
+        public async Task<SoloProjectDetailDto?> GetProjectDetailAsync(int projectId, int userId)
         {
+            // ★ Data Isolation: ต้องเป็นเจ้าของโปรเจกต์เท่านั้นถึงจะเห็นรายละเอียด — คนอื่น Guess ID ตรงๆ ก็เข้าไม่ได้
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
-                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive && p.ProjectOwnerId == userId);
 
             if (project == null) return null;
 
@@ -715,10 +717,11 @@ namespace backend.Services
 
         public async Task<SoloProjectDto?> UpdateProjectAsync(UpdateSoloProjectRequest request, int currentUserId)
         {
+            // ★ Data Isolation: แก้ไขได้เฉพาะเจ้าของโปรเจกต์เท่านั้น
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
-                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId && p.IsActive);
+                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId && p.IsActive && p.ProjectOwnerId == currentUserId);
 
             if (project == null) return null;
 
@@ -756,8 +759,9 @@ namespace backend.Services
 
         public async Task<bool> DeleteProjectAsync(int projectId, int currentUserId)
         {
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null) return false;
+            // ★ Data Isolation: ลบได้เฉพาะเจ้าของโปรเจกต์เท่านั้น
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || project.ProjectOwnerId != currentUserId) return false;
 
             var projectName = project.ProjectName;
             var projectCode = project.ProjectCode;

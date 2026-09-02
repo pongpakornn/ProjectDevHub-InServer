@@ -15,9 +15,10 @@ import { PresentItemModal } from "@/components/present/present-item-modal";
 import * as soloApi from "@/lib/project-solo-api";
 import * as teamApi from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 interface ProjectHeaderInfo {
   name: string;
@@ -58,7 +59,7 @@ export default function PresentProjectDetailPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const detail = await api.getProjectDetail(projectId);
+      const detail = await api.getProjectDetail(projectId, CURRENT_USER_ID);
       setProjectInfo({
         name: detail.project.name,
         status: detail.project.status,

@@ -49,8 +49,8 @@ namespace backend.Services
         Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync();
 
         // Project
-        Task<List<SoloProjectDto>> GetProjectsAsync();
-        Task<SoloProjectDetailDto?> GetProjectDetailAsync(int projectId);
+        Task<List<SoloProjectDto>> GetProjectsAsync(int userId);
+        Task<SoloProjectDetailDto?> GetProjectDetailAsync(int projectId, int userId);
         Task<SoloProjectDto> CreateProjectAsync(CreateSoloProjectRequest request, int currentUserId);
         Task<SoloProjectDto?> UpdateProjectAsync(UpdateSoloProjectRequest request, int currentUserId);
         Task<bool> DeleteProjectAsync(int projectId, int currentUserId);

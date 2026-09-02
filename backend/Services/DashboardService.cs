@@ -13,12 +13,15 @@ namespace backend.Services
             _context = context;
         }
 
-        public async Task<DashboardSummaryDto> GetSummaryAsync()
+        public async Task<DashboardSummaryDto> GetSummaryAsync(int userId)
         {
+            // ★ Data Isolation: สถิติ/การ์ดบน Dashboard ต้องนับเฉพาะโปรเจกต์ที่ตัวเองเป็นเจ้าของหรือเป็นสมาชิกทีม
             var projects = await _context.Projects
-                .Where(p => p.IsActive)
+                .Where(p => p.IsActive && (p.ProjectOwnerId == userId || p.Members.Any(m => m.UserId == userId && m.IsActive)))
                 .Include(p => p.Members)
                 .ToListAsync();
+
+            var accessibleProjectIds = projects.Select(p => p.ProjectId).ToHashSet();
 
             var soloCount = projects.Count(p => !p.Members.Any());
             var teamCount = projects.Count(p => p.Members.Any());
@@ -32,7 +35,11 @@ namespace backend.Services
                 ? Math.Round(projects.Average(p => p.ProgressPercent), 0)
                 : 0;
 
-            var testRuns = await _context.TestRuns.ToListAsync();
+            // ★ Data Isolation: นับเฉพาะผลทดสอบของโปรเจกต์ที่เข้าถึงได้เท่านั้น (join ผ่าน TestSuite -> Project)
+            var testRuns = await _context.TestRuns
+                .Include(r => r.TestSuite)
+                .Where(r => r.TestSuite != null && accessibleProjectIds.Contains(r.TestSuite.ProjectId))
+                .ToListAsync();
             var totalTestCases = testRuns.Sum(r => r.TotalCases);
             var totalPassedCases = testRuns.Sum(r => r.PassedCases);
             var passRate = totalTestCases > 0

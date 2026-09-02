@@ -14,6 +14,7 @@ import {
   RotateCw,
   Box,
   UserCheck,
+  UserCircle,
   X
 } from "lucide-react";
 import { getStoredUser, hasSystemPermission, isAdminOrAbove } from "@/lib/session";
@@ -112,6 +113,28 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, onC
 
         {/* Menu Section */}
         <div className="p-3 flex-1 overflow-x-hidden space-y-4">
+          {/* ========================================================= */}
+          {/* 🟢 CURRENT USER IDENTITY — Compact, ไม่ดันเมนูอื่น */}
+          {/* ========================================================= */}
+          {isAuthReady && currentUser && (
+            <div
+              className={`flex items-center gap-2.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 ${
+                isCollapsed ? "justify-center p-2" : "px-2.5 py-2"
+              }`}
+              title={isCollapsed ? `${currentUser.fullName} (${currentUser.empId})` : undefined}
+            >
+              <div className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shrink-0">
+                <UserCircle className="w-5 h-5" strokeWidth={1.75} />
+              </div>
+              {!isCollapsed && (
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate leading-tight">{currentUser.fullName}</p>
+                  <p className="text-[10px] font-mono text-indigo-300/80 truncate leading-tight mt-0.5">{currentUser.empId}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {!isCollapsed && (
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-3 pt-2">
               MAIN MENU

@@ -48,10 +48,12 @@ namespace backend.Services
         // ===========================================================================
         // Project
         // ===========================================================================
-        public async Task<List<TeamProjectDto>> GetProjectsAsync()
+        public async Task<List<TeamProjectDto>> GetProjectsAsync(int userId)
         {
+            // ★ Data Isolation: เห็นเฉพาะโปรเจกต์ Team ที่ตัวเองเป็นเจ้าของ หรือถูกเพิ่มเป็นสมาชิกทีม (ข้อยกเว้นเดียวของกติกา Data Isolation)
             var projects = await _context.Projects
                 .Where(p => p.IsActive && p.Members.Any())
+                .Where(ProjectAccess.For(userId))
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
                 .Include(p => p.Members).ThenInclude(m => m.User)
@@ -61,13 +63,15 @@ namespace backend.Services
             return projects.Select(MapToTeamProjectDto).ToList();
         }
 
-        public async Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId)
+        public async Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId, int userId)
         {
+            // ★ Data Isolation: เจ้าของหรือสมาชิกทีมของโปรเจกต์นี้เท่านั้นถึงจะเห็นรายละเอียดได้
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
                 .Include(p => p.Members).ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive
+                    && (p.ProjectOwnerId == userId || p.Members.Any(m => m.UserId == userId && m.IsActive)));
 
             if (project == null) return null;
 
@@ -170,11 +174,13 @@ namespace backend.Services
 
         public async Task<TeamProjectDto?> UpdateProjectAsync(UpdateTeamProjectRequest request, int currentUserId)
         {
+            // ★ Data Isolation: แก้ไขได้เฉพาะเจ้าของหรือสมาชิกทีมของโปรเจกต์นี้เท่านั้น
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
                 .Include(p => p.Owner)
                 .Include(p => p.Members).ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId && p.IsActive);
+                .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId && p.IsActive
+                    && (p.ProjectOwnerId == currentUserId || p.Members.Any(m => m.UserId == currentUserId && m.IsActive)));
 
             if (project == null) return null;
 
@@ -217,8 +223,9 @@ namespace backend.Services
 
         public async Task<bool> DeleteProjectAsync(int projectId, int currentUserId)
         {
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null) return false;
+            // ★ Data Isolation: ลบทั้งโปรเจกต์ได้เฉพาะเจ้าของเท่านั้น (สมาชิกทีมทั่วไปลบโปรเจกต์ไม่ได้)
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || project.ProjectOwnerId != currentUserId) return false;
 
             var projectName = project.ProjectName;
             var projectCode = project.ProjectCode;

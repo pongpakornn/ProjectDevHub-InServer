@@ -89,11 +89,11 @@ namespace backend.Controllers
         // Project
         // ===========================================================================
         [HttpGet]
-        public async Task<IActionResult> GetProjects()
+        public async Task<IActionResult> GetProjects([FromQuery] int userId)
         {
             try
             {
-                var result = await _projectSoloService.GetProjectsAsync();
+                var result = await _projectSoloService.GetProjectsAsync(userId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -104,11 +104,11 @@ namespace backend.Controllers
         }
 
         [HttpGet("{projectId:int}")]
-        public async Task<IActionResult> GetProjectDetail(int projectId)
+        public async Task<IActionResult> GetProjectDetail(int projectId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectSoloService.GetProjectDetailAsync(projectId);
+                var result = await _projectSoloService.GetProjectDetailAsync(projectId, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }

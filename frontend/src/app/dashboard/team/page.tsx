@@ -15,9 +15,10 @@ import {
   removeMember,
 } from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function TeamWorkPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function TeamWorkPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await getProjects();
+      const data = await getProjects(CURRENT_USER_ID);
       setProjects(data);
     } catch (err: any) {
       console.error("Load team projects error:", err);

@@ -175,13 +175,14 @@ function mapExecution(raw: FlowExecutionDtoRaw): FlowExecution {
 // ===========================================================================
 // FlowDefinitions
 // ===========================================================================
-export async function getFlows(): Promise<FlowListItem[]> {
-  const raw = await fetchApi<FlowDefinitionDtoRaw[]>("/Flow");
+// ★ Data Isolation: ต้องส่ง userId เสมอ — Backend Filter ให้เห็นเฉพาะ Flow ของโปรเจกต์ที่เข้าถึงได้เท่านั้น
+export async function getFlows(userId: number): Promise<FlowListItem[]> {
+  const raw = await fetchApi<FlowDefinitionDtoRaw[]>(`/Flow?userId=${userId}`);
   return raw.map(mapListItem);
 }
 
-export async function getFlowDetail(flowDefinitionId: number): Promise<FlowDetail> {
-  const raw = await fetchApi<FlowDefinitionDetailDtoRaw>(`/Flow/${flowDefinitionId}`);
+export async function getFlowDetail(flowDefinitionId: number, userId: number): Promise<FlowDetail> {
+  const raw = await fetchApi<FlowDefinitionDetailDtoRaw>(`/Flow/${flowDefinitionId}?userId=${userId}`);
   return {
     ...mapListItem(raw.flow),
     techStacks: raw.techStacks.map(mapTechStack),

@@ -24,11 +24,11 @@ namespace backend.Controllers
         // FlowDefinitions
         // ===========================================================================
         [HttpGet]
-        public async Task<IActionResult> GetFlows()
+        public async Task<IActionResult> GetFlows([FromQuery] int userId)
         {
             try
             {
-                var result = await _flowService.GetFlowsAsync();
+                var result = await _flowService.GetFlowsAsync(userId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -39,11 +39,11 @@ namespace backend.Controllers
         }
 
         [HttpGet("{flowDefinitionId:int}")]
-        public async Task<IActionResult> GetFlowDetail(int flowDefinitionId)
+        public async Task<IActionResult> GetFlowDetail(int flowDefinitionId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _flowService.GetFlowDetailAsync(flowDefinitionId);
+                var result = await _flowService.GetFlowDetailAsync(flowDefinitionId, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Flow นี้" });
                 return Ok(result);
             }
@@ -62,7 +62,7 @@ namespace backend.Controllers
             try
             {
                 var result = await _flowService.CreateFlowAsync(request, userId);
-                return CreatedAtAction(nameof(GetFlowDetail), new { flowDefinitionId = result.FlowDefinitionId }, result);
+                return CreatedAtAction(nameof(GetFlowDetail), new { flowDefinitionId = result.FlowDefinitionId, userId }, result);
             }
             catch (Exception ex)
             {

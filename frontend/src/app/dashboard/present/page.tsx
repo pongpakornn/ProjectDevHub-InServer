@@ -6,6 +6,10 @@ import Link from "next/link";
 import { Tv, User, Users, ArrowRight, Sparkles } from "lucide-react";
 import { getProjects as getSoloProjects } from "@/lib/project-solo-api";
 import { getProjects as getTeamProjects } from "@/lib/project-team-api";
+import { getStoredUser } from "@/lib/session";
+
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 interface PresentProjectCard {
   id: number;
@@ -45,7 +49,7 @@ export default function PresentStationPage() {
       setIsLoading(true);
       setLoadError(null);
       try {
-        const [soloProjects, teamProjects] = await Promise.all([getSoloProjects(), getTeamProjects()]);
+        const [soloProjects, teamProjects] = await Promise.all([getSoloProjects(CURRENT_USER_ID), getTeamProjects(CURRENT_USER_ID)]);
         if (cancelled) return;
 
         const merged: PresentProjectCard[] = [

@@ -5,8 +5,8 @@ namespace backend.Services
     public interface IProjectTeamService
     {
         // Project
-        Task<List<TeamProjectDto>> GetProjectsAsync();
-        Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId);
+        Task<List<TeamProjectDto>> GetProjectsAsync(int userId);
+        Task<TeamProjectDetailDto?> GetProjectDetailAsync(int projectId, int userId);
         Task<TeamProjectDto> CreateProjectAsync(CreateTeamProjectRequest request, int currentUserId);
         Task<TeamProjectDto?> UpdateProjectAsync(UpdateTeamProjectRequest request, int currentUserId);
         Task<bool> DeleteProjectAsync(int projectId, int currentUserId);

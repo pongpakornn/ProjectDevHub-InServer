@@ -18,26 +18,36 @@ namespace backend.Services
         // ===========================================================================
         // FlowDefinitions
         // ===========================================================================
-        public async Task<List<FlowDefinitionDto>> GetFlowsAsync()
+        public async Task<List<FlowDefinitionDto>> GetFlowsAsync(int userId)
         {
             await SyncFlowDefinitionsWithProjectsAsync();
 
+            // ★ Data Isolation: เห็นเฉพาะ Flow ของโปรเจกต์ที่ตัวเองเป็นเจ้าของ/สมาชิกทีม — ส่วน Flow แบบ Standalone
+            // เก่า (ProjectId เป็น NULL จากก่อนที่จะผูก 1:1 กับ Project) ให้ยึดตามผู้สร้าง (CreatedBy) แทน
             var flows = await _context.FlowDefinitions
                 .Where(f => f.IsActive)
                 .Include(f => f.Creator)
+                .Include(f => f.Project).ThenInclude(p => p!.Members)
+                .Where(f =>
+                    (f.Project != null && (f.Project.ProjectOwnerId == userId || f.Project.Members.Any(m => m.UserId == userId && m.IsActive)))
+                    || (f.Project == null && f.CreatedBy == userId))
                 .OrderByDescending(f => f.CreatedDate)
                 .ToListAsync();
 
             return flows.Select(MapToFlowDefinitionDto).ToList();
         }
 
-        public async Task<FlowDefinitionDetailDto?> GetFlowDetailAsync(int flowDefinitionId)
+        public async Task<FlowDefinitionDetailDto?> GetFlowDetailAsync(int flowDefinitionId, int userId)
         {
             await SyncFlowDefinitionsWithProjectsAsync();
 
+            // ★ Data Isolation: ดูรายละเอียดได้เฉพาะ Flow ที่ตัวเองเข้าถึงโปรเจกต์ต้นทางได้ (หรือเป็นผู้สร้างถ้าเป็น Standalone)
             var flow = await _context.FlowDefinitions
                 .Include(f => f.Creator)
-                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+                .Include(f => f.Project).ThenInclude(p => p!.Members)
+                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive
+                    && ((f.Project != null && (f.Project.ProjectOwnerId == userId || f.Project.Members.Any(m => m.UserId == userId && m.IsActive)))
+                        || (f.Project == null && f.CreatedBy == userId)));
 
             if (flow == null) return null;
 

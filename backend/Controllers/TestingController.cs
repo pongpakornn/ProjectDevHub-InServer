@@ -21,11 +21,11 @@ namespace backend.Controllers
         }
 
         [HttpGet("runs")]
-        public async Task<IActionResult> GetTestRuns()
+        public async Task<IActionResult> GetTestRuns([FromQuery] int userId)
         {
             try
             {
-                var result = await _testingService.GetTestRunsAsync();
+                var result = await _testingService.GetTestRunsAsync(userId);
                 return Ok(result);
             }
             catch (Exception ex)

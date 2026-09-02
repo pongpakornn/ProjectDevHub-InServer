@@ -16,9 +16,10 @@ import {
   ProjectOption,
 } from "@/lib/testing-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function TestAutomationPage() {
   const toast = useToast();
@@ -36,7 +37,7 @@ export default function TestAutomationPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [runs, projectOptions] = await Promise.all([getTestRuns(), getProjectOptions()]);
+      const [runs, projectOptions] = await Promise.all([getTestRuns(CURRENT_USER_ID), getProjectOptions(CURRENT_USER_ID)]);
       setTestRuns(runs);
       setProjects(projectOptions);
     } catch (err) {

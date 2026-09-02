@@ -10,9 +10,10 @@ import { GitBranch } from "lucide-react";
 import { FlowDetail, FlowStep, FlowTechStackTag, FlowExecution } from "@/types/flow";
 import { getFlowDetail, getExecutions, autoGenerateSteps, autoGenerateTechStacks } from "@/lib/flow-api";
 import { useToast } from "@/lib/toast-context";
+import { getStoredUser } from "@/lib/session";
 
-// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function FlowProjectDetailPage() {
   const params = useParams();
@@ -34,7 +35,7 @@ export default function FlowProjectDetailPage() {
     setLoadError(null);
     try {
       const [detail, executionList] = await Promise.all([
-        getFlowDetail(flowDefinitionId),
+        getFlowDetail(flowDefinitionId, CURRENT_USER_ID),
         getExecutions(flowDefinitionId),
       ]);
       setFlow(detail);

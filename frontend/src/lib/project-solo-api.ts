@@ -214,13 +214,14 @@ export function getTechStackCatalog(): Promise<TechStackCatalogOption[]> {
   return fetchApi<TechStackCatalogOption[]>("/ProjectSolo/techstack-catalog");
 }
 
-export async function getProjects(): Promise<SoloProject[]> {
-  const raw = await fetchApi<SoloProjectDtoRaw[]>("/ProjectSolo");
+// ★ Data Isolation: ต้องส่ง userId เสมอ — Backend Filter ให้เห็นเฉพาะโปรเจกต์ของตัวเองเท่านั้น
+export async function getProjects(userId: number): Promise<SoloProject[]> {
+  const raw = await fetchApi<SoloProjectDtoRaw[]>(`/ProjectSolo?userId=${userId}`);
   return raw.map(mapProject);
 }
 
-export async function getProjectDetail(projectId: number): Promise<SoloProjectDetail> {
-  const raw = await fetchApi<SoloProjectDetailDtoRaw>(`/ProjectSolo/${projectId}`);
+export async function getProjectDetail(projectId: number, userId: number): Promise<SoloProjectDetail> {
+  const raw = await fetchApi<SoloProjectDetailDtoRaw>(`/ProjectSolo/${projectId}?userId=${userId}`);
   return {
     project: mapProject(raw.project),
     phases: raw.phases.map(mapPhase),
