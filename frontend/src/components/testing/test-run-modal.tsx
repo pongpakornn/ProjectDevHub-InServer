@@ -5,6 +5,8 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { TestRunItem, TestTool, TestEnvironment, TestStatus } from "@/types/test-automation";
 import { ProjectOption } from "@/lib/testing-api";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface TestRunModalProps {
   isOpen: boolean;
@@ -69,6 +71,8 @@ export default function TestRunModal({
     }
   }, [isOpen, initialData, projects]);
 
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -101,6 +105,7 @@ export default function TestRunModal({
     "w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:border-indigo-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors";
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -174,7 +179,7 @@ export default function TestRunModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">ทั้งหมด</label>
                 <input
@@ -217,7 +222,7 @@ export default function TestRunModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">เวลา (วินาที)</label>
                 <input
@@ -293,5 +298,6 @@ export default function TestRunModal({
         </form>
       </div>
     </div>
+    </Portal>
   );
 }

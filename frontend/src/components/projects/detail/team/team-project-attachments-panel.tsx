@@ -67,7 +67,7 @@ export default function TeamProjectAttachmentsPanel({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] text-xs font-bold px-4 py-2 h-[34px] rounded-lg flex items-center gap-1.5"
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.4)] text-xs font-bold px-4 py-2 h-[34px] rounded-lg flex items-center gap-1.5 cursor-pointer transition-all duration-200 ease-in-out hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0"
         >
           <Upload className="w-3.5 h-3.5" />
           {isUploading ? "กำลังอัปโหลด..." : "แนบไฟล์"}

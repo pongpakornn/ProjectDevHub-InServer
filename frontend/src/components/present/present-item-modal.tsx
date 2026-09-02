@@ -3,6 +3,8 @@
 import React from "react";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface PresentItemModalProps {
   isOpen: boolean;
@@ -29,9 +31,12 @@ export function PresentItemModal({
   onClose,
   onSave,
 }: PresentItemModalProps) {
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
@@ -96,5 +101,6 @@ export function PresentItemModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

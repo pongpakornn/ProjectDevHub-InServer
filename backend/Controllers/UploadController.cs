@@ -15,9 +15,44 @@ public class UploadController : ControllerBase
         _requestPath = config["PhotoStorage:RequestPath"]!;
     }
 
-    // POST /api/Upload/showcase-image?projectId=5
+    // ตัด Character ที่ระบบไฟล์ห้ามใช้ออก (ทั้ง Windows/Linux) + ตัดความยาวกันชน MAX_PATH
+    // คืนค่า fallback ถ้าหลัง Sanitize แล้วว่างเปล่า (เช่น ชื่อเป็นแค่สัญลักษณ์ล้วนๆ)
+    private static string SanitizeForFileSystem(string? raw, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return fallback;
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var cleaned = new string(raw.Where(c => !invalidChars.Contains(c)).ToArray()).Trim();
+        cleaned = string.Join(" ", cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+        if (cleaned.Length > 80) cleaned = cleaned[..80].Trim();
+
+        return string.IsNullOrWhiteSpace(cleaned) ? fallback : cleaned;
+    }
+
+    // หาชื่อไฟล์ที่ไม่ชนกับไฟล์เดิมในโฟลเดอร์ โดยเติม _2, _3, ... ต่อท้ายจนกว่าจะว่าง
+    // (กันกรณีสอง Showcase ในโปรเจกต์เดียวกันตั้ง "ชื่อหน้า" ซ้ำกัน ไม่ให้ไฟล์เก่าถูกเขียนทับเงียบๆ)
+    private static string ResolveAvailableFileName(string folder, string baseName, string ext)
+    {
+        var candidate = $"{baseName}{ext}";
+        var counter = 2;
+        while (System.IO.File.Exists(Path.Combine(folder, candidate)))
+        {
+            candidate = $"{baseName}_{counter}{ext}";
+            counter++;
+        }
+        return candidate;
+    }
+
+    // POST /api/Upload/showcase-image?projectId=5&projectName=...&pageName=...
+    // ★ โฟลเดอร์ตั้งชื่อตาม "ชื่อโปรเจกต์" และไฟล์ตั้งชื่อตาม "ชื่อหน้า" (Showcase Title) แทน projectId/GUID เดิม
+    //   เพื่อให้เปิดโฟลเดอร์ในเครื่องแล้วรู้ทันทีว่าเป็นรูปของโปรเจกต์/หน้าไหน
     [HttpPost("showcase-image")]
-    public async Task<IActionResult> UploadShowcaseImage(IFormFile file, [FromQuery] int projectId)
+    public async Task<IActionResult> UploadShowcaseImage(
+        IFormFile file,
+        [FromQuery] int projectId,
+        [FromQuery] string? projectName,
+        [FromQuery] string? pageName)
     {
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "ไม่พบไฟล์รูปภาพ" });
@@ -30,11 +65,12 @@ public class UploadController : ControllerBase
         if (!allowedExt.Contains(ext))
             return BadRequest(new { message = "รองรับเฉพาะไฟล์ jpg, jpeg, png, webp" });
 
-        // ★ สร้างโฟลเดอร์แยกตามโปรเจค เช่น Photo Systems/5/xxx.jpg
-        var projectFolder = Path.Combine(_photoRoot, projectId.ToString());
+        var folderName = SanitizeForFileSystem(projectName, projectId.ToString());
+        var projectFolder = Path.Combine(_photoRoot, folderName);
         Directory.CreateDirectory(projectFolder); // สร้างอัตโนมัติถ้ายังไม่มี ไม่ error ถ้ามีอยู่แล้ว
 
-        var fileName = $"{Guid.NewGuid()}{ext}";
+        var baseFileName = SanitizeForFileSystem(pageName, Guid.NewGuid().ToString());
+        var fileName = ResolveAvailableFileName(projectFolder, baseFileName, ext);
         var fullPath = Path.Combine(projectFolder, fileName);
 
         using (var stream = new FileStream(fullPath, FileMode.Create))
@@ -42,8 +78,8 @@ public class UploadController : ControllerBase
             await file.CopyToAsync(stream);
         }
 
-        // path ที่ frontend จะใช้แสดงผล เช่น /photos/5/xxxxx.jpg
-        var url = $"{_requestPath}/{projectId}/{fileName}";
+        // path ที่ frontend จะใช้แสดงผล เช่น /photos/MyProject/Login Page.jpg
+        var url = $"{_requestPath}/{Uri.EscapeDataString(folderName)}/{Uri.EscapeDataString(fileName)}";
         return Ok(new { url });
     }
 

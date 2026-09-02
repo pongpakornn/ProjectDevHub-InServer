@@ -6,6 +6,8 @@ import SearchableSelect from "@/components/ui/inputs/searchable-select";
 import MultiSearchableSelect from "@/components/ui/inputs/multi-searchable-select";
 import { TeamProject, CreateProjectFormData } from "@/types/project";
 import { getProjectTypes, getUsers, getDepartments, ProjectType, UserOption, Department } from "@/lib/project-team-api";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface TeamProjectFormModalProps {
   isOpen: boolean;
@@ -90,6 +92,8 @@ export default function TeamProjectFormModal({
     [users]
   );
 
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const projectTypeOptions = projectTypes.map((pt) => ({
@@ -129,6 +133,7 @@ export default function TeamProjectFormModal({
   const isEdit = mode === "edit";
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 
@@ -302,5 +307,6 @@ export default function TeamProjectFormModal({
         </form>
       </div>
     </div>
+    </Portal>
   );
 }

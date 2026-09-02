@@ -15,11 +15,13 @@ import {
   getProjectOptions,
   ProjectOption,
 } from "@/lib/testing-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
 
 export default function TestAutomationPage() {
+  const toast = useToast();
   const [testRuns, setTestRuns] = useState<TestRunItem[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -115,13 +117,15 @@ export default function TestAutomationPage() {
     try {
       if (modalMode === "edit" && typeof data.id === "number") {
         await updateTestRun(data.id, payload, CURRENT_USER_ID);
+        toast.success("อัปเดตผลทดสอบสำเร็จ", `บันทึกการแก้ไข "${data.suiteName}" เรียบร้อยแล้ว`);
       } else {
         await createTestRun(payload, CURRENT_USER_ID);
+        toast.success("บันทึกผลทดสอบสำเร็จ", `เพิ่มผลทดสอบ "${data.suiteName}" เรียบร้อยแล้ว`);
       }
       await loadData();
     } catch (err) {
       console.error(err);
-      alert("บันทึกผลทดสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกผลทดสอบไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -131,9 +135,10 @@ export default function TestAutomationPage() {
     setTestRuns((prev) => prev.filter((item) => item.id !== id));
     try {
       await deleteTestRun(Number(id));
+      toast.info("ลบผลทดสอบสำเร็จ", "ลบผลการทดสอบนี้ออกจากระบบเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
-      alert("ลบผลทดสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("ลบผลทดสอบไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
       setTestRuns(prevRuns);
     }
   };

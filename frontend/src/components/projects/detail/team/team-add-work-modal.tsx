@@ -5,11 +5,14 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import { WorkItem } from "@/types/project-detail";
 import { uploadShowcaseImage } from "@/lib/project-team-api";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface TeamAddWorkModalProps {
   isOpen: boolean;
   editingWork: WorkItem | null;
   projectId: number;
+  projectName?: string;
   onClose: () => void;
   onSave: (workData: { title: string; desc: string; flow: string; image: string | null }) => void;
 }
@@ -18,6 +21,7 @@ export default function TeamAddWorkModal({
   isOpen,
   editingWork,
   projectId,
+  projectName,
   onClose,
   onSave,
 }: TeamAddWorkModalProps) {
@@ -44,6 +48,8 @@ export default function TeamAddWorkModal({
     }
   }, [editingWork, isOpen]);
 
+  useBodyScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +67,7 @@ export default function TeamAddWorkModal({
     try {
       if (workImageFile) {
         setIsUploading(true);
-        finalImageUrl = await uploadShowcaseImage(projectId, workImageFile);
+        finalImageUrl = await uploadShowcaseImage(projectId, workImageFile, projectName, workTitle);
       }
       onSave({ title: workTitle, desc: workDesc, flow: workFlow, image: finalImageUrl });
     } catch (err) {
@@ -73,14 +79,20 @@ export default function TeamAddWorkModal({
   };
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="font-bold text-slate-900 text-sm">
             {editingWork ? "แก้ไขผลงานของโครงการ" : "เพิ่มผลงานของโครงการ"}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X className="w-4 h-4" />
+          <button
+            onClick={onClose}
+            type="button"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+            ยกเลิก
           </button>
         </div>
 
@@ -139,5 +151,6 @@ export default function TeamAddWorkModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

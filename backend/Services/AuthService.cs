@@ -67,6 +67,11 @@ namespace backend.Services
             }
 
             // 4. อัปเดต Session & LastLogin Status
+            // สร้าง SessionId ใหม่ทุกครั้งที่ Login สำเร็จ แล้วทับ CurrentSessionId เดิม — ผลคือ Session เก่า
+            // (ถ้ามี) จะใช้ Token/SessionId เดิมต่อไม่ได้อีก เพราะ IsSessionValidAsync จะเทียบไม่ตรงอีกต่อไป
+            // นี่คือกลไกจำกัด "Login ได้ครั้งละ 1 Session" แบบ Last-Login-Wins
+            var sessionId = Guid.NewGuid().ToString();
+            user.CurrentSessionId = sessionId;
             user.LastLoginDate = DateTimeOffset.UtcNow;
             user.IsOnline = true;
             user.IpAddress = ipAddress;
@@ -90,6 +95,7 @@ namespace backend.Services
                 Success = true,
                 Message = "เข้าสู่ระบบสำเร็จ",
                 Token = "mocked-jwt-token-for-dev",
+                SessionId = sessionId,
                 User = new UserInfoDto
                 {
                     UserId = user.UserId,
@@ -111,6 +117,46 @@ namespace backend.Services
                     }).ToList()
                 }
             };
+        }
+
+        public async Task LogoutAsync(int userId, string? sessionId)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            if (user == null) return;
+
+            // ถ้ามีการส่ง sessionId มา ต้องตรงกับ Session ปัจจุบันเท่านั้นถึงจะอนุญาตให้ตั้ง Offline —
+            // ป้องกัน Tab/Session เก่าที่ถูก Session ใหม่เตะออกไปแล้ว มาเรียก Logout ทีหลังจนไปลบสถานะ
+            // Online ของ Session ใหม่ที่ยัง Active อยู่จริงโดยไม่ตั้งใจ
+            if (!string.IsNullOrEmpty(sessionId) && user.CurrentSessionId != sessionId)
+            {
+                return;
+            }
+
+            user.IsOnline = false;
+            user.CurrentSessionId = null;
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId = user.UserId,
+                SystemId = "CORE",
+                ActionType = "LOGOUT",
+                LogDescription = $"User {user.FullName} logged out.",
+                IpAddress = "127.0.0.1",
+                ComputerName = Environment.MachineName
+            });
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> IsSessionValidAsync(int userId, string sessionId)
+        {
+            var user = await _context.Users
+                .Where(u => u.UserId == userId)
+                .Select(u => new { u.CurrentSessionId, u.IsSuspended, u.IsActive })
+                .FirstOrDefaultAsync();
+
+            if (user == null || !user.IsActive || user.IsSuspended) return false;
+            return user.CurrentSessionId == sessionId;
         }
     }
 }

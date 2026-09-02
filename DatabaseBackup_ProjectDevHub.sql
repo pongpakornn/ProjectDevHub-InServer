@@ -564,7 +564,8 @@ INSERT INTO Core.SystemList (SystemId, SystemName, Description, IsActive) VALUES
     (N'PROJECT',  N'งานทีม (Team)',              N'ระบบติดตามงานโปรเจกต์ทีม — บริหารจัดการโปรเจกต์ที่ทำร่วมกับทีม', 1),
     (N'SOLO',     N'Project Solo Management',    N'ระบบบริหารจัดการโปรเจกต์เดี่ยว', 1),
     (N'TEAM',     N'Project Team Management',    N'ระบบบริหารจัดการโปรเจกต์ทีม', 1),
-    (N'FLOW',     N'Project Flow Architecture',  N'ระบบออกแบบและติดตามผังการทำงานของโปรเจกต์', 1);
+    (N'FLOW',     N'Project Flow Architecture',  N'ระบบออกแบบและติดตามผังการทำงานของโปรเจกต์', 1),
+    (N'PRESENT',  N'สถานีนำเสนอผลงาน (Present Station)', N'ศูนย์รวม Showcase ผลงาน การสาธิตระบบ และ Media Lightbox Gallery', 1);
 SET IDENTITY_INSERT Core.SystemList OFF;
 GO
 

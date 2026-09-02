@@ -401,12 +401,23 @@ export function deleteWorkItem(showcaseItemId: number): Promise<void> {
   return fetchApi<void>(`/ProjectSolo/showcases/${showcaseItemId}`, { method: "DELETE" });
 }
 
-export async function uploadShowcaseImage(projectId: number, file: File): Promise<string> {
+// projectName/pageName ใช้ตั้งชื่อโฟลเดอร์/ไฟล์จริงฝั่ง Backend (โฟลเดอร์ = ชื่อโปรเจกต์, ไฟล์ = ชื่อหน้า)
+// แทนการใช้ projectId ดิบๆ กับชื่อไฟล์แบบ GUID เดิม เพื่อให้เปิดโฟลเดอร์แล้วรู้ทันทีว่าเป็นรูปของอะไร
+export async function uploadShowcaseImage(
+  projectId: number,
+  file: File,
+  projectName?: string,
+  pageName?: string
+): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
 
+  const params = new URLSearchParams({ projectId: String(projectId) });
+  if (projectName) params.set("projectName", projectName);
+  if (pageName) params.set("pageName", pageName);
+
   const response = await fetch(
-    `${API_BASE_URL}/Upload/showcase-image?projectId=${projectId}`,
+    `${API_BASE_URL}/Upload/showcase-image?${params.toString()}`,
     { method: "POST", body: formData }
   );
 

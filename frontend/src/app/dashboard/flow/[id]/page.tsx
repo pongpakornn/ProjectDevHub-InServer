@@ -9,12 +9,14 @@ import FlowGanttQaSections from "@/components/flow/flow-gantt-qa-sections";
 import { GitBranch } from "lucide-react";
 import { FlowDetail, FlowStep, FlowTechStackTag, FlowExecution } from "@/types/flow";
 import { getFlowDetail, getExecutions, autoGenerateSteps, autoGenerateTechStacks } from "@/lib/flow-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
 
 export default function FlowProjectDetailPage() {
   const params = useParams();
+  const toast = useToast();
   const flowDefinitionId = Number(params?.id);
 
   const [flow, setFlow] = useState<FlowDetail | null>(null);
@@ -61,9 +63,13 @@ export default function FlowProjectDetailPage() {
       ]);
       setPhases(newPhases);
       setTechStacks(newTechStacks);
+      toast.success("Generate Flow สำเร็จ", "สร้าง Flow Diagram และ Architecture จากข้อมูลโปรเจกต์เรียบร้อยแล้ว");
     } catch (err) {
       console.error("Generate Flow จากข้อมูลโปรเจกต์ไม่สำเร็จ", err);
-      alert(err instanceof Error ? err.message : "Generate Flow จากข้อมูลโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error(
+        "Generate Flow ไม่สำเร็จ",
+        err instanceof Error ? err.message : "กรุณาลองใหม่อีกครั้ง"
+      );
     } finally {
       setIsGenerating(false);
     }

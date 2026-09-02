@@ -45,11 +45,43 @@ namespace backend.Controllers
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการ Login สำหรับ EmpId: {EmpId}", request.EmpId);
                 
                 // ส่ง JSON กลับฝั่ง Client เพื่อไม่ให้เกิด JSON Syntax Error ใน Frontend
-                return StatusCode(500, new LoginResponse 
-                { 
-                    Success = false, 
-                    Message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" 
+                return StatusCode(500, new LoginResponse
+                {
+                    Success = false,
+                    Message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}"
                 });
+            }
+        }
+
+        // เรียกตอนกดปุ่ม Logout หรือจากปิดแท็บ/แอป (ผ่าน navigator.sendBeacon บน beforeunload)
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+        {
+            try
+            {
+                await _authService.LogoutAsync(request.UserId, request.SessionId);
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการ Logout สำหรับ UserId: {UserId}", request.UserId);
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // Heartbeat ตรวจสอบว่า Session นี้ยังใช้งานได้อยู่หรือถูก Login ใหม่จากที่อื่นเตะออกไปแล้ว
+        [HttpGet("session-check")]
+        public async Task<IActionResult> SessionCheck([FromQuery] int userId, [FromQuery] string sessionId)
+        {
+            try
+            {
+                var valid = await _authService.IsSessionValidAsync(userId, sessionId);
+                return Ok(new SessionCheckResponse { Valid = valid });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการตรวจสอบ Session สำหรับ UserId: {UserId}", userId);
+                return StatusCode(500, new { message = ex.Message });
             }
         }
     }

@@ -2,6 +2,8 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
+import { getStoredUser, getStoredSessionId, clearSession } from "@/lib/session";
 
 interface LogoutButtonProps {
   onLogout?: () => void;
@@ -11,12 +13,23 @@ interface LogoutButtonProps {
 export default function LogoutButton({ onLogout, className = "" }: LogoutButtonProps) {
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (onLogout) {
       onLogout();
-    } else {
-      // Default Behavior: ลบ Token / Session แล้วนำกลับไปหน้า Login
-      localStorage.removeItem("token");
+      return;
+    }
+
+    // Default Behavior: แจ้ง Backend ให้ตั้งสถานะ Offline ก่อน แล้วค่อยล้าง Session ฝั่ง Client ทั้งหมด
+    const user = getStoredUser();
+    const sessionId = getStoredSessionId();
+    try {
+      if (user) {
+        await authService.logout(user.userId, sessionId);
+      }
+    } catch (err) {
+      console.error("Logout แจ้ง Backend ไม่สำเร็จ", err);
+    } finally {
+      clearSession();
       router.push("/login");
     }
   };

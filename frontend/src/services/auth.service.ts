@@ -30,7 +30,12 @@ export interface LoginResponse {
   success: boolean;
   message: string;
   token?: string;
+  sessionId?: string;
   user?: UserInfo;
+}
+
+export interface SessionCheckResponse {
+  valid: boolean;
 }
 
 export const authService = {
@@ -39,5 +44,18 @@ export const authService = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  logout: async (userId: number, sessionId?: string | null): Promise<void> => {
+    await fetchApi<{ success: boolean }>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ userId, sessionId: sessionId ?? null }),
+    });
+  },
+
+  checkSession: async (userId: number, sessionId: string): Promise<SessionCheckResponse> => {
+    return fetchApi<SessionCheckResponse>(
+      `/auth/session-check?userId=${userId}&sessionId=${encodeURIComponent(sessionId)}`
+    );
   },
 };

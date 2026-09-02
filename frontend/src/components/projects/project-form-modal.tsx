@@ -5,6 +5,10 @@ import { X } from "lucide-react";
 import SearchableSelect from "@/components/ui/inputs/searchable-select";
 import { SoloProject, CreateProjectFormData } from "@/types/project";
 import { getProjectTypes, getUsers, getDepartments, ProjectType, UserOption, Department } from "@/lib/project-solo-api";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { getStoredUser } from "@/lib/session";
+import { UserCircle } from "lucide-react";
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -69,9 +73,13 @@ export default function ProjectFormModal({
         endDate: initialData.endDate || "",
       });
     } else {
-      setFormData(defaultFormState);
+      // Solo Work = งานที่ทำคนเดียว — Owner ดึงจาก User ที่ล็อกอินอยู่อัตโนมัติ ไม่ต้องให้เลือก/พิมพ์เอง
+      const loggedInUser = getStoredUser();
+      setFormData({ ...defaultFormState, ownerId: loggedInUser?.userId ?? 1 });
     }
   }, [mode, initialData, isOpen]);
+
+  useBodyScrollLock(isOpen);
 
   if (!isOpen) return null;
 
@@ -107,6 +115,7 @@ export default function ProjectFormModal({
   }));
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 
@@ -168,12 +177,25 @@ export default function ProjectFormModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SearchableSelect
-              label={`Owner * ${isLoadingOptions ? "(กำลังโหลด...)" : ""}`}
-              options={userOptions}
-              value={formData.ownerId ? String(formData.ownerId) : ""}
-              onChange={(val) => setFormData({ ...formData, ownerId: Number(val) })}
-            />
+            {isEdit ? (
+              <SearchableSelect
+                label={`Owner * ${isLoadingOptions ? "(กำลังโหลด...)" : ""}`}
+                options={userOptions}
+                value={formData.ownerId ? String(formData.ownerId) : ""}
+                onChange={(val) => setFormData({ ...formData, ownerId: Number(val) })}
+              />
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-800 mb-1">Owner</label>
+                <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-2">
+                  <UserCircle className="w-4 h-4 text-indigo-500 shrink-0" />
+                  <span className="truncate">
+                    {userOptions.find((u) => Number(u.value) === formData.ownerId)?.label ?? "กำลังโหลด..."}
+                  </span>
+                  <span className="ml-auto text-[10px] font-mono text-slate-400 shrink-0">อัตโนมัติจากผู้ใช้ที่ล็อกอิน</span>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">Requester</label>
               <input
@@ -260,5 +282,6 @@ export default function ProjectFormModal({
         </form>
       </div>
     </div>
+    </Portal>
   );
 }

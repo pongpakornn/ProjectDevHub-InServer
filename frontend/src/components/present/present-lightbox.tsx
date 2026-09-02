@@ -3,6 +3,8 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { WorkItem } from "@/types/project-detail";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface PresentLightboxProps {
   isOpen: boolean;
@@ -27,9 +29,12 @@ export function PresentLightbox({
   onPrev,
   onNext,
 }: PresentLightboxProps) {
+  useBodyScrollLock(isOpen && !!activeItem);
+
   if (!isOpen || !activeItem) return null;
 
   return (
+    <Portal>
     <div
       onClick={onClose}
       className={`fixed inset-0 z-70 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 sm:p-10 transition-opacity duration-300 ease-out ${
@@ -83,5 +88,6 @@ export function PresentLightbox({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

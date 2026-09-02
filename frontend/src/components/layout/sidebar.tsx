@@ -1,46 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  User, 
-  Users, 
-  TestTube, 
-  GitFork, 
+import {
+  LayoutDashboard,
+  User,
+  Users,
+  TestTube,
+  GitFork,
   Tv,
   Terminal,
   RotateCw,
   Box,
+  UserCheck,
   X
 } from "lucide-react";
+import { getStoredUser, hasSystemPermission, isAdminOrAbove } from "@/lib/session";
+import { UserInfo } from "@/services/auth.service";
 
 interface SidebarProps {
   isCollapsed: boolean;
   setIsCollapsed: (value: boolean | ((prev: boolean) => boolean)) => void;
+  isMobileOpen: boolean;
+  onCloseMobile: () => void;
 }
 
+// ระบุ systemId (Core.SystemList) ที่ต้องมีสิทธิ์ CanView จึงจะเห็นเมนูนี้ — เมนูที่ไม่มี systemId
+// และไม่ใช่ adminOnly จะแสดงเสมอ (ยังไม่รวมอยู่ใน Phase แรกของการ Filter สิทธิ์)
+// adminOnly = true คือเมนูที่ล็อกเฉพาะ Admin/Super Admin เท่านั้น ไม่ผูกกับ Permission Matrix ปกติ
 const menuItems = [
-  { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Solo Work", href: "/dashboard/solo", icon: User },
-  { name: "Team Work", href: "/dashboard/team", icon: Users },
-  { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube }, // 👈 อัปเดต Path ให้ตรงกับ app/dashboard/testing/page.tsx
-  { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork },
-  { name: "Present Station", href: "/dashboard/present", icon: Tv },
-  { name: "3D Model Test", href: "/dashboard/test3d", icon: Box }, // 👈 เมนูทดสอบ 3D model viewer (หมุนได้ทุกแกน)
+  { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard, systemId: "CORE" },
+  { name: "Solo Work", href: "/dashboard/solo", icon: User, systemId: "SOLO" },
+  { name: "Team Work", href: "/dashboard/team", icon: Users, systemId: "TEAM" },
+  { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube }, // 👈 อัปเดต Path ให้ตรงกับ app/dashboard/testing/page.tsx — ยังไม่กรองสิทธิ์ใน Phase นี้
+  { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork, systemId: "FLOW" },
+  { name: "Present Station", href: "/dashboard/present", icon: Tv, systemId: "PRESENT" },
+  { name: "3D Model Test", href: "/dashboard/test3d", icon: Box, adminOnly: true }, // 👈 เมนูทดสอบ 3D model viewer (หมุนได้ทุกแกน)
+  { name: "User Management", href: "/dashboard/users", icon: UserCheck, adminOnly: true }, // 👈 เมนูจัดการสมาชิกและสิทธิ์การใช้งาน
 ];
 
-export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
+export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname();
   const [showDevCard, setShowDevCard] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
+  // อ่าน User จาก LocalStorage หลัง Mount (กัน Hydration Mismatch) + ปิด Mobile Drawer อัตโนมัติทุกครั้งที่เปลี่ยนหน้า
+  useEffect(() => {
+    setCurrentUser(getStoredUser());
+    setIsAuthReady(true);
+    onCloseMobile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // หากยังไม่ได้ล็อกอิน (ไม่มี User ใน LocalStorage) ให้แสดงเมนูทั้งหมดไว้ก่อน
+  // เพื่อไม่กระทบ Flow การเข้าถึง /dashboard/* ตรงๆ ระหว่างพัฒนา (ยังไม่มี Auth Guard บังคับ Login)
+  const visibleMenuItems = useMemo(() => {
+    if (!isAuthReady || !currentUser) return menuItems;
+
+    return menuItems.filter((item) => {
+      if (item.adminOnly) return isAdminOrAbove(currentUser);
+      if (item.systemId) return hasSystemPermission(currentUser, item.systemId);
+      return true;
+    });
+  }, [currentUser, isAuthReady]);
 
   return (
     <>
+      {/* Mobile Backdrop — คลิกเพื่อปิด Drawer (แสดงเฉพาะจอเล็กกว่า lg ตอน Drawer เปิดอยู่) */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-xs lg:hidden animate-in fade-in duration-200"
+        />
+      )}
+
+      {/* Sidebar: บนจอ >= lg เป็นส่วนหนึ่งของ Flex Layout ปกติ (Static, ปรับความกว้างได้ด้วย isCollapsed)
+          บนจอ < lg กลายเป็น Off-canvas Drawer ลอยทับเนื้อหา (Fixed, เลื่อนเข้า-ออกด้วย translate-x) */}
       <aside
-        className={`bg-[#0d0e12] text-zinc-300 min-h-screen flex flex-col border-r border-zinc-800/80 transition-all duration-300 relative select-none ${
-          isCollapsed ? "w-20" : "w-64"
-        }`}
+        className={`bg-[#0d0e12] text-zinc-300 h-screen lg:min-h-screen flex flex-col border-r border-zinc-800/80 transition-all duration-300 select-none
+          fixed inset-y-0 left-0 z-40 w-64 ${isMobileOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:static lg:z-auto lg:translate-x-0 ${isCollapsed ? "lg:w-20" : "lg:w-64"}`}
       >
         {/* ========================================================= */}
         {/* 🟢 BRAND HEADER */}
@@ -48,7 +89,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
         <div className="h-16 px-4 flex items-center justify-between border-b border-zinc-800/60 relative">
           <div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? "w-full justify-center" : ""}`}>
             {/* Terminal Prompt Icon (>_) */}
-            <div className="w-9 h-9 rounded-xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-mono font-bold shrink-0 shadow-sm shadow-emerald-950/50">
+            <div className="w-9 h-9 rounded-xl bg-indigo-950/80 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-mono font-bold shrink-0 shadow-sm shadow-indigo-950/50">
               <Terminal className="w-5 h-5 stroke-[2.5]" />
             </div>
 
@@ -58,6 +99,15 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
               </span>
             )}
           </div>
+
+          {/* ปุ่มปิด Drawer — แสดงเฉพาะจอมือถือ/แท็บเล็ต (< lg) */}
+          <button
+            onClick={onCloseMobile}
+            aria-label="ปิดเมนู"
+            className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Menu Section */}
@@ -69,7 +119,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
           )}
 
           <nav className="space-y-1.5">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
 
@@ -79,13 +129,14 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }: SidebarProps) {
                   href={item.href}
                   title={isCollapsed ? item.name : undefined}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  style={{ animationDelay: `${index * 40}ms` }}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all animate-in fade-in slide-in-from-left-2 fill-mode-both duration-300 ${
                     isActive
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-md shadow-emerald-500/5 font-bold"
+                      ? "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 shadow-md shadow-indigo-500/5 font-bold"
                       : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                   } ${isCollapsed ? "justify-center px-0 py-3" : ""}`}
                 >
-                  <Icon className={`w-4 h-4 min-w-4 shrink-0 ${isActive ? "text-emerald-400" : "text-zinc-400"}`} />
+                  <Icon className={`w-4 h-4 min-w-4 shrink-0 ${isActive ? "text-indigo-400" : "text-zinc-400"}`} />
                   {!isCollapsed && (
                     <span className="whitespace-nowrap truncate">
                       {item.name}

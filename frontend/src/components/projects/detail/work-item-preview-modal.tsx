@@ -3,6 +3,8 @@
 import React from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { WorkItem } from "@/types/project-detail";
+import Portal from "@/components/ui/portal";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface WorkItemPreviewModalProps {
   works: WorkItem[];
@@ -18,10 +20,13 @@ export default function WorkItemPreviewModal({
   onClose,
   onNavigate,
 }: WorkItemPreviewModalProps) {
+  useBodyScrollLock(works.length > 0);
+
   if (works.length === 0) return null;
   const active = works[activeIndex];
 
   return (
+    <Portal>
     <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 sm:p-10"
@@ -75,5 +80,6 @@ export default function WorkItemPreviewModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

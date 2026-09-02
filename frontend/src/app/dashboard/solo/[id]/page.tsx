@@ -19,6 +19,7 @@ import {
   updateTaskItem,
   autoGeneratePhases,
 } from "@/lib/project-solo-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ตอนนี้ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 // พอมี Login/Session จริงแล้ว ให้เปลี่ยนไปดึงจาก Auth Context/Token แทน
@@ -26,6 +27,7 @@ const CURRENT_USER_ID = 1;
 
 export default function ProjectDetailPage() {
   const params = useParams();
+  const toast = useToast();
   const projectId = Number(params?.id);
 
   const [projectInfo, setProjectInfo] = useState<SoloProject | null>(null);
@@ -79,9 +81,10 @@ export default function ProjectDetailPage() {
       const saved = await updateProject(projectInfo.id, formData, CURRENT_USER_ID);
       setProjectInfo(saved);
       setIsEditModalOpen(false);
+      toast.success("อัปเดตโปรเจกต์สำเร็จ", `บันทึกการแก้ไข "${saved.name}" เรียบร้อยแล้ว`);
     } catch (err) {
       console.error(err);
-      alert("บันทึกข้อมูลโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกข้อมูลโปรเจกต์ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -93,9 +96,10 @@ export default function ProjectDetailPage() {
     try {
       const generated = await autoGeneratePhases(projectInfo.id);
       setPhases(generated);
+      toast.success("สร้าง Phase อัตโนมัติสำเร็จ", `สร้าง ${generated.length} Phase ให้โปรเจกต์นี้เรียบร้อยแล้ว`);
     } catch (err) {
       console.error("Auto-generate phases ไม่สำเร็จ", err);
-      alert("สร้าง Phase อัตโนมัติไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("สร้าง Phase อัตโนมัติไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -107,7 +111,7 @@ export default function ProjectDetailPage() {
       await updateTaskItem(Number(task.id), task);
     } catch (err) {
       console.error("อัปเดต Task ไม่สำเร็จ", err);
-      alert("อัปเดต Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("อัปเดต Task ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
       loadProjectDetail(); // ดึงข้อมูลจริงกลับมาใหม่ กัน State ฝั่ง Frontend ค้างผิดจาก DB
     }
   };
@@ -153,9 +157,13 @@ export default function ProjectDetailPage() {
         );
       }
       await loadProjectDetail();
+      toast.success(
+        editingWork ? "อัปเดตผลงานสำเร็จ" : "เพิ่มผลงานสำเร็จ",
+        `บันทึกรายการ "${workData.title}" เรียบร้อยแล้ว`
+      );
     } catch (err) {
       console.error(err);
-      alert("บันทึกผลงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกผลงานไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsAddWorkOpen(false);
       setEditingWork(null);
@@ -220,6 +228,7 @@ export default function ProjectDetailPage() {
         isOpen={isAddWorkOpen}
         editingWork={editingWork}
         projectId={projectInfo.id}   // ★ เพิ่มบรรทัดนี้
+        projectName={projectInfo.name}
         onClose={() => setIsAddWorkOpen(false)}
         onSave={handleSaveWork}
       />

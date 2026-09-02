@@ -22,7 +22,21 @@ namespace backend.DTOs
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
         public string? Token { get; set; }
+        // Session ID เฉพาะตัวต่อการ Login หนึ่งครั้ง (เก็บลง Core.Users.CurrentSessionId) —
+        // ใช้แยก Session นี้ออกจาก Session อื่นของ User เดียวกัน เพื่อจำกัด Login พร้อมกันได้ครั้งละ 1 Session
+        public string? SessionId { get; set; }
         public UserInfoDto? User { get; set; }
+    }
+
+    public class LogoutRequest
+    {
+        public int UserId { get; set; }
+        public string? SessionId { get; set; }
+    }
+
+    public class SessionCheckResponse
+    {
+        public bool Valid { get; set; }
     }
 
     public class UserInfoDto

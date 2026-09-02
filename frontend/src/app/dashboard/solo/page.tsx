@@ -7,11 +7,13 @@ import SoloProjectTable from "@/app/dashboard/solo/components/solo-project-table
 import ProjectFormModal from "@/components/projects/project-form-modal";
 import { SoloProject, CreateProjectFormData } from "@/types/project";
 import { getProjects, createProject, updateProject, deleteProject } from "@/lib/project-solo-api";
+import { useToast } from "@/lib/toast-context";
 
 const CURRENT_USER_ID = 1;
 
 export default function SoloWorkPage() {
   const router = useRouter();
+  const toast = useToast();
   const [projects, setProjects] = useState<SoloProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,14 +71,16 @@ export default function SoloWorkPage() {
     try {
       if (modalState.mode === "create") {
         await createProject(formData, CURRENT_USER_ID);
+        toast.success("สร้างโปรเจกต์สำเร็จ", `เพิ่มโปรเจกต์ "${formData.name}" เรียบร้อยแล้ว`);
       } else if (modalState.project) {
         await updateProject(modalState.project.id, formData, CURRENT_USER_ID);
+        toast.success("อัปเดตโปรเจกต์สำเร็จ", `บันทึกการแก้ไข "${formData.name}" เรียบร้อยแล้ว`);
       }
       await loadProjects();
       handleCloseModal();
     } catch (err: any) {
       console.error("Save project error:", err);
-      alert(`บันทึกโปรเจกต์ไม่สำเร็จ: ${err.message || "กรุณาตรวจสอบข้อมูลที่กรอกอีกครั้ง"}`);
+      toast.error("บันทึกโปรเจกต์ไม่สำเร็จ", err.message || "กรุณาตรวจสอบข้อมูลที่กรอกอีกครั้ง");
     } finally {
       setIsSubmitting(false);
     }
@@ -91,9 +95,10 @@ export default function SoloWorkPage() {
     try {
       await deleteProject(id, CURRENT_USER_ID);
       setProjects((prev) => prev.filter((p) => p.id !== id));
+      toast.info("ลบโปรเจกต์สำเร็จ", "ลบโปรเจกต์นี้ออกจากระบบเรียบร้อยแล้ว");
     } catch (err: any) {
       console.error("Delete project error:", err);
-      alert(`ลบโปรเจกต์ไม่สำเร็จ: ${err.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์"}`);
+      toast.error("ลบโปรเจกต์ไม่สำเร็จ", err.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
     }
   };
 

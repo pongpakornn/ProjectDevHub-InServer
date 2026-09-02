@@ -14,6 +14,7 @@ import { PresentLightbox } from "@/components/present/present-lightbox";
 import { PresentItemModal } from "@/components/present/present-item-modal";
 import * as soloApi from "@/lib/project-solo-api";
 import * as teamApi from "@/lib/project-team-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
@@ -28,6 +29,7 @@ interface ProjectHeaderInfo {
 export default function PresentProjectDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const projectId = Number(params?.id);
   const routeType = searchParams.get("type") === "team" ? "team" : "solo";
   const api = routeType === "team" ? teamApi : soloApi;
@@ -140,7 +142,7 @@ export default function PresentProjectDetailPage() {
     try {
       let finalImageUrl = imagePreview || "";
       if (imageFile) {
-        finalImageUrl = await api.uploadShowcaseImage(projectId, imageFile);
+        finalImageUrl = await api.uploadShowcaseImage(projectId, imageFile, projectInfo?.name, title);
       } else if (editingId) {
         const existing = items.find((it) => it.id === editingId);
         finalImageUrl = existing?.imageUrl || finalImageUrl;
@@ -163,9 +165,10 @@ export default function PresentProjectDetailPage() {
 
       await loadDetail();
       setActiveIndex(items.length); // เผื่อรายการใหม่ ให้เลื่อนไปดูตัวล่าสุดหลังโหลดใหม่
+      toast.success(editingId ? "อัปเดตรายการสำเร็จ" : "เพิ่มรายการสำเร็จ", `บันทึกรายการ "${title}" เรียบร้อยแล้ว`);
     } catch (err) {
       console.error(err);
-      alert("บันทึกรายการนำเสนอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกรายการนำเสนอไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsSaving(false);
       closeItemModal();
@@ -181,9 +184,10 @@ export default function PresentProjectDetailPage() {
     });
     try {
       await api.deleteWorkItem(Number(id));
+      toast.info("ลบรายการสำเร็จ", "ลบรายการนำเสนอออกจากระบบเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
-      alert("ลบรายการนำเสนอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("ลบรายการนำเสนอไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
       setItems(prevItems);
     }
   };

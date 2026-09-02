@@ -1,25 +1,84 @@
 "use client";
 
-import React, { useState } from "react";
-import { MessageSquare, Send, Trash2 } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+import { MessageSquare, Send, Trash2, AtSign } from "lucide-react";
 import { ProjectComment } from "@/types/project-detail";
+import { ProjectMember } from "@/types/project";
 import { addComment, deleteComment } from "@/lib/project-team-api";
 
 interface TeamProjectCommentsPanelProps {
   projectId: number;
   currentUserId: number;
+  members: ProjectMember[];
   comments: ProjectComment[];
   setComments: React.Dispatch<React.SetStateAction<ProjectComment[]>>;
+}
+
+// แปลงข้อความให้ Highlight ส่วนที่เป็น @ชื่อสมาชิกในโปรเจกต์ (แค่ Visual, ไม่ได้ผูก Notification จริง)
+function renderCommentText(text: string, memberNames: Set<string>) {
+  const parts = text.split(/(@[^\s@]+(?:\s[^\s@]+)?)/g);
+  return parts.map((part, idx) => {
+    const name = part.startsWith("@") ? part.slice(1) : "";
+    if (name && memberNames.has(name)) {
+      return (
+        <span key={idx} className="text-indigo-600 font-bold bg-indigo-50 rounded px-1">
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={idx}>{part}</React.Fragment>;
+  });
 }
 
 export default function TeamProjectCommentsPanel({
   projectId,
   currentUserId,
+  members,
   comments,
   setComments,
 }: TeamProjectCommentsPanelProps) {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const memberNameSet = useMemo(() => new Set(members.map((m) => m.fullName)), [members]);
+
+  const mentionSuggestions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return members.filter((m) => m.fullName.toLowerCase().includes(q)).slice(0, 6);
+  }, [mentionQuery, members]);
+
+  // ตรวจว่า Cursor ปัจจุบันอยู่หลัง "@คำค้นหา" ที่ยังพิมพ์ไม่จบหรือไม่ (ไม่มี Space คั่น) เพื่อเปิด/ปิด Dropdown แท็ก
+  const detectMentionQuery = (value: string, cursorPos: number) => {
+    const uptoCursor = value.slice(0, cursorPos);
+    const match = uptoCursor.match(/@([^\s@]*)$/);
+    setMentionQuery(match ? match[1] : null);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    detectMentionQuery(e.target.value, e.target.selectionStart ?? e.target.value.length);
+  };
+
+  const handleSelectMention = (member: ProjectMember) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const cursorPos = el.selectionStart ?? text.length;
+    const uptoCursor = text.slice(0, cursorPos);
+    const afterCursor = text.slice(cursorPos);
+    const replaced = uptoCursor.replace(/@([^\s@]*)$/, `@${member.fullName} `);
+    const nextText = replaced + afterCursor;
+    setText(nextText);
+    setMentionQuery(null);
+
+    requestAnimationFrame(() => {
+      el.focus();
+      const nextCursor = replaced.length;
+      el.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +89,7 @@ export default function TeamProjectCommentsPanel({
       const created = await addComment(projectId, trimmed, currentUserId);
       setComments([...comments, created]);
       setText("");
+      setMentionQuery(null);
     } catch (err) {
       console.error("ส่งความคิดเห็นไม่สำเร็จ", err);
       alert("ส่งความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -58,13 +118,44 @@ export default function TeamProjectCommentsPanel({
       </h3>
 
       <form onSubmit={handleSubmit} className="flex items-start gap-2">
-        <textarea
-          rows={2}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="แสดงความคิดเห็นเกี่ยวกับโปรเจกต์นี้..."
-          className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
-        />
+        <div className="relative flex-1">
+          <textarea
+            ref={textareaRef}
+            rows={2}
+            value={text}
+            onChange={handleChange}
+            onKeyUp={(e) => detectMentionQuery(e.currentTarget.value, e.currentTarget.selectionStart ?? 0)}
+            onBlur={() => window.setTimeout(() => setMentionQuery(null), 150)}
+            placeholder="แสดงความคิดเห็นเกี่ยวกับโปรเจกต์นี้... (พิมพ์ @ เพื่อแท็กสมาชิกในโปรเจกต์)"
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
+          />
+
+          {/* Mention Dropdown — แสดงรายชื่อสมาชิกในโปรเจกต์ที่ตรงกับคำค้นหลัง @ */}
+          {mentionQuery !== null && mentionSuggestions.length > 0 && (
+            <div className="absolute z-10 bottom-full mb-1.5 left-0 w-64 max-w-full bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <p className="px-2 py-1 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <AtSign className="w-3 h-3" />
+                แท็กสมาชิกในโปรเจกต์
+              </p>
+              {mentionSuggestions.map((m) => (
+                <button
+                  key={m.projectMemberId}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelectMention(m)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-indigo-50 transition-colors cursor-pointer"
+                >
+                  <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                    {m.fullName.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-700 truncate">{m.fullName}</span>
+                  <span className="text-[10px] text-slate-400 font-mono ml-auto shrink-0">{m.empId}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           type="submit"
           disabled={!text.trim() || isSubmitting}
@@ -91,7 +182,9 @@ export default function TeamProjectCommentsPanel({
                     {new Date(c.createdDate).toLocaleString("th-TH")}
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{c.text}</p>
+                <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">
+                  {renderCommentText(c.text, memberNameSet)}
+                </p>
               </div>
               {c.userId === currentUserId && (
                 <button

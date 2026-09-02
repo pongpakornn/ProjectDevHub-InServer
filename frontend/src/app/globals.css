@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
   --background: #ffffff;
@@ -12,15 +13,19 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* หมายเหตุ: แอปนี้ยังไม่มีระบบ Dark Mode จริงจัง (ทุกหน้ากำหนดพื้นหลังของตัวเองเป็นสีขาว/สีเข้มตายตัวอยู่แล้ว)
+   เดิมมี @media (prefers-color-scheme: dark) สลับ --background เป็นสีเกือบดำ ซึ่งไม่ตรงกับ Theme จริงของหน้า
+   Dashboard (bg-white) เลย — ทำให้เวลาเครื่องผู้ใช้ตั้ง OS เป็น Dark Mode แล้ว Scroll ชนขอบล่างสุดจนเกิด
+   Overscroll/Rubber-band Bounce จะเห็นพื้นหลัง <body> สีเกือบดำโผล่แทรกออกมาเป็นพื้นที่ว่างสีดำชั่วขณะ
+   จึงตัดการสลับสีตาม OS ออก ให้พื้นหลังคงที่สีขาวเสมอ ตรงกับ Theme จริงของทุกหน้า */
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  overscroll-behavior-y: none;
 }

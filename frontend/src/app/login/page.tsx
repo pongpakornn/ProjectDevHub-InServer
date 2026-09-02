@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/buttons/button';
 import { Input } from '@/components/ui/inputs/input';
 import { authService } from '@/services/auth.service';
+import { saveSession } from '@/lib/session';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,10 +26,9 @@ export default function LoginPage() {
         password: password,
       });
 
-      if (response.success && response.token) {
-        // จัดเก็บ Session & User Info ลง LocalStorage
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+      if (response.success && response.token && response.user) {
+        // จัดเก็บ Session & User Info ลง LocalStorage (รวม sessionId เพื่อใช้จำกัด Login พร้อมกันได้ครั้งละ 1 Session)
+        saveSession(response.user, response.token, response.sessionId);
 
         // นำทางไปยังหน้า Dashboard
         router.push('/dashboard');

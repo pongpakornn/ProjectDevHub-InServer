@@ -3,7 +3,6 @@
 
 import React, { useState } from "react";
 import {
-  Wand2,
   Plus,
   ChevronDown,
   GripVertical,
@@ -14,6 +13,7 @@ import {
 import { Button } from "@/components/ui/buttons/button";
 import Checkbox from "@/components/ui/inputs/checkbox";
 import DeleteButtonV2 from "@/components/ui/buttons/buttonv2/delete-buttonv2";
+import { ResetRolePresetButton } from "@/components/users/preset-action-button";
 import { TableDatePickerCell } from "./table-date-picker-cell";
 import { Phase, TaskItem } from "@/types/project-detail";
 import { createPhase, deletePhase, createTaskItem, deleteTaskItem, updatePhase } from "@/lib/project-solo-api";
@@ -186,14 +186,10 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
             <span className="text-indigo-900 font-bold text-xs tracking-wide">Phase / ลำดับงาน</span>
           </div>
 
-          <button
+          <ResetRolePresetButton
             onClick={onAutoGeneratePhases}
-            title="สร้าง Phase อัตโนมัติตามมาตรฐาน (ถ้ามี Phase อยู่แล้วจะดึงชุดเดิมกลับมาแทน ไม่สร้างซ้ำ)"
-            className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all flex items-center gap-1.5 text-xs font-semibold shadow-2xs group"
-          >
-            <Wand2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-            <span>สร้าง Standard Phase</span>
-          </button>
+            title="สร้าง Standard Phase"
+          />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">

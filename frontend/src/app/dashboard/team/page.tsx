@@ -14,12 +14,14 @@ import {
   addMember,
   removeMember,
 } from "@/lib/project-team-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
 
 export default function TeamWorkPage() {
   const router = useRouter();
+  const toast = useToast();
   const [projects, setProjects] = useState<TeamProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,6 +79,7 @@ export default function TeamWorkPage() {
     try {
       if (modalState.mode === "create") {
         await createProject(formData, memberUserIds, CURRENT_USER_ID);
+        toast.success("สร้างโปรเจกต์ทีมสำเร็จ", `เพิ่มโปรเจกต์ "${formData.name}" เรียบร้อยแล้ว`);
       } else if (modalState.project) {
         const projectId = modalState.project.id;
         await updateProject(projectId, formData, memberUserIds, CURRENT_USER_ID);
@@ -94,12 +97,13 @@ export default function TeamWorkPage() {
           ...toAdd.map((userId) => addMember(projectId, userId, "MEMBER")),
           ...toRemove.map((userId) => removeMember(projectId, userId)),
         ]);
+        toast.success("อัปเดตโปรเจกต์ทีมสำเร็จ", `บันทึกการแก้ไข "${formData.name}" เรียบร้อยแล้ว`);
       }
       await loadProjects();
       handleCloseModal();
     } catch (err: any) {
       console.error("Save team project error:", err);
-      alert(`บันทึกโปรเจกต์ไม่สำเร็จ: ${err.message || "กรุณาตรวจสอบข้อมูลที่กรอกอีกครั้ง"}`);
+      toast.error("บันทึกโปรเจกต์ไม่สำเร็จ", err.message || "กรุณาตรวจสอบข้อมูลที่กรอกอีกครั้ง");
     } finally {
       setIsSubmitting(false);
     }
@@ -114,9 +118,10 @@ export default function TeamWorkPage() {
     try {
       await deleteProject(Number(id), CURRENT_USER_ID);
       setProjects((prev) => prev.filter((p) => p.id !== id));
+      toast.info("ลบโปรเจกต์ทีมสำเร็จ", "ลบโปรเจกต์นี้ออกจากระบบเรียบร้อยแล้ว");
     } catch (err: any) {
       console.error("Delete team project error:", err);
-      alert(`ลบโปรเจกต์ไม่สำเร็จ: ${err.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์"}`);
+      toast.error("ลบโปรเจกต์ไม่สำเร็จ", err.message || "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์");
     }
   };
 

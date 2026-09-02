@@ -27,12 +27,14 @@ import {
   getComments,
   getAttachments,
 } from "@/lib/project-team-api";
+import { useToast } from "@/lib/toast-context";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1)
 const CURRENT_USER_ID = 1;
 
 export default function TeamProjectDetailPage() {
   const params = useParams();
+  const toast = useToast();
   const projectId = Number(params?.id);
 
   const [projectInfo, setProjectInfo] = useState<TeamProject | null>(null);
@@ -105,9 +107,10 @@ export default function TeamProjectDetailPage() {
       setProjectInfo(saved);
       setIsEditModalOpen(false);
       await loadProjectDetail();
+      toast.success("อัปเดตโปรเจกต์สำเร็จ", `บันทึกการแก้ไข "${saved.name}" เรียบร้อยแล้ว`);
     } catch (err) {
       console.error(err);
-      alert("บันทึกข้อมูลโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกข้อมูลโปรเจกต์ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -119,25 +122,27 @@ export default function TeamProjectDetailPage() {
     try {
       const member = await addMember(projectInfo.id, userId, "MEMBER");
       setProjectInfo({ ...projectInfo, members: [...projectInfo.members, member] });
+      toast.success("เพิ่มสมาชิกสำเร็จ", "เพิ่มสมาชิกเข้าโครงการเรียบร้อยแล้ว");
     } catch (err) {
       console.error("เพิ่มสมาชิกไม่สำเร็จ", err);
-      alert("เพิ่มสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("เพิ่มสมาชิกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
   const handleRemoveMember = async (userId: number) => {
     if (!projectInfo) return;
     if (userId === projectInfo.ownerId) {
-      alert("ไม่สามารถลบหัวหน้าโครงการ (Owner) ออกจากทีมได้");
+      toast.warning("ไม่สามารถลบได้", "ไม่สามารถลบหัวหน้าโครงการ (Owner) ออกจากทีมได้");
       return;
     }
     const prevMembers = projectInfo.members;
     setProjectInfo({ ...projectInfo, members: prevMembers.filter((m) => m.userId !== userId) });
     try {
       await removeMember(projectInfo.id, userId);
+      toast.info("ลบสมาชิกสำเร็จ", "นำสมาชิกออกจากโครงการเรียบร้อยแล้ว");
     } catch (err) {
       console.error("ลบสมาชิกไม่สำเร็จ", err);
-      alert("ลบสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("ลบสมาชิกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
       setProjectInfo({ ...projectInfo, members: prevMembers });
     }
   };
@@ -150,9 +155,10 @@ export default function TeamProjectDetailPage() {
     try {
       const generated = await autoGeneratePhases(projectInfo.id);
       setPhases(generated);
+      toast.success("สร้าง Phase อัตโนมัติสำเร็จ", `สร้าง ${generated.length} Phase ให้โปรเจกต์นี้เรียบร้อยแล้ว`);
     } catch (err) {
       console.error("Auto-generate phases ไม่สำเร็จ", err);
-      alert("สร้าง Phase อัตโนมัติไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("สร้าง Phase อัตโนมัติไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -164,7 +170,7 @@ export default function TeamProjectDetailPage() {
       await updateTaskItem(Number(task.id), task);
     } catch (err) {
       console.error("อัปเดต Task ไม่สำเร็จ", err);
-      alert("อัปเดต Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("อัปเดต Task ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
       loadProjectDetail();
     }
   };
@@ -210,9 +216,13 @@ export default function TeamProjectDetailPage() {
         );
       }
       await loadProjectDetail();
+      toast.success(
+        editingWork ? "อัปเดตผลงานสำเร็จ" : "เพิ่มผลงานสำเร็จ",
+        `บันทึกรายการ "${workData.title}" เรียบร้อยแล้ว`
+      );
     } catch (err) {
       console.error(err);
-      alert("บันทึกผลงานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+      toast.error("บันทึกผลงานไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsAddWorkOpen(false);
       setEditingWork(null);
@@ -288,6 +298,7 @@ export default function TeamProjectDetailPage() {
       <TeamProjectCommentsPanel
         projectId={projectInfo.id}
         currentUserId={CURRENT_USER_ID}
+        members={projectInfo.members}
         comments={comments}
         setComments={setComments}
       />
@@ -296,6 +307,7 @@ export default function TeamProjectDetailPage() {
         isOpen={isAddWorkOpen}
         editingWork={editingWork}
         projectId={projectInfo.id}
+        projectName={projectInfo.name}
         onClose={() => setIsAddWorkOpen(false)}
         onSave={handleSaveWork}
       />
