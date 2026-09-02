@@ -40,6 +40,23 @@ export function clearSession(): void {
   localStorage.removeItem(USER_STORAGE_KEY);
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   localStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(LAST_ACTIVITY_KEY);
+}
+
+const LAST_ACTIVITY_KEY = "lastActivityAt";
+
+// บันทึกเวลาล่าสุดที่ผู้ใช้มีการเคลื่อนไหว (Mouse/Keyboard/เปิดหน้าใหม่) ลง LocalStorage — ใช้ค่าร่วมกัน
+// ทุกแท็บของ User เดียวกัน เพื่อให้ตัวจับเวลา Auto Logout (session-guard.tsx) นับเวลาตรงกันไม่ว่าจะ
+// เปิดกี่แท็บพร้อมกันก็ตาม (มี Activity แท็บไหนแท็บหนึ่งก็ถือว่าต่ออายุ Session ทั้งหมด)
+export function markActivity(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LAST_ACTIVITY_KEY, Date.now().toString());
+}
+
+export function getLastActivity(): number {
+  if (typeof window === "undefined") return Date.now();
+  const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
+  return raw ? parseInt(raw, 10) : Date.now();
 }
 
 // ผู้ใช้มีสิทธิ์ "ดู" โมดูล systemId นี้หรือไม่ — Super Admin ผ่านเสมอไม่ว่า Permissions จะมีระบุไว้หรือไม่

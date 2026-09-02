@@ -25,6 +25,8 @@ interface ProjectPhaseSectionProps {
   setPhases: React.Dispatch<React.SetStateAction<Phase[]>>;
   onAutoGeneratePhases: () => void;
   onToggleTask?: (task: TaskItem) => void;
+  canAdd?: boolean;
+  canDelete?: boolean;
 }
 
 export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
@@ -34,6 +36,8 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
   setPhases,
   onAutoGeneratePhases,
   onToggleTask,
+  canAdd = true,
+  canDelete = true,
 }) => {
   const [newPhaseName, setNewPhaseName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState<{ [phaseId: string]: string }>({});
@@ -57,7 +61,7 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
         name: newPhaseName,
         status: "Not Started",
         sortOrder: phases.length + 1,
-      });
+      }, currentUserId);
       setPhases([...phases, { ...created, isExpanded: true }]);
       setNewPhaseName("");
     } catch (err) {
@@ -72,7 +76,7 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
     const prevPhases = phases;
     setPhases(phases.filter(p => p.id !== id)); // Optimistic update
     try {
-      await deletePhase(Number(id));
+      await deletePhase(Number(id), currentUserId);
     } catch (err) {
       console.error("ลบ Phase ไม่สำเร็จ", err);
       alert("ลบ Phase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -93,7 +97,7 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
         status: phase.status,
         startDate: phase.startDate || undefined,
         dueDate: phase.endDate || undefined,
-      });
+      }, currentUserId);
     } catch (err) {
       console.error("อัปเดต Phase ไม่สำเร็จ", err);
       alert("บันทึก Phase ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -153,7 +157,7 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
       p.id === phaseId ? { ...p, items: p.items.filter(t => t.id !== taskId) } : p
     ));
     try {
-      await deleteTaskItem(Number(taskId));
+      await deleteTaskItem(Number(taskId), currentUserId);
     } catch (err) {
       console.error("ลบ Task ไม่สำเร็จ", err);
       alert("ลบ Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -186,30 +190,34 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
             <span className="text-indigo-900 font-bold text-xs tracking-wide">Phase / ลำดับงาน</span>
           </div>
 
-          <ResetRolePresetButton
-            onClick={onAutoGeneratePhases}
-            title="สร้าง Standard Phase"
-          />
+          {canAdd && (
+            <ResetRolePresetButton
+              onClick={onAutoGeneratePhases}
+              title="สร้าง Standard Phase"
+            />
+          )}
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="ชื่อขั้นตอนใหม่..."
-            value={newPhaseName}
-            onChange={(e) => setNewPhaseName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAddPhase()}
-            className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50 focus:bg-white"
-          />
-          <Button
-            onClick={handleAddPhase}
-            disabled={isSavingPhase}
-            className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.35)] normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 disabled:opacity-60"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {isSavingPhase ? "กำลังบันทึก..." : "เพิ่ม Phase"}
-          </Button>
-        </div>
+        {canAdd && (
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="ชื่อขั้นตอนใหม่..."
+              value={newPhaseName}
+              onChange={(e) => setNewPhaseName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddPhase()}
+              className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50 focus:bg-white"
+            />
+            <Button
+              onClick={handleAddPhase}
+              disabled={isSavingPhase}
+              className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:shadow-[0_6px_16px_rgba(79,70,229,0.35)] normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 disabled:opacity-60"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {isSavingPhase ? "กำลังบันทึก..." : "เพิ่ม Phase"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden border border-slate-200/90 rounded-xl shadow-2xs bg-white">
@@ -363,10 +371,12 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
                       </td>
 
                       <td className="py-2.5 px-3 text-center">
-                        <DeleteButtonV2
-                          onClick={() => handleDeletePhase(phase.id)}
-                          title="ลบ Phase นี้"
-                        />
+                        {canDelete && (
+                          <DeleteButtonV2
+                            onClick={() => handleDeletePhase(phase.id)}
+                            title="ลบ Phase นี้"
+                          />
+                        )}
                       </td>
                     </tr>
 
@@ -424,38 +434,42 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
                                       )}
                                     </div>
 
-                                    <DeleteButtonV2
-                                      onClick={() => handleDeleteTask(phase.id, task.id)}
-                                      className="scale-75"
-                                      title="ลบ Task"
-                                    />
+                                    {canDelete && (
+                                      <DeleteButtonV2
+                                        onClick={() => handleDeleteTask(phase.id, task.id)}
+                                        className="scale-75"
+                                        title="ลบ Task"
+                                      />
+                                    )}
                                   </div>
                                 ))}
                               </div>
 
-                              <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-slate-200/50">
-                                <input
-                                  type="text"
-                                  placeholder="ชื่อรายการงาน เช่น ออกแบบ Schema..."
-                                  value={newTaskTitle[phase.id] || ""}
-                                  onChange={(e) => setNewTaskTitle({ ...newTaskTitle, [phase.id]: e.target.value })}
-                                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="รายละเอียดเพิ่มเติม (Optional)"
-                                  value={newTaskDetail[phase.id] || ""}
-                                  onChange={(e) => setNewTaskDetail({ ...newTaskDetail, [phase.id]: e.target.value })}
-                                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
-                                />
-                                <Button
-                                  onClick={() => handleAddTask(phase.id)}
-                                  className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 shadow-2xs"
-                                >
-                                  <Plus className="w-3.5 h-3.5" />
-                                  เพิ่ม Task
-                                </Button>
-                              </div>
+                              {canAdd && (
+                                <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-slate-200/50">
+                                  <input
+                                    type="text"
+                                    placeholder="ชื่อรายการงาน เช่น ออกแบบ Schema..."
+                                    value={newTaskTitle[phase.id] || ""}
+                                    onChange={(e) => setNewTaskTitle({ ...newTaskTitle, [phase.id]: e.target.value })}
+                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="รายละเอียดเพิ่มเติม (Optional)"
+                                    value={newTaskDetail[phase.id] || ""}
+                                    onChange={(e) => setNewTaskDetail({ ...newTaskDetail, [phase.id]: e.target.value })}
+                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
+                                  />
+                                  <Button
+                                    onClick={() => handleAddTask(phase.id)}
+                                    className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 shadow-2xs"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    เพิ่ม Task
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

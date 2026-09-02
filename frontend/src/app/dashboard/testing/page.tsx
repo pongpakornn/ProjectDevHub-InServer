@@ -17,12 +17,14 @@ import {
 } from "@/lib/testing-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 export default function TestAutomationPage() {
   const toast = useToast();
+  const permissions = useSystemPermissions("TESTING");
   const [testRuns, setTestRuns] = useState<TestRunItem[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,7 +137,7 @@ export default function TestAutomationPage() {
     const prevRuns = testRuns;
     setTestRuns((prev) => prev.filter((item) => item.id !== id));
     try {
-      await deleteTestRun(Number(id));
+      await deleteTestRun(Number(id), CURRENT_USER_ID);
       toast.info("ลบผลทดสอบสำเร็จ", "ลบผลการทดสอบนี้ออกจากระบบเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
@@ -159,6 +161,7 @@ export default function TestAutomationPage() {
         passRate={passRate}
         totalRuns={totalRuns}
         onOpenCreateModal={handleOpenCreateModal}
+        canAdd={permissions.canAdd}
       />
 
       {loadError && (
@@ -191,6 +194,8 @@ export default function TestAutomationPage() {
         onView={handleOpenViewModal}
         onEdit={handleOpenEditModal}
         onDelete={handleDelete}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       <TestRunModal

@@ -271,6 +271,7 @@ namespace backend.DTOs
         public int CatalogId { get; set; }
         public string OptionGroup { get; set; } = string.Empty; // TYPE, NAME, LAYER
         public string OptionValue { get; set; } = string.Empty;
+        public int? TypeId { get; set; } // มีความหมายเฉพาะแถว OptionGroup = "NAME" — ชี้กลับไปแถว TYPE ต้นทาง
     }
 
     // ===========================================================================

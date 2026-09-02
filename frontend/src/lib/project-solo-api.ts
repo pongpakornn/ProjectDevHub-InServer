@@ -208,10 +208,14 @@ export interface TechStackCatalogOption {
   catalogId: number;
   optionGroup: TechStackCatalogGroup;
   optionValue: string;
+  typeId?: number | null; // มีความหมายเฉพาะแถว NAME — ชี้กลับไป catalogId ของแถว TYPE ต้นทาง
 }
 
-export function getTechStackCatalog(): Promise<TechStackCatalogOption[]> {
-  return fetchApi<TechStackCatalogOption[]>("/ProjectSolo/techstack-catalog");
+// typeId ไม่ใส่มา -> ได้แค่ TYPE/LAYER (ยังไม่มี NAME ให้เลือก) — Backend บังคับ Rule นี้เพื่อให้ตรงกับ
+// พฤติกรรม UI ที่ Dropdown "ชื่อ" ถูกปิดใช้งานจนกว่าจะเลือก "ประเภท" ก่อนเสมอ
+export function getTechStackCatalog(typeId?: number | null): Promise<TechStackCatalogOption[]> {
+  const query = typeId != null ? `?typeId=${typeId}` : "";
+  return fetchApi<TechStackCatalogOption[]>(`/ProjectSolo/techstack-catalog${query}`);
 }
 
 // ★ Data Isolation: ต้องส่ง userId เสมอ — Backend Filter ให้เห็นเฉพาะโปรเจกต์ของตัวเองเท่านั้น
@@ -267,9 +271,10 @@ export async function createPhase(
     startDate?: string;   // ★ เพิ่ม
     dueDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<Phase> {
-  const raw = await fetchApi<PhaseDtoRaw>("/ProjectSolo/phases", {
+  const raw = await fetchApi<PhaseDtoRaw>(`/ProjectSolo/phases?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({
       projectId,
@@ -291,9 +296,10 @@ export async function updatePhase(
     startDate?: string;   // ★ เพิ่ม
     dueDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<Phase> {
-  const raw = await fetchApi<PhaseDtoRaw>("/ProjectSolo/phases", {
+  const raw = await fetchApi<PhaseDtoRaw>(`/ProjectSolo/phases?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({
       milestoneId,
@@ -308,13 +314,13 @@ export async function updatePhase(
   return mapPhase(raw);
 }
 
-export function deletePhase(milestoneId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectSolo/phases/${milestoneId}`, { method: "DELETE" });
+export function deletePhase(milestoneId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/phases/${milestoneId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ★ เพิ่มใหม่: Auto-Generate Phases
-export async function autoGeneratePhases(projectId: number): Promise<Phase[]> {
-  const raw = await fetchApi<PhaseDtoRaw[]>(`/ProjectSolo/${projectId}/phases/auto-generate`, {
+export async function autoGeneratePhases(projectId: number, currentUserId: number): Promise<Phase[]> {
+  const raw = await fetchApi<PhaseDtoRaw[]>(`/ProjectSolo/${projectId}/phases/auto-generate?userId=${currentUserId}`, {
     method: "POST",
   });
   return raw.map(mapPhase);
@@ -336,8 +342,8 @@ export async function createTaskItem(
   return mapTaskItem(raw);
 }
 
-export async function updateTaskItem(taskId: number, data: TaskItem): Promise<TaskItem> {
-  const raw = await fetchApi<TaskItemDtoRaw>("/ProjectSolo/tasks", {
+export async function updateTaskItem(taskId: number, data: TaskItem, currentUserId: number): Promise<TaskItem> {
+  const raw = await fetchApi<TaskItemDtoRaw>(`/ProjectSolo/tasks?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({
       taskId,
@@ -349,8 +355,8 @@ export async function updateTaskItem(taskId: number, data: TaskItem): Promise<Ta
   return mapTaskItem(raw);
 }
 
-export function deleteTaskItem(taskId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectSolo/tasks/${taskId}`, { method: "DELETE" });
+export function deleteTaskItem(taskId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/tasks/${taskId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -358,17 +364,18 @@ export function deleteTaskItem(taskId: number): Promise<void> {
 // ===========================================================================
 export async function createStackItem(
   projectId: number,
-  data: Pick<StackItem, "type" | "name" | "version" | "layer">
+  data: Pick<StackItem, "type" | "name" | "version" | "layer">,
+  currentUserId: number
 ): Promise<StackItem> {
-  const raw = await fetchApi<StackItemDtoRaw>("/ProjectSolo/stacks", {
+  const raw = await fetchApi<StackItemDtoRaw>(`/ProjectSolo/stacks?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ projectId, ...data }),
   });
   return mapStackItem(raw);
 }
 
-export function deleteStackItem(techStackId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectSolo/stacks/${techStackId}`, { method: "DELETE" });
+export function deleteStackItem(techStackId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/stacks/${techStackId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -389,17 +396,18 @@ export async function createWorkItem(
 export async function updateWorkItem(
   showcaseItemId: number,
   projectId: number,
-  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">
+  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">,
+  currentUserId: number
 ): Promise<WorkItem> {
-  const raw = await fetchApi<WorkItemDtoRaw>("/ProjectSolo/showcases", {
+  const raw = await fetchApi<WorkItemDtoRaw>(`/ProjectSolo/showcases?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({ showcaseItemId, projectId, ...data }),
   });
   return mapWorkItem(raw);
 }
 
-export function deleteWorkItem(showcaseItemId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectSolo/showcases/${showcaseItemId}`, { method: "DELETE" });
+export function deleteWorkItem(showcaseItemId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectSolo/showcases/${showcaseItemId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // projectName/pageName ใช้ตั้งชื่อโฟลเดอร์/ไฟล์จริงฝั่ง Backend (โฟลเดอร์ = ชื่อโปรเจกต์, ไฟล์ = ชื่อหน้า)

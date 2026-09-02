@@ -131,8 +131,9 @@ function toSavePermissions(formData: UserFormData) {
   }));
 }
 
-export async function getUsers(): Promise<UserWithPermissions[]> {
-  const raw = await fetchApi<UserListItemDtoRaw[]>("/Users");
+export async function getUsers(currentUserId?: number): Promise<UserWithPermissions[]> {
+  const query = currentUserId ? `?userId=${currentUserId}` : "";
+  const raw = await fetchApi<UserListItemDtoRaw[]>(`/Users${query}`);
   return raw.map(mapUser);
 }
 

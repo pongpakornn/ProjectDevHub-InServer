@@ -7,7 +7,7 @@ import TeamProjectHeader from "@/components/projects/detail/team/team-project-he
 import TeamProjectOverview from "@/components/projects/detail/team/team-project-overview";
 import TeamProjectMembersPanel from "@/components/projects/detail/team/team-project-members-panel";
 import TeamProjectPhaseTable from "@/components/projects/detail/team/team-project-phase-table";
-import TeamProjectStackSection from "@/components/projects/detail/team/team-project-stack-section";
+import StackLibrarySection from "@/components/projects/detail/stack-library-section";
 import TeamProjectGanttTimeline from "@/components/projects/detail/team/team-project-gantt-timeline";
 import TeamProjectGallerySection from "@/components/projects/detail/team/team-project-gallery-section";
 import TeamAddWorkModal from "@/components/projects/detail/team/team-add-work-modal";
@@ -26,9 +26,12 @@ import {
   removeMember,
   getComments,
   getAttachments,
+  createStackItem,
+  deleteStackItem,
 } from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -36,6 +39,7 @@ const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 export default function TeamProjectDetailPage() {
   const params = useParams();
   const toast = useToast();
+  const permissions = useSystemPermissions("TEAM");
   const projectId = Number(params?.id);
 
   const [projectInfo, setProjectInfo] = useState<TeamProject | null>(null);
@@ -59,8 +63,8 @@ export default function TeamProjectDetailPage() {
     try {
       const [detail, commentList, attachmentList] = await Promise.all([
         getProjectDetail(projectId, CURRENT_USER_ID),
-        getComments(projectId),
-        getAttachments(projectId),
+        getComments(projectId, CURRENT_USER_ID),
+        getAttachments(projectId, CURRENT_USER_ID),
       ]);
       setProjectInfo(detail.project);
       setPhases(detail.phases);
@@ -101,8 +105,8 @@ export default function TeamProjectDetailPage() {
         .filter((id) => !nextUserIds.has(id) && id !== formData.ownerId);
 
       await Promise.all([
-        ...toAdd.map((userId) => addMember(projectInfo.id, userId, "MEMBER")),
-        ...toRemove.map((userId) => removeMember(projectInfo.id, userId)),
+        ...toAdd.map((userId) => addMember(projectInfo.id, userId, CURRENT_USER_ID, "MEMBER")),
+        ...toRemove.map((userId) => removeMember(projectInfo.id, userId, CURRENT_USER_ID)),
       ]);
 
       setProjectInfo(saved);
@@ -121,7 +125,7 @@ export default function TeamProjectDetailPage() {
   const handleAddMember = async (userId: number) => {
     if (!projectInfo) return;
     try {
-      const member = await addMember(projectInfo.id, userId, "MEMBER");
+      const member = await addMember(projectInfo.id, userId, CURRENT_USER_ID, "MEMBER");
       setProjectInfo({ ...projectInfo, members: [...projectInfo.members, member] });
       toast.success("เพิ่มสมาชิกสำเร็จ", "เพิ่มสมาชิกเข้าโครงการเรียบร้อยแล้ว");
     } catch (err) {
@@ -139,7 +143,7 @@ export default function TeamProjectDetailPage() {
     const prevMembers = projectInfo.members;
     setProjectInfo({ ...projectInfo, members: prevMembers.filter((m) => m.userId !== userId) });
     try {
-      await removeMember(projectInfo.id, userId);
+      await removeMember(projectInfo.id, userId, CURRENT_USER_ID);
       toast.info("ลบสมาชิกสำเร็จ", "นำสมาชิกออกจากโครงการเรียบร้อยแล้ว");
     } catch (err) {
       console.error("ลบสมาชิกไม่สำเร็จ", err);
@@ -154,7 +158,7 @@ export default function TeamProjectDetailPage() {
   const handleAutoGeneratePhases = async () => {
     if (!projectInfo) return;
     try {
-      const generated = await autoGeneratePhases(projectInfo.id);
+      const generated = await autoGeneratePhases(projectInfo.id, CURRENT_USER_ID);
       setPhases(generated);
       toast.success("สร้าง Phase อัตโนมัติสำเร็จ", `สร้าง ${generated.length} Phase ให้โปรเจกต์นี้เรียบร้อยแล้ว`);
     } catch (err) {
@@ -168,7 +172,7 @@ export default function TeamProjectDetailPage() {
   // ===========================================================================
   const syncTaskItem = async (task: TaskItem) => {
     try {
-      await updateTaskItem(Number(task.id), task);
+      await updateTaskItem(Number(task.id), task, CURRENT_USER_ID);
     } catch (err) {
       console.error("อัปเดต Task ไม่สำเร็จ", err);
       toast.error("อัปเดต Task ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
@@ -203,7 +207,7 @@ export default function TeamProjectDetailPage() {
           description: workData.desc,
           flowDescription: workData.flow,
           imageUrl: workData.image || "",
-        });
+        }, CURRENT_USER_ID);
       } else {
         await createWorkItem(
           projectInfo.id,
@@ -261,6 +265,8 @@ export default function TeamProjectDetailPage() {
         ownerId={projectInfo.ownerId}
         onAddMember={handleAddMember}
         onRemoveMember={handleRemoveMember}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
       <TeamProjectPhaseTable
@@ -271,12 +277,19 @@ export default function TeamProjectDetailPage() {
         setPhases={setPhases}
         onAutoGeneratePhases={handleAutoGeneratePhases}
         onToggleTask={syncTaskItem}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
-      <TeamProjectStackSection
+      <StackLibrarySection
         projectId={projectInfo.id}
         stacks={stacks}
         setStacks={setStacks}
+        createStackItem={(projectId, data) => createStackItem(projectId, data, CURRENT_USER_ID)}
+        deleteStackItem={(techStackId) => deleteStackItem(techStackId, CURRENT_USER_ID)}
+        focusRingColorClass="focus:ring-indigo-500/20 focus:border-indigo-500"
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
       <TeamProjectGanttTimeline phases={phases} />
@@ -285,8 +298,12 @@ export default function TeamProjectDetailPage() {
         works={works}
         setWorks={setWorks}
         phases={phases}
+        currentUserId={CURRENT_USER_ID}
         onOpenAddModal={handleOpenAddWorkModal}
         onOpenEditModal={handleOpenEditWorkModal}
+        canAdd={permissions.canAdd}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       <TeamProjectAttachmentsPanel
@@ -294,6 +311,8 @@ export default function TeamProjectDetailPage() {
         currentUserId={CURRENT_USER_ID}
         attachments={attachments}
         setAttachments={setAttachments}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
       <TeamProjectCommentsPanel
@@ -302,6 +321,7 @@ export default function TeamProjectDetailPage() {
         members={projectInfo.members}
         comments={comments}
         setComments={setComments}
+        canAdd={permissions.canAdd}
       />
 
       <TeamAddWorkModal

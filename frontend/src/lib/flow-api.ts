@@ -190,8 +190,8 @@ export async function getFlowDetail(flowDefinitionId: number, userId: number): P
   };
 }
 
-export function deleteFlow(flowDefinitionId: number): Promise<void> {
-  return fetchApi<void>(`/Flow/${flowDefinitionId}`, { method: "DELETE" });
+export function deleteFlow(flowDefinitionId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/Flow/${flowDefinitionId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -207,9 +207,10 @@ export async function createStep(
     startDate?: string;
     endDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<FlowStep> {
-  const raw = await fetchApi<FlowStepDtoRaw>("/Flow/steps", {
+  const raw = await fetchApi<FlowStepDtoRaw>(`/Flow/steps?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({
       flowDefinitionId,
@@ -236,9 +237,10 @@ export async function updateStep(
     startDate?: string;
     endDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<FlowStep> {
-  const raw = await fetchApi<FlowStepDtoRaw>("/Flow/steps", {
+  const raw = await fetchApi<FlowStepDtoRaw>(`/Flow/steps?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({
       flowStepId,
@@ -255,12 +257,12 @@ export async function updateStep(
   return mapStep(raw);
 }
 
-export function deleteStep(flowStepId: number): Promise<void> {
-  return fetchApi<void>(`/Flow/steps/${flowStepId}`, { method: "DELETE" });
+export function deleteStep(flowStepId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/Flow/steps/${flowStepId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
-export async function autoGenerateSteps(flowDefinitionId: number): Promise<FlowStep[]> {
-  const raw = await fetchApi<FlowStepDtoRaw[]>(`/Flow/${flowDefinitionId}/steps/auto-generate`, {
+export async function autoGenerateSteps(flowDefinitionId: number, currentUserId: number): Promise<FlowStep[]> {
+  const raw = await fetchApi<FlowStepDtoRaw[]>(`/Flow/${flowDefinitionId}/steps/auto-generate?userId=${currentUserId}`, {
     method: "POST",
   });
   return raw.map(mapStep);
@@ -272,21 +274,22 @@ export async function autoGenerateSteps(flowDefinitionId: number): Promise<FlowS
 export async function createTechStack(
   flowDefinitionId: number,
   layer: FlowTechLayer,
-  name: string
+  name: string,
+  currentUserId: number
 ): Promise<FlowTechStackTag> {
-  const raw = await fetchApi<FlowTechStackDtoRaw>("/Flow/techstacks", {
+  const raw = await fetchApi<FlowTechStackDtoRaw>(`/Flow/techstacks?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ flowDefinitionId, layer, name, sortOrder: 0 }),
   });
   return mapTechStack(raw);
 }
 
-export function deleteTechStack(flowTechStackId: number): Promise<void> {
-  return fetchApi<void>(`/Flow/techstacks/${flowTechStackId}`, { method: "DELETE" });
+export function deleteTechStack(flowTechStackId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/Flow/techstacks/${flowTechStackId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
-export async function autoGenerateTechStacks(flowDefinitionId: number): Promise<FlowTechStackTag[]> {
-  const raw = await fetchApi<FlowTechStackDtoRaw[]>(`/Flow/${flowDefinitionId}/techstacks/auto-generate`, {
+export async function autoGenerateTechStacks(flowDefinitionId: number, currentUserId: number): Promise<FlowTechStackTag[]> {
+  const raw = await fetchApi<FlowTechStackDtoRaw[]>(`/Flow/${flowDefinitionId}/techstacks/auto-generate?userId=${currentUserId}`, {
     method: "POST",
   });
   return raw.map(mapTechStack);
@@ -316,16 +319,17 @@ export async function createExecution(
   return mapExecution(raw);
 }
 
-export function deleteExecution(flowExecutionId: number): Promise<void> {
-  return fetchApi<void>(`/Flow/executions/${flowExecutionId}`, { method: "DELETE" });
+export function deleteExecution(flowExecutionId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/Flow/executions/${flowExecutionId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 export async function addLog(
   flowExecutionId: number,
   logLevel: FlowLogLevel,
-  message: string
+  message: string,
+  currentUserId: number
 ): Promise<FlowLog> {
-  const raw = await fetchApi<FlowLogDtoRaw>(`/Flow/executions/${flowExecutionId}/logs`, {
+  const raw = await fetchApi<FlowLogDtoRaw>(`/Flow/executions/${flowExecutionId}/logs?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ logLevel, message }),
   });

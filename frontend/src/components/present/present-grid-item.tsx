@@ -12,6 +12,8 @@ interface PresentGridItemProps {
   onOpenLightbox: (index: number) => void;
   onEdit: (item: WorkItem) => void;
   onDelete: (id: string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export function PresentGridItem({
@@ -20,6 +22,8 @@ export function PresentGridItem({
   onOpenLightbox,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: PresentGridItemProps) {
   return (
     <div className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-300 hover:-translate-y-1 transition-all duration-300 ease-out">
@@ -48,20 +52,26 @@ export function PresentGridItem({
           </div>
         </div>
 
-        <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <EditButton
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onEdit(item);
-            }}
-          />
-          <DeleteButton
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              onDelete(item.id);
-            }}
-          />
-        </div>
+        {(canEdit || canDelete) && (
+          <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
+            {canEdit && (
+              <EditButton
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  onEdit(item);
+                }}
+              />
+            )}
+            {canDelete && (
+              <DeleteButton
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  onDelete(item.id);
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

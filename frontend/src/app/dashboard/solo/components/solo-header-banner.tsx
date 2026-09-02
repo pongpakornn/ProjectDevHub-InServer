@@ -8,12 +8,14 @@ interface SoloHeaderBannerProps {
   totalProjects: number;
   avgProgress: number;
   onOpenCreateModal: () => void;
+  canAdd?: boolean;
 }
 
 export default function SoloHeaderBanner({
   totalProjects,
   avgProgress,
   onOpenCreateModal,
+  canAdd = true,
 }: SoloHeaderBannerProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#0f172a] via-[#1e1b4b] to-[#311042] border border-slate-800/80 p-6 md:p-8 shadow-xl">
@@ -59,12 +61,14 @@ export default function SoloHeaderBanner({
             </div>
           </div>
 
-          <div className="solo-new-project-btn">
-            <ProjectsButton 
-              label="New Project" 
-              onClick={onOpenCreateModal}
-            />
-          </div>
+          {canAdd && (
+            <div className="solo-new-project-btn">
+              <ProjectsButton
+                label="New Project"
+                onClick={onOpenCreateModal}
+              />
+            </div>
+          )}
           <style jsx>{`
             .solo-new-project-btn :global(button) {
               background: linear-gradient(135deg, #6366f1, #4f46e5) !important;

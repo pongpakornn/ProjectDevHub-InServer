@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, ServerCrash, RotateCcw } from "lucide-react";
+import { Loader2, ServerCrash, RotateCcw, ShieldAlert } from "lucide-react";
 import UserHeaderBanner from "@/components/users/user-header-banner";
 import UserRegistrationForm from "@/components/users/user-registration-form";
 import UserManagementTable from "@/components/users/user-management-table";
@@ -15,10 +15,10 @@ import {
   SystemList,
 } from "@/types/user-permission";
 import { getUsers, getSystemList, createUser, updateUser, deleteUser, toggleSuspendUser } from "@/lib/users-api";
+import { getStoredUser, isAdminOrAbove } from "@/lib/session";
 
-// หมายเหตุ: ยังไม่มี Authentication Middleware ผูก Session จริง จึงใช้ค่าคงที่นี้แทนผู้กระทำ
-// (เหมือน Pattern เดิมที่ใช้ใน dashboard/solo, dashboard/team, dashboard/testing ฯลฯ)
-const CURRENT_USER_ID = 1;
+// TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
+const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
 const MOCK_DIVISION_OPTIONS: DivisionOption[] = [
   {
@@ -94,6 +94,17 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserWithPermissions | null>(null);
   const [viewingUser, setViewingUser] = useState<UserWithPermissions | null>(null);
 
+  // ข้อยกเว้น: User Management มองเห็น/ใช้งานได้เฉพาะ Admin/Super Admin เท่านั้น ไม่ผูกกับ Permission
+  // Matrix ปกติ (CanAdd/CanEdit/...) — ตรงกับกฎเดียวกับที่ใช้กรองเมนูฝั่ง Sidebar
+  // ยังไม่มี User ใน LocalStorage (ยังไม่ Login) = อนุญาตไปก่อนกันกระทบ Flow ตอนพัฒนา (Pattern เดียวกับ Sidebar)
+  const [isAdminReady, setIsAdminReady] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(true);
+  useEffect(() => {
+    const stored = getStoredUser();
+    setIsAdminUser(!stored || isAdminOrAbove(stored));
+    setIsAdminReady(true);
+  }, []);
+
   // Toast Notifications — ใช้ Global Notification Service เดียวกันทั้งระบบ (ดู lib/toast-context.tsx)
   const toast = useToast();
 
@@ -146,7 +157,7 @@ export default function UsersPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [usersData, systemsData] = await Promise.all([getUsers(), getSystemList()]);
+      const [usersData, systemsData] = await Promise.all([getUsers(CURRENT_USER_ID), getSystemList()]);
       setUsers(usersData);
       setSystemList(systemsData);
     } catch (err) {
@@ -282,6 +293,16 @@ export default function UsersPage() {
       },
     });
   };
+
+  if (isAdminReady && !isAdminUser) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center gap-3 py-32 text-center text-slate-400">
+        <ShieldAlert className="w-10 h-10 text-rose-400" />
+        <p className="text-sm font-bold text-slate-800">ไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+        <p className="text-xs text-slate-500 font-mono">การจัดการสมาชิกอนุญาตเฉพาะผู้ดูแลระบบ (Admin/Super Admin) เท่านั้น</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

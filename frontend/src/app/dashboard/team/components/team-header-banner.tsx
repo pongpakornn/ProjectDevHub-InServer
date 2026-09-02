@@ -8,12 +8,14 @@ interface TeamHeaderBannerProps {
   avgProgress: number;
   totalProjects: number;
   onOpenCreateModal: () => void;
+  canAdd?: boolean;
 }
 
 export default function TeamHeaderBanner({
   avgProgress,
   totalProjects,
   onOpenCreateModal,
+  canAdd = true,
 }: TeamHeaderBannerProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#0f172a] via-[#1e1b4b] to-[#311042] border border-slate-800/80 p-6 md:p-8 shadow-xl">
@@ -71,12 +73,14 @@ export default function TeamHeaderBanner({
             </div>
           </div>
 
-          <div className="team-new-project-btn">
-            <ProjectsButton
-              label="New Team Project"
-              onClick={onOpenCreateModal}
-            />
-          </div>
+          {canAdd && (
+            <div className="team-new-project-btn">
+              <ProjectsButton
+                label="New Team Project"
+                onClick={onOpenCreateModal}
+              />
+            </div>
+          )}
           <style jsx>{`
             .team-new-project-btn :global(button) {
               background: linear-gradient(

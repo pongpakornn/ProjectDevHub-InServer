@@ -308,25 +308,26 @@ export function deleteProject(projectId: number, currentUserId: number): Promise
 // ===========================================================================
 // ProjectMembers
 // ===========================================================================
-export async function getMembers(projectId: number): Promise<ProjectMember[]> {
-  const raw = await fetchApi<ProjectMemberDtoRaw[]>(`/ProjectTeam/${projectId}/members`);
+export async function getMembers(projectId: number, userId: number): Promise<ProjectMember[]> {
+  const raw = await fetchApi<ProjectMemberDtoRaw[]>(`/ProjectTeam/${projectId}/members?userId=${userId}`);
   return raw.map(mapMember);
 }
 
 export async function addMember(
   projectId: number,
   userId: number,
+  currentUserId: number,
   roleInProject: string = "MEMBER"
 ): Promise<ProjectMember> {
-  const raw = await fetchApi<ProjectMemberDtoRaw>(`/ProjectTeam/${projectId}/members`, {
+  const raw = await fetchApi<ProjectMemberDtoRaw>(`/ProjectTeam/${projectId}/members?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ userId, roleInProject }),
   });
   return mapMember(raw);
 }
 
-export function removeMember(projectId: number, userId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/${projectId}/members/${userId}`, { method: "DELETE" });
+export function removeMember(projectId: number, userId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/${projectId}/members/${userId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -339,9 +340,10 @@ export async function createPhase(
     startDate?: string;
     dueDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<Phase> {
-  const raw = await fetchApi<TeamPhaseDtoRaw>("/ProjectTeam/phases", {
+  const raw = await fetchApi<TeamPhaseDtoRaw>(`/ProjectTeam/phases?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({
       projectId,
@@ -363,9 +365,10 @@ export async function updatePhase(
     startDate?: string;
     dueDate?: string;
     sortOrder?: number;
-  }
+  },
+  currentUserId: number
 ): Promise<Phase> {
-  const raw = await fetchApi<TeamPhaseDtoRaw>("/ProjectTeam/phases", {
+  const raw = await fetchApi<TeamPhaseDtoRaw>(`/ProjectTeam/phases?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({
       milestoneId,
@@ -380,12 +383,12 @@ export async function updatePhase(
   return mapPhase(raw);
 }
 
-export function deletePhase(milestoneId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/phases/${milestoneId}`, { method: "DELETE" });
+export function deletePhase(milestoneId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/phases/${milestoneId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
-export async function autoGeneratePhases(projectId: number): Promise<Phase[]> {
-  const raw = await fetchApi<TeamPhaseDtoRaw[]>(`/ProjectTeam/${projectId}/phases/auto-generate`, {
+export async function autoGeneratePhases(projectId: number, currentUserId: number): Promise<Phase[]> {
+  const raw = await fetchApi<TeamPhaseDtoRaw[]>(`/ProjectTeam/${projectId}/phases/auto-generate?userId=${currentUserId}`, {
     method: "POST",
   });
   return raw.map(mapPhase);
@@ -407,8 +410,8 @@ export async function createTaskItem(
   return mapTaskItem(raw);
 }
 
-export async function updateTaskItem(taskId: number, data: TaskItem): Promise<TaskItem> {
-  const raw = await fetchApi<TeamTaskItemDtoRaw>("/ProjectTeam/tasks", {
+export async function updateTaskItem(taskId: number, data: TaskItem, currentUserId: number): Promise<TaskItem> {
+  const raw = await fetchApi<TeamTaskItemDtoRaw>(`/ProjectTeam/tasks?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({
       taskId,
@@ -420,16 +423,17 @@ export async function updateTaskItem(taskId: number, data: TaskItem): Promise<Ta
   return mapTaskItem(raw);
 }
 
-export function deleteTaskItem(taskId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/tasks/${taskId}`, { method: "DELETE" });
+export function deleteTaskItem(taskId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/tasks/${taskId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 export async function assignTaskAssignees(
   projectId: number,
   taskId: number,
-  userIds: number[]
+  userIds: number[],
+  currentUserId: number
 ): Promise<TaskAssignee[]> {
-  const raw = await fetchApi<TaskAssigneeDtoRaw[]>(`/ProjectTeam/${projectId}/tasks/${taskId}/assignees`, {
+  const raw = await fetchApi<TaskAssigneeDtoRaw[]>(`/ProjectTeam/${projectId}/tasks/${taskId}/assignees?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ userIds }),
   });
@@ -441,17 +445,18 @@ export async function assignTaskAssignees(
 // ===========================================================================
 export async function createStackItem(
   projectId: number,
-  data: Pick<StackItem, "type" | "name" | "version" | "layer">
+  data: Pick<StackItem, "type" | "name" | "version" | "layer">,
+  currentUserId: number
 ): Promise<StackItem> {
-  const raw = await fetchApi<StackItemDtoRaw>("/ProjectTeam/stacks", {
+  const raw = await fetchApi<StackItemDtoRaw>(`/ProjectTeam/stacks?userId=${currentUserId}`, {
     method: "POST",
     body: JSON.stringify({ projectId, ...data }),
   });
   return mapStackItem(raw);
 }
 
-export function deleteStackItem(techStackId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/stacks/${techStackId}`, { method: "DELETE" });
+export function deleteStackItem(techStackId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/stacks/${techStackId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
@@ -472,24 +477,25 @@ export async function createWorkItem(
 export async function updateWorkItem(
   showcaseItemId: number,
   projectId: number,
-  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">
+  data: Pick<WorkItem, "title" | "description" | "flowDescription" | "imageUrl">,
+  currentUserId: number
 ): Promise<WorkItem> {
-  const raw = await fetchApi<WorkItemDtoRaw>("/ProjectTeam/showcases", {
+  const raw = await fetchApi<WorkItemDtoRaw>(`/ProjectTeam/showcases?userId=${currentUserId}`, {
     method: "PUT",
     body: JSON.stringify({ showcaseItemId, projectId, ...data }),
   });
   return mapWorkItem(raw);
 }
 
-export function deleteWorkItem(showcaseItemId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/showcases/${showcaseItemId}`, { method: "DELETE" });
+export function deleteWorkItem(showcaseItemId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/showcases/${showcaseItemId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
 // Comments — Project.Comments (คอมเมนต์ระดับโปรเจกต์ ไม่ผูก Task)
 // ===========================================================================
-export async function getComments(projectId: number): Promise<ProjectComment[]> {
-  const raw = await fetchApi<CommentDtoRaw[]>(`/ProjectTeam/${projectId}/comments`);
+export async function getComments(projectId: number, userId: number): Promise<ProjectComment[]> {
+  const raw = await fetchApi<CommentDtoRaw[]>(`/ProjectTeam/${projectId}/comments?userId=${userId}`);
   return raw.map(mapComment);
 }
 
@@ -505,15 +511,15 @@ export async function addComment(
   return mapComment(raw);
 }
 
-export function deleteComment(commentId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/comments/${commentId}`, { method: "DELETE" });
+export function deleteComment(commentId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/comments/${commentId}?userId=${currentUserId}`, { method: "DELETE" });
 }
 
 // ===========================================================================
 // Attachments — Project.Attachments (ไฟล์แนบระดับโปรเจกต์ ไม่ผูก Task)
 // ===========================================================================
-export async function getAttachments(projectId: number): Promise<ProjectAttachment[]> {
-  const raw = await fetchApi<AttachmentDtoRaw[]>(`/ProjectTeam/${projectId}/attachments`);
+export async function getAttachments(projectId: number, userId: number): Promise<ProjectAttachment[]> {
+  const raw = await fetchApi<AttachmentDtoRaw[]>(`/ProjectTeam/${projectId}/attachments?userId=${userId}`);
   return raw.map(mapAttachment);
 }
 
@@ -553,6 +559,6 @@ export async function addAttachment(
   return mapAttachment(raw);
 }
 
-export function deleteAttachment(attachmentId: number): Promise<void> {
-  return fetchApi<void>(`/ProjectTeam/attachments/${attachmentId}`, { method: "DELETE" });
+export function deleteAttachment(attachmentId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/ProjectTeam/attachments/${attachmentId}?userId=${currentUserId}`, { method: "DELETE" });
 }

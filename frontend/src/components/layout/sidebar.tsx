@@ -28,17 +28,19 @@ interface SidebarProps {
 }
 
 // ระบุ systemId (Core.SystemList) ที่ต้องมีสิทธิ์ CanView จึงจะเห็นเมนูนี้ — เมนูที่ไม่มี systemId
-// และไม่ใช่ adminOnly จะแสดงเสมอ (ยังไม่รวมอยู่ใน Phase แรกของการ Filter สิทธิ์)
+// และไม่ใช่ adminOnly จะแสดงเสมอ (DASHBOARD คือหน้าสรุปข้อมูลส่วนตัวของ user เอง ไม่ผูกกับ Permission Matrix)
 // adminOnly = true คือเมนูที่ล็อกเฉพาะ Admin/Super Admin เท่านั้น ไม่ผูกกับ Permission Matrix ปกติ
+// User Management ผูกทั้ง adminOnly และ systemId "CORE" พร้อมกัน — โมดูล Core ต้องมี CanView ควบคู่กับ
+// การเป็น Admin เสมอ (กติกาพิเศษเฉพาะ Core) ตรงกับ backend/Authorization/RequireAdminAttribute.cs
 const menuItems = [
-  { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard, systemId: "CORE" },
+  { name: "DASHBOARD", href: "/dashboard", icon: LayoutDashboard },
   { name: "Solo Work", href: "/dashboard/solo", icon: User, systemId: "SOLO" },
   { name: "Team Work", href: "/dashboard/team", icon: Users, systemId: "TEAM" },
-  { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube }, // 👈 อัปเดต Path ให้ตรงกับ app/dashboard/testing/page.tsx — ยังไม่กรองสิทธิ์ใน Phase นี้
+  { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube, systemId: "TESTING" },
   { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork, systemId: "FLOW" },
   { name: "Present Station", href: "/dashboard/present", icon: Tv, systemId: "PRESENT" },
   { name: "3D Model Test", href: "/dashboard/test3d", icon: Box, adminOnly: true }, // 👈 เมนูทดสอบ 3D model viewer (หมุนได้ทุกแกน)
-  { name: "User Management", href: "/dashboard/users", icon: UserCheck, adminOnly: true }, // 👈 เมนูจัดการสมาชิกและสิทธิ์การใช้งาน
+  { name: "User Management", href: "/dashboard/users", icon: UserCheck, adminOnly: true, systemId: "CORE" }, // 👈 เมนูจัดการสมาชิกและสิทธิ์การใช้งาน
 ];
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, onCloseMobile }: SidebarProps) {
@@ -61,8 +63,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, onC
     if (!isAuthReady || !currentUser) return menuItems;
 
     return menuItems.filter((item) => {
-      if (item.adminOnly) return isAdminOrAbove(currentUser);
-      if (item.systemId) return hasSystemPermission(currentUser, item.systemId);
+      if (item.adminOnly && !isAdminOrAbove(currentUser)) return false;
+      if (item.systemId && !hasSystemPermission(currentUser, item.systemId)) return false;
       return true;
     });
   }, [currentUser, isAuthReady]);

@@ -261,10 +261,12 @@ namespace backend.Services
         // ===========================================================================
         // ProjectMembers
         // ===========================================================================
-        public async Task<List<ProjectMemberDto>?> GetMembersAsync(int projectId)
+        public async Task<List<ProjectMemberDto>?> GetMembersAsync(int projectId, int userId)
         {
-            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!exists) return null;
+            // ★ Data Isolation: ดูรายชื่อสมาชิกได้เฉพาะเจ้าของ/สมาชิกทีมของโปรเจกต์นี้เท่านั้น
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, userId)) return null;
 
             return await _context.ProjectMembers
                 .Where(pm => pm.ProjectId == projectId && pm.IsActive)
@@ -274,10 +276,12 @@ namespace backend.Services
                 .ToListAsync();
         }
 
-        public async Task<ProjectMemberDto?> AddMemberAsync(int projectId, AddProjectMemberRequest request)
+        public async Task<ProjectMemberDto?> AddMemberAsync(int projectId, AddProjectMemberRequest request, int currentUserId)
         {
-            var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!projectExists) return null;
+            // ★ Data Isolation: เพิ่มสมาชิกได้เฉพาะเจ้าของ/สมาชิกทีมของโปรเจกต์นี้เท่านั้น (ป้องกันคนนอกยัดตัวเองเข้าโปรเจกต์)
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return null;
 
             var existing = await _context.ProjectMembers
                 .Include(pm => pm.User)
@@ -307,8 +311,13 @@ namespace backend.Services
             return MapToProjectMemberDto(member);
         }
 
-        public async Task<bool> RemoveMemberAsync(int projectId, int userId)
+        public async Task<bool> RemoveMemberAsync(int projectId, int userId, int currentUserId)
         {
+            // ★ Data Isolation: ลบสมาชิกได้เฉพาะเจ้าของ/สมาชิกทีมของโปรเจกต์นี้เท่านั้น
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return false;
+
             var member = await _context.ProjectMembers
                 .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == userId && pm.IsActive);
 
@@ -319,11 +328,22 @@ namespace backend.Services
             return true;
         }
 
+        // ★ Data Isolation (IDOR Guard): ยืนยันว่า userId เป็นเจ้าของ/สมาชิกทีมของ ProjectId นี้จริง ก่อนให้
+        // Create/Update/Delete ทรัพยากรลูกใดๆ (Phase/Task/Stack/Showcase) ของโปรเจกต์นั้น
+        private async Task<bool> IsTeamProjectAccessibleAsync(int projectId, int userId)
+        {
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            return project != null && ProjectAccess.IsAccessible(project, userId);
+        }
+
         // ===========================================================================
         // Phase (Milestone)
         // ===========================================================================
-        public async Task<TeamPhaseDto> CreatePhaseAsync(CreatePhaseRequest request)
+        public async Task<TeamPhaseDto?> CreatePhaseAsync(CreatePhaseRequest request, int currentUserId)
         {
+            if (!await IsTeamProjectAccessibleAsync(request.ProjectId, currentUserId)) return null;
+
             var maxSort = await _context.Milestones
                 .Where(m => m.ProjectId == request.ProjectId)
                 .Select(m => (int?)m.SortOrder)
@@ -349,7 +369,7 @@ namespace backend.Services
             return MapToTeamPhaseDto(milestone, new Dictionary<int, List<TaskAssigneeDto>>());
         }
 
-        public async Task<TeamPhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request)
+        public async Task<TeamPhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request, int currentUserId)
         {
             var milestone = await _context.Milestones
                 .Include(m => m.Owner)
@@ -357,6 +377,7 @@ namespace backend.Services
                 .FirstOrDefaultAsync(m => m.MilestoneId == request.MilestoneId);
 
             if (milestone == null) return null;
+            if (!await IsTeamProjectAccessibleAsync(milestone.ProjectId, currentUserId)) return null;
 
             milestone.MilestoneName = request.MilestoneName;
             milestone.OwnerId = request.OwnerId;
@@ -376,10 +397,11 @@ namespace backend.Services
             return MapToTeamPhaseDto(milestone, assigneesLookup);
         }
 
-        public async Task<bool> DeletePhaseAsync(int milestoneId)
+        public async Task<bool> DeletePhaseAsync(int milestoneId, int currentUserId)
         {
             var milestone = await _context.Milestones.FindAsync(milestoneId);
             if (milestone == null) return false;
+            if (!await IsTeamProjectAccessibleAsync(milestone.ProjectId, currentUserId)) return false;
 
             var tasks = _context.Tasks.Where(t => t.MilestoneId == milestoneId);
             _context.Tasks.RemoveRange(tasks);
@@ -389,13 +411,14 @@ namespace backend.Services
             return true;
         }
 
-        public async Task<List<TeamPhaseDto>> AutoGeneratePhasesAsync(int projectId)
+        public async Task<List<TeamPhaseDto>> AutoGeneratePhasesAsync(int projectId, int currentUserId)
         {
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
+                .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
 
-            if (project == null)
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId))
                 throw new InvalidOperationException("ไม่พบโปรเจกต์นี้");
 
             var existing = await _context.Milestones
@@ -440,8 +463,10 @@ namespace backend.Services
         // ===========================================================================
         // TaskItem (Task) + TaskAssignees
         // ===========================================================================
-        public async Task<TeamTaskItemDto> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId)
+        public async Task<TeamTaskItemDto?> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId)
         {
+            if (!await IsTeamProjectAccessibleAsync(request.ProjectId, currentUserId)) return null;
+
             var task = new Tasks
             {
                 ProjectId = request.ProjectId,
@@ -458,10 +483,11 @@ namespace backend.Services
             return MapToTeamTaskItemDto(task, new List<TaskAssigneeDto>());
         }
 
-        public async Task<TeamTaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request)
+        public async Task<TeamTaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request, int currentUserId)
         {
             var task = await _context.Tasks.FindAsync(request.TaskId);
             if (task == null) return null;
+            if (!await IsTeamProjectAccessibleAsync(task.ProjectId, currentUserId)) return null;
 
             task.TaskName = request.Title;
             task.Description = request.Detail;
@@ -492,20 +518,22 @@ namespace backend.Services
             return MapToTeamTaskItemDto(task, assignees);
         }
 
-        public async Task<bool> DeleteTaskItemAsync(int taskId)
+        public async Task<bool> DeleteTaskItemAsync(int taskId, int currentUserId)
         {
             var task = await _context.Tasks.FindAsync(taskId);
             if (task == null) return false;
+            if (!await IsTeamProjectAccessibleAsync(task.ProjectId, currentUserId)) return false;
 
             _context.Tasks.Remove(task);
             await _context.SaveChangesAsync();
             return true;
         }
 
-        public async Task<List<TaskAssigneeDto>?> AssignTaskAssigneesAsync(int taskId, AssignTaskAssigneesRequest request)
+        public async Task<List<TaskAssigneeDto>?> AssignTaskAssigneesAsync(int taskId, AssignTaskAssigneesRequest request, int currentUserId)
         {
             var task = await _context.Tasks.FindAsync(taskId);
             if (task == null) return null;
+            if (!await IsTeamProjectAccessibleAsync(task.ProjectId, currentUserId)) return null;
 
             var current = await _context.TaskAssignees.Where(ta => ta.TaskId == taskId).ToListAsync();
             var requestedIds = request.UserIds.Distinct().ToList();
@@ -530,8 +558,10 @@ namespace backend.Services
         // ===========================================================================
         // StackItem (TechStack)
         // ===========================================================================
-        public async Task<StackItemDto> CreateStackItemAsync(CreateStackItemRequest request)
+        public async Task<StackItemDto?> CreateStackItemAsync(CreateStackItemRequest request, int currentUserId)
         {
+            if (!await IsTeamProjectAccessibleAsync(request.ProjectId, currentUserId)) return null;
+
             var stack = new TechStacks
             {
                 ProjectId = request.ProjectId,
@@ -546,10 +576,11 @@ namespace backend.Services
             return MapToStackItemDto(stack);
         }
 
-        public async Task<bool> DeleteStackItemAsync(int techStackId)
+        public async Task<bool> DeleteStackItemAsync(int techStackId, int currentUserId)
         {
             var stack = await _context.TechStacks.FindAsync(techStackId);
             if (stack == null) return false;
+            if (!await IsTeamProjectAccessibleAsync(stack.ProjectId, currentUserId)) return false;
 
             _context.TechStacks.Remove(stack);
             await _context.SaveChangesAsync();
@@ -559,8 +590,10 @@ namespace backend.Services
         // ===========================================================================
         // WorkItem (ShowcaseItem)
         // ===========================================================================
-        public async Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId)
+        public async Task<WorkItemDto?> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId)
         {
+            if (!await IsTeamProjectAccessibleAsync(request.ProjectId, currentUserId)) return null;
+
             var showcase = new ShowcaseItems
             {
                 ProjectId = request.ProjectId,
@@ -576,10 +609,11 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
-        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request)
+        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request, int currentUserId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(request.ShowcaseItemId);
             if (showcase == null) return null;
+            if (!await IsTeamProjectAccessibleAsync(showcase.ProjectId, currentUserId)) return null;
 
             showcase.Title = request.Title;
             showcase.Description = request.Description;
@@ -591,10 +625,11 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
-        public async Task<bool> DeleteWorkItemAsync(int showcaseItemId)
+        public async Task<bool> DeleteWorkItemAsync(int showcaseItemId, int currentUserId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(showcaseItemId);
             if (showcase == null) return false;
+            if (!await IsTeamProjectAccessibleAsync(showcase.ProjectId, currentUserId)) return false;
 
             _context.ShowcaseItems.Remove(showcase);
             await _context.SaveChangesAsync();
@@ -604,10 +639,12 @@ namespace backend.Services
         // ===========================================================================
         // Comments
         // ===========================================================================
-        public async Task<List<CommentDto>?> GetCommentsAsync(int projectId, int? taskId)
+        public async Task<List<CommentDto>?> GetCommentsAsync(int projectId, int? taskId, int userId)
         {
-            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!exists) return null;
+            // ★ Data Isolation: ดูคอมเมนต์ได้เฉพาะเจ้าของ/สมาชิกทีมของโปรเจกต์นี้เท่านั้น
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, userId)) return null;
 
             var comments = taskId.HasValue
                 ? await _context.Comments
@@ -626,8 +663,9 @@ namespace backend.Services
 
         public async Task<CommentDto?> AddCommentAsync(int projectId, CreateCommentRequest request, int currentUserId)
         {
-            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!exists) return null;
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return null;
 
             var comment = new Comments
             {
@@ -644,10 +682,16 @@ namespace backend.Services
             return MapToCommentDto(comment);
         }
 
-        public async Task<bool> DeleteCommentAsync(long commentId)
+        public async Task<bool> DeleteCommentAsync(long commentId, int currentUserId)
         {
-            var comment = await _context.Comments.FindAsync(commentId);
+            var comment = await _context.Comments.Include(c => c.Task).FirstOrDefaultAsync(c => c.CommentId == commentId);
             if (comment == null) return false;
+
+            var projectId = comment.ProjectId ?? comment.Task?.ProjectId;
+            var project = projectId.HasValue
+                ? await _context.Projects.Include(p => p.Members).FirstOrDefaultAsync(p => p.ProjectId == projectId.Value)
+                : null;
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return false;
 
             _context.Comments.Remove(comment);
             await _context.SaveChangesAsync();
@@ -657,10 +701,12 @@ namespace backend.Services
         // ===========================================================================
         // Attachments
         // ===========================================================================
-        public async Task<List<AttachmentDto>?> GetAttachmentsAsync(int projectId, int? taskId)
+        public async Task<List<AttachmentDto>?> GetAttachmentsAsync(int projectId, int? taskId, int userId)
         {
-            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!exists) return null;
+            // ★ Data Isolation: ดูไฟล์แนบได้เฉพาะเจ้าของ/สมาชิกทีมของโปรเจกต์นี้เท่านั้น
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, userId)) return null;
 
             var attachments = taskId.HasValue
                 ? await _context.Attachments
@@ -679,8 +725,9 @@ namespace backend.Services
 
         public async Task<AttachmentDto?> AddAttachmentAsync(int projectId, CreateAttachmentRequest request, int currentUserId)
         {
-            var exists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
-            if (!exists) return null;
+            var project = await _context.Projects.Include(p => p.Members)
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId);
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return null;
 
             var attachment = new Attachments
             {
@@ -699,10 +746,16 @@ namespace backend.Services
             return MapToAttachmentDto(attachment);
         }
 
-        public async Task<bool> DeleteAttachmentAsync(long attachmentId)
+        public async Task<bool> DeleteAttachmentAsync(long attachmentId, int currentUserId)
         {
-            var attachment = await _context.Attachments.FindAsync(attachmentId);
+            var attachment = await _context.Attachments.Include(a => a.Task).FirstOrDefaultAsync(a => a.AttachmentId == attachmentId);
             if (attachment == null) return false;
+
+            var projectId = attachment.ProjectId ?? attachment.Task?.ProjectId;
+            var project = projectId.HasValue
+                ? await _context.Projects.Include(p => p.Members).FirstOrDefaultAsync(p => p.ProjectId == projectId.Value)
+                : null;
+            if (project == null || !ProjectAccess.IsAccessible(project, currentUserId)) return false;
 
             _context.Attachments.Remove(attachment);
             await _context.SaveChangesAsync();

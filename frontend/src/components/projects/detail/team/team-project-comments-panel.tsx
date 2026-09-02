@@ -12,6 +12,7 @@ interface TeamProjectCommentsPanelProps {
   members: ProjectMember[];
   comments: ProjectComment[];
   setComments: React.Dispatch<React.SetStateAction<ProjectComment[]>>;
+  canAdd?: boolean;
 }
 
 // แปลงข้อความให้ Highlight ส่วนที่เป็น @ชื่อสมาชิกในโปรเจกต์ (แค่ Visual, ไม่ได้ผูก Notification จริง)
@@ -36,6 +37,7 @@ export default function TeamProjectCommentsPanel({
   members,
   comments,
   setComments,
+  canAdd = true,
 }: TeamProjectCommentsPanelProps) {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,7 +104,7 @@ export default function TeamProjectCommentsPanel({
     const prevComments = comments;
     setComments(comments.filter((c) => c.id !== commentId));
     try {
-      await deleteComment(Number(commentId));
+      await deleteComment(Number(commentId), currentUserId);
     } catch (err) {
       console.error("ลบความคิดเห็นไม่สำเร็จ", err);
       alert("ลบความคิดเห็นไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -117,6 +119,7 @@ export default function TeamProjectCommentsPanel({
         ความคิดเห็น ({comments.length})
       </h3>
 
+      {canAdd && (
       <form onSubmit={handleSubmit} className="flex items-start gap-2">
         <div className="relative flex-1">
           <textarea
@@ -165,6 +168,7 @@ export default function TeamProjectCommentsPanel({
           ส่ง
         </button>
       </form>
+      )}
 
       <div className="space-y-3 pt-1">
         {comments.length === 0 ? (

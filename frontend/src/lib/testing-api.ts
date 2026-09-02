@@ -121,6 +121,6 @@ export async function updateTestRun(
   return mapTestRun(raw);
 }
 
-export function deleteTestRun(testRunId: number): Promise<void> {
-  return fetchApi<void>(`/Testing/runs/${testRunId}`, { method: "DELETE" });
+export function deleteTestRun(testRunId: number, currentUserId: number): Promise<void> {
+  return fetchApi<void>(`/Testing/runs/${testRunId}?userId=${currentUserId}`, { method: "DELETE" });
 }

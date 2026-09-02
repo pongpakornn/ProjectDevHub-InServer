@@ -15,6 +15,8 @@ interface WorkItemFlipCardProps {
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 interface WhoDoesWhatEntry {
@@ -45,6 +47,8 @@ export default function WorkItemFlipCard({
   onView,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: WorkItemFlipCardProps) {
   const whoDoesWhat = buildWhoDoesWhat(phases);
 
@@ -82,8 +86,8 @@ export default function WorkItemFlipCard({
                 }}
                 title="ดูภาพขนาดใหญ่"
               />
-              <EditButtonV2 onClick={onEdit} title="แก้ไขผลงาน" />
-              <DeleteButtonV2 onClick={onDelete} title="ลบผลงาน" />
+              {canEdit && <EditButtonV2 onClick={onEdit} title="แก้ไขผลงาน" />}
+              {canDelete && <DeleteButtonV2 onClick={onDelete} title="ลบผลงาน" />}
             </div>
           </div>
         </div>
@@ -126,8 +130,8 @@ export default function WorkItemFlipCard({
           <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 shrink-0">
             <p className="text-[10px] text-slate-500">คลิกไอคอนหมุนเพื่อกลับไปดูรูป</p>
             <div className="flex items-center gap-1">
-              <EditButtonV2 onClick={onEdit} title="แก้ไขผลงาน" />
-              <DeleteButtonV2 onClick={onDelete} title="ลบผลงาน" />
+              {canEdit && <EditButtonV2 onClick={onEdit} title="แก้ไขผลงาน" />}
+              {canDelete && <DeleteButtonV2 onClick={onDelete} title="ลบผลงาน" />}
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@ import { FlowDetail, FlowStep, FlowTechStackTag, FlowExecution } from "@/types/f
 import { getFlowDetail, getExecutions, autoGenerateSteps, autoGenerateTechStacks } from "@/lib/flow-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -18,6 +19,7 @@ const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 export default function FlowProjectDetailPage() {
   const params = useParams();
   const toast = useToast();
+  const permissions = useSystemPermissions("FLOW");
   const flowDefinitionId = Number(params?.id);
 
   const [flow, setFlow] = useState<FlowDetail | null>(null);
@@ -59,8 +61,8 @@ export default function FlowProjectDetailPage() {
     setIsGenerating(true);
     try {
       const [newPhases, newTechStacks] = await Promise.all([
-        autoGenerateSteps(flowDefinitionId),
-        autoGenerateTechStacks(flowDefinitionId),
+        autoGenerateSteps(flowDefinitionId, CURRENT_USER_ID),
+        autoGenerateTechStacks(flowDefinitionId, CURRENT_USER_ID),
       ]);
       setPhases(newPhases);
       setTechStacks(newTechStacks);
@@ -98,28 +100,37 @@ export default function FlowProjectDetailPage() {
         workType={flow.workType}
       />
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleGenerateFromProject}
-          disabled={isGenerating}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5"
-        >
-          <GitBranch className="w-3.5 h-3.5" />
-          {isGenerating ? "กำลัง Generate..." : "Generate จากข้อมูลโปรเจกต์"}
-        </button>
-      </div>
+      {permissions.canAdd && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={handleGenerateFromProject}
+            disabled={isGenerating}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5"
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            {isGenerating ? "กำลัง Generate..." : "Generate จากข้อมูลโปรเจกต์"}
+          </button>
+        </div>
+      )}
 
       <FlowDiagramSection
         flowDefinitionId={flowDefinitionId}
         phases={phases}
         setPhases={setPhases}
+        currentUserId={CURRENT_USER_ID}
+        canAdd={permissions.canAdd}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       <ArchitectureDiagramSection
         flowDefinitionId={flowDefinitionId}
         techStacks={techStacks}
         setTechStacks={setTechStacks}
+        currentUserId={CURRENT_USER_ID}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
       <FlowGanttQaSections
@@ -128,6 +139,8 @@ export default function FlowProjectDetailPage() {
         executions={executions}
         setExecutions={setExecutions}
         currentUserId={CURRENT_USER_ID}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
     </div>
   );

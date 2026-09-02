@@ -1,4 +1,5 @@
 // backend/Controllers/UsersController.cs
+using backend.Authorization;
 using backend.DTOs;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace backend.Controllers
         }
 
         [HttpGet]
+        [RequireAdmin]
         public async Task<IActionResult> GetUsers()
         {
             try
@@ -51,6 +53,7 @@ namespace backend.Controllers
         }
 
         [HttpPost]
+        [RequireAdmin]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request, [FromQuery] int? userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -72,6 +75,7 @@ namespace backend.Controllers
         }
 
         [HttpPut]
+        [RequireAdmin]
         public async Task<IActionResult> UpdateUser([FromBody] UpdateUserRequest request, [FromQuery] int? userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -94,6 +98,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{id}")]
+        [RequireAdmin]
         public async Task<IActionResult> DeleteUser(int id, [FromQuery] int? userId)
         {
             try
@@ -110,6 +115,7 @@ namespace backend.Controllers
         }
 
         [HttpPatch("{id}/suspend")]
+        [RequireAdmin]
         public async Task<IActionResult> ToggleSuspend(int id, [FromQuery] int? userId)
         {
             try

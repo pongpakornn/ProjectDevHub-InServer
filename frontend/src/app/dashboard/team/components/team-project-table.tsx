@@ -9,6 +9,8 @@ interface TeamProjectTableProps {
   onProjectClick: (id: number | string) => void;
   onEditProject: (project: TeamProject) => void;
   onDeleteProject: (id: number | string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export default function TeamProjectTable({
@@ -16,6 +18,8 @@ export default function TeamProjectTable({
   onProjectClick,
   onEditProject,
   onDeleteProject,
+  canEdit = true,
+  canDelete = true,
 }: TeamProjectTableProps) {
   return (
     <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden p-4 sm:p-6">
@@ -44,6 +48,8 @@ export default function TeamProjectTable({
                   onProjectClick={onProjectClick}
                   onEdit={onEditProject}
                   onDelete={onDeleteProject}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               ))}
             </tbody>

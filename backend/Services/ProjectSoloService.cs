@@ -620,13 +620,16 @@ namespace backend.Services
                 .ToListAsync();
         }
 
-        public async Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync()
+        // typeId ไม่ได้ระบุ (null) -> คืนเฉพาะแถว TYPE/LAYER (ใช้ตั้งค่า Dropdown ทั้งสองตัว) ไม่คืนแถว NAME เลย
+        // เพราะ UI ฝั่ง Frontend ปิดใช้งาน Dropdown "ชื่อ" อยู่จนกว่าจะเลือก "ประเภท" ก่อนเสมอ
+        // typeId ระบุมา -> คืนแถว TYPE/LAYER ตามปกติ บวกเฉพาะแถว NAME ที่ TypeId ตรงกับที่เลือกเท่านั้น
+        public async Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync(int? typeId)
         {
             return await _context.TechStackCatalog
-                .Where(c => c.IsActive)
+                .Where(c => c.IsActive && (c.OptionGroup != "NAME" || (typeId != null && c.TypeId == typeId)))
                 .OrderBy(c => c.OptionGroup)
                 .ThenBy(c => c.SortOrder)
-                .Select(c => new TechStackCatalogDto { CatalogId = c.CatalogId, OptionGroup = c.OptionGroup, OptionValue = c.OptionValue })
+                .Select(c => new TechStackCatalogDto { CatalogId = c.CatalogId, OptionGroup = c.OptionGroup, OptionValue = c.OptionValue, TypeId = c.TypeId })
                 .ToListAsync();
         }
 
@@ -796,11 +799,18 @@ namespace backend.Services
             return true;
         }
 
+        // ★ Data Isolation (IDOR Guard): ยืนยันว่า ProjectId นี้เป็นของ userId จริง ก่อนให้ Create/Update/Delete
+        // ทรัพยากรลูกใดๆ (Phase/Task/Stack/Showcase) ของโปรเจกต์นั้น — Solo ไม่มี Members จึงเช็คแค่ ProjectOwnerId
+        private Task<bool> IsSoloProjectOwnerAsync(int projectId, int userId) =>
+            _context.Projects.AnyAsync(p => p.ProjectId == projectId && p.ProjectOwnerId == userId);
+
         // ===========================================================================
         // Phase (Milestone)
         // ===========================================================================
-        public async Task<PhaseDto> CreatePhaseAsync(CreatePhaseRequest request)
+        public async Task<PhaseDto?> CreatePhaseAsync(CreatePhaseRequest request, int currentUserId)
         {
+            if (!await IsSoloProjectOwnerAsync(request.ProjectId, currentUserId)) return null;
+
             var maxSort = await _context.Milestones
                 .Where(m => m.ProjectId == request.ProjectId)
                 .Select(m => (int?)m.SortOrder)
@@ -826,34 +836,13 @@ namespace backend.Services
             return MapToPhaseDto(milestone);
         }
 
-        // public async Task<PhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request)
-        // {
-        //     var milestone = await _context.Milestones
-        //         .Include(m => m.Owner)
-        //         .Include(m => m.Tasks)
-        //         .FirstOrDefaultAsync(m => m.MilestoneId == request.MilestoneId);
-
-        //     if (milestone == null) return null;
-
-        //     milestone.MilestoneName = request.MilestoneName;
-        //     milestone.OwnerId = request.OwnerId;
-        //     milestone.StartDate = request.StartDate;   // ★ เพิ่ม — จุดที่ทำให้วันที่ไม่เคยถูกบันทึกมาก่อน
-        //     milestone.DueDate = request.DueDate;
-        //     milestone.Status = request.Status;
-        //     if (request.SortOrder > 0) milestone.SortOrder = request.SortOrder;
-
-        //     if (request.Status == "COMPLETED" && milestone.CompletedDate == null)
-        //         milestone.CompletedDate = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        //     await _context.SaveChangesAsync();
-        //     return MapToPhaseDto(milestone);
-        // }
-        public async Task<PhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request)
+        public async Task<PhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request, int currentUserId)
         {
             var milestone = await _context.Milestones
                 .FirstOrDefaultAsync(m => m.MilestoneId == request.MilestoneId);
 
             if (milestone == null) return null;
+            if (!await IsSoloProjectOwnerAsync(milestone.ProjectId, currentUserId)) return null;
 
             milestone.MilestoneName = request.MilestoneName;
             milestone.OwnerId = request.OwnerId;
@@ -865,10 +854,11 @@ namespace backend.Services
             return MapToPhaseDto(milestone);
         }
 
-        public async Task<bool> DeletePhaseAsync(int milestoneId)
+        public async Task<bool> DeletePhaseAsync(int milestoneId, int currentUserId)
         {
             var milestone = await _context.Milestones.FindAsync(milestoneId);
             if (milestone == null) return false;
+            if (!await IsSoloProjectOwnerAsync(milestone.ProjectId, currentUserId)) return false;
 
             var tasks = _context.Tasks.Where(t => t.MilestoneId == milestoneId);
             _context.Tasks.RemoveRange(tasks);
@@ -878,11 +868,11 @@ namespace backend.Services
             return true;
         }
 
-        public async Task<List<PhaseDto>> AutoGeneratePhasesAsync(int projectId)
+        public async Task<List<PhaseDto>> AutoGeneratePhasesAsync(int projectId, int currentUserId)
         {
             var project = await _context.Projects
                 .Include(p => p.ProjectType)
-                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive);
+                .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.IsActive && p.ProjectOwnerId == currentUserId);
 
             if (project == null)
                 throw new InvalidOperationException("ไม่พบโปรเจกต์นี้");
@@ -927,8 +917,10 @@ namespace backend.Services
         // ===========================================================================
         // TaskItem (Task)
         // ===========================================================================
-        public async Task<TaskItemDto> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId)
+        public async Task<TaskItemDto?> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId)
         {
+            if (!await IsSoloProjectOwnerAsync(request.ProjectId, currentUserId)) return null;
+
             var task = new Tasks
             {
                 ProjectId = request.ProjectId,
@@ -945,10 +937,11 @@ namespace backend.Services
             return MapToTaskItemDto(task);
         }
 
-        public async Task<TaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request)
+        public async Task<TaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request, int currentUserId)
         {
             var task = await _context.Tasks.FindAsync(request.TaskId);
             if (task == null) return null;
+            if (!await IsSoloProjectOwnerAsync(task.ProjectId, currentUserId)) return null;
 
             task.TaskName = request.Title;
             task.Description = request.Detail;
@@ -972,10 +965,11 @@ namespace backend.Services
             return MapToTaskItemDto(task);
         }
 
-        public async Task<bool> DeleteTaskItemAsync(int taskId)
+        public async Task<bool> DeleteTaskItemAsync(int taskId, int currentUserId)
         {
             var task = await _context.Tasks.FindAsync(taskId);
             if (task == null) return false;
+            if (!await IsSoloProjectOwnerAsync(task.ProjectId, currentUserId)) return false;
 
             _context.Tasks.Remove(task);
             await _context.SaveChangesAsync();
@@ -985,8 +979,10 @@ namespace backend.Services
         // ===========================================================================
         // StackItem (TechStack)
         // ===========================================================================
-        public async Task<StackItemDto> CreateStackItemAsync(CreateStackItemRequest request)
+        public async Task<StackItemDto?> CreateStackItemAsync(CreateStackItemRequest request, int currentUserId)
         {
+            if (!await IsSoloProjectOwnerAsync(request.ProjectId, currentUserId)) return null;
+
             var stack = new TechStacks
             {
                 ProjectId = request.ProjectId,
@@ -1001,10 +997,11 @@ namespace backend.Services
             return MapToStackItemDto(stack);
         }
 
-        public async Task<bool> DeleteStackItemAsync(int techStackId)
+        public async Task<bool> DeleteStackItemAsync(int techStackId, int currentUserId)
         {
             var stack = await _context.TechStacks.FindAsync(techStackId);
             if (stack == null) return false;
+            if (!await IsSoloProjectOwnerAsync(stack.ProjectId, currentUserId)) return false;
 
             _context.TechStacks.Remove(stack);
             await _context.SaveChangesAsync();
@@ -1014,8 +1011,10 @@ namespace backend.Services
         // ===========================================================================
         // WorkItem (ShowcaseItem)
         // ===========================================================================
-        public async Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId)
+        public async Task<WorkItemDto?> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId)
         {
+            if (!await IsSoloProjectOwnerAsync(request.ProjectId, currentUserId)) return null;
+
             var showcase = new ShowcaseItems
             {
                 ProjectId = request.ProjectId,
@@ -1031,10 +1030,11 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
-        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request)
+        public async Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request, int currentUserId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(request.ShowcaseItemId);
             if (showcase == null) return null;
+            if (!await IsSoloProjectOwnerAsync(showcase.ProjectId, currentUserId)) return null;
 
             showcase.Title = request.Title;
             showcase.Description = request.Description;
@@ -1046,10 +1046,11 @@ namespace backend.Services
             return MapToWorkItemDto(showcase);
         }
 
-        public async Task<bool> DeleteWorkItemAsync(int showcaseItemId)
+        public async Task<bool> DeleteWorkItemAsync(int showcaseItemId, int currentUserId)
         {
             var showcase = await _context.ShowcaseItems.FindAsync(showcaseItemId);
             if (showcase == null) return false;
+            if (!await IsSoloProjectOwnerAsync(showcase.ProjectId, currentUserId)) return false;
 
             _context.ShowcaseItems.Remove(showcase);
             await _context.SaveChangesAsync();

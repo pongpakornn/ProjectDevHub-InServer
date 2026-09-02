@@ -46,7 +46,7 @@ namespace backend.Services
         Task<List<ProjectTypeDto>> GetProjectTypesAsync();
         Task<List<UserOptionDto>> GetUsersAsync();
         Task<List<DepartmentDto>> GetDepartmentsAsync();
-        Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync();
+        Task<List<TechStackCatalogDto>> GetTechStackCatalogAsync(int? typeId);
 
         // Project
         Task<List<SoloProjectDto>> GetProjectsAsync(int userId);
@@ -56,23 +56,23 @@ namespace backend.Services
         Task<bool> DeleteProjectAsync(int projectId, int currentUserId);
 
         // Phase (Milestone)
-        Task<PhaseDto> CreatePhaseAsync(CreatePhaseRequest request);
-        Task<PhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request);
-        Task<bool> DeletePhaseAsync(int milestoneId);
-        Task<List<PhaseDto>> AutoGeneratePhasesAsync(int projectId);
+        Task<PhaseDto?> CreatePhaseAsync(CreatePhaseRequest request, int currentUserId);
+        Task<PhaseDto?> UpdatePhaseAsync(UpdatePhaseRequest request, int currentUserId);
+        Task<bool> DeletePhaseAsync(int milestoneId, int currentUserId);
+        Task<List<PhaseDto>> AutoGeneratePhasesAsync(int projectId, int currentUserId);
 
         // TaskItem (Task)
-        Task<TaskItemDto> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId);
-        Task<TaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request);
-        Task<bool> DeleteTaskItemAsync(int taskId);
+        Task<TaskItemDto?> CreateTaskItemAsync(CreateTaskItemRequest request, int currentUserId);
+        Task<TaskItemDto?> UpdateTaskItemAsync(UpdateTaskItemRequest request, int currentUserId);
+        Task<bool> DeleteTaskItemAsync(int taskId, int currentUserId);
 
         // StackItem (TechStack)
-        Task<StackItemDto> CreateStackItemAsync(CreateStackItemRequest request);
-        Task<bool> DeleteStackItemAsync(int techStackId);
+        Task<StackItemDto?> CreateStackItemAsync(CreateStackItemRequest request, int currentUserId);
+        Task<bool> DeleteStackItemAsync(int techStackId, int currentUserId);
 
         // WorkItem (ShowcaseItem)
-        Task<WorkItemDto> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId);
-        Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request);
-        Task<bool> DeleteWorkItemAsync(int showcaseItemId);
+        Task<WorkItemDto?> CreateWorkItemAsync(CreateWorkItemRequest request, int currentUserId);
+        Task<WorkItemDto?> UpdateWorkItemAsync(UpdateWorkItemRequest request, int currentUserId);
+        Task<bool> DeleteWorkItemAsync(int showcaseItemId, int currentUserId);
     }
 }

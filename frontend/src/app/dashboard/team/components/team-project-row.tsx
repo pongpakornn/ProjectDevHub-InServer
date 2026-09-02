@@ -13,6 +13,8 @@ interface TeamProjectRowProps {
   onProjectClick: (id: number | string) => void;
   onEdit: (project: TeamProject) => void;
   onDelete: (id: number | string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const STATUS_LABEL: Record<TeamProject["status"], string> = {
@@ -36,6 +38,8 @@ export default function TeamProjectRow({
   onProjectClick,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: TeamProjectRowProps) {
   const currentProgress = project.progress;
   const isHighPriority = project.priority === "HIGH" || project.priority === "URGENT";
@@ -142,14 +146,18 @@ export default function TeamProjectRow({
             title="ดูรายละเอียดโปรเจกต์"
             onClick={() => onProjectClick(project.id)}
           />
-          <EditButtonV2
-            title="แก้ไขโปรเจกต์"
-            onClick={() => onEdit(project)}
-          />
-          <DeleteButtonV2
-            title="ลบโปรเจกต์"
-            onClick={() => onDelete(project.id)}
-          />
+          {canEdit && (
+            <EditButtonV2
+              title="แก้ไขโปรเจกต์"
+              onClick={() => onEdit(project)}
+            />
+          )}
+          {canDelete && (
+            <DeleteButtonV2
+              title="ลบโปรเจกต์"
+              onClick={() => onDelete(project.id)}
+            />
+          )}
         </div>
       </td>
     </tr>

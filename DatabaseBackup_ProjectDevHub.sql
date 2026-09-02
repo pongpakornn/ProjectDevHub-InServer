@@ -36,6 +36,11 @@
 --
 -- Default Admin สำหรับ Login ครั้งแรกหลัง Restore (Seed ไว้ใน Section 6):
 --   EmpId: ADMIN   Password: Admin@123   (แนะนำให้เปลี่ยนรหัสผ่านทันทีหลังใช้งานจริง)
+--
+-- Section index: 1) Tables  2) Foreign Keys  3) Unique Constraints/Indexes
+-- 4) Non-Unique Indexes  5) Check Constraints  6) Master/Lookup Seed Data
+-- 7) Views  8) Stored Procedures  9) Triggers (ครบทุก DB Object ที่มีอยู่จริงบน Live DB
+-- ณ วันที่ Export — รันสคริปต์นี้ตัวเดียวสร้างฐานข้อมูลใหม่ได้ครบทุกอย่างโดยไม่ต้องพึ่งขั้นตอนอื่น)
 -- =============================================================================
 
 IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = 'ProjectDevHub')
@@ -147,6 +152,7 @@ CREATE TABLE Project.TechStackCatalog (
     CatalogId     INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     OptionGroup   NVARCHAR(20) NOT NULL,   -- TYPE, NAME, LAYER
     OptionValue   NVARCHAR(100) NOT NULL,
+    TypeId        INT NULL,                -- มีความหมายเฉพาะแถว OptionGroup='NAME' — Self-Ref ชี้กลับไปแถว TYPE ต้นทาง (CatalogId)
     IsActive      BIT NOT NULL DEFAULT ((1)),
     SortOrder     INT NOT NULL DEFAULT ((0)),
     CreatedDate   DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
@@ -450,9 +456,12 @@ ALTER TABLE Project.Milestones      ADD CONSTRAINT FK_Milestones_Project        
 ALTER TABLE Project.Milestones      ADD CONSTRAINT FK_Milestones_Owner              FOREIGN KEY (OwnerId) REFERENCES Core.Users(UserId);
 
 ALTER TABLE Project.ProjectMembers  ADD CONSTRAINT FK_ProjectMembers_Project        FOREIGN KEY (ProjectId) REFERENCES Project.Projects(ProjectId) ON DELETE CASCADE;
-ALTER TABLE Project.ProjectMembers  ADD CONSTRAINT FK_ProjectMembers_User           FOREIGN KEY (UserId) REFERENCES Core.Users(UserId);
+-- Phase 5: Cascade เมื่อลบ User — ProjectMembers เป็นแค่ความสัมพันธ์ "เป็นสมาชิกของ" ไม่ใช่ข้อมูลที่ User เป็นเจ้าของ
+ALTER TABLE Project.ProjectMembers  ADD CONSTRAINT FK_ProjectMembers_User           FOREIGN KEY (UserId) REFERENCES Core.Users(UserId) ON DELETE CASCADE;
 
 ALTER TABLE Project.TechStacks      ADD CONSTRAINT FK_TechStacks_Project            FOREIGN KEY (ProjectId) REFERENCES Project.Projects(ProjectId) ON DELETE CASCADE;
+
+ALTER TABLE Project.TechStackCatalog ADD CONSTRAINT FK_TechStackCatalog_Type        FOREIGN KEY (TypeId) REFERENCES Project.TechStackCatalog(CatalogId);
 
 ALTER TABLE Project.ShowcaseItems   ADD CONSTRAINT FK_ShowcaseItems_Project         FOREIGN KEY (ProjectId) REFERENCES Project.Projects(ProjectId) ON DELETE CASCADE;
 ALTER TABLE Project.ShowcaseItems   ADD CONSTRAINT FK_ShowcaseItems_Creator         FOREIGN KEY (CreatedBy) REFERENCES Core.Users(UserId);
@@ -481,7 +490,8 @@ ALTER TABLE Testing.TestRuns        ADD CONSTRAINT FK_TestRuns_Suite            
 ALTER TABLE Testing.TestRuns        ADD CONSTRAINT FK_TestRuns_TriggeredBy          FOREIGN KEY (TriggeredBy) REFERENCES Core.Users(UserId);
 
 ALTER TABLE Project.TaskAssignees   ADD CONSTRAINT FK_TaskAssignees_Task            FOREIGN KEY (TaskId) REFERENCES Project.Tasks(TaskId) ON DELETE CASCADE;
-ALTER TABLE Project.TaskAssignees   ADD CONSTRAINT FK_TaskAssignees_User            FOREIGN KEY (UserId) REFERENCES Core.Users(UserId);
+-- Phase 5: Cascade เมื่อลบ User — TaskAssignees เป็นแค่ความสัมพันธ์ "ถูกมอบหมายงาน" ไม่ใช่ข้อมูลที่ User เป็นเจ้าของ
+ALTER TABLE Project.TaskAssignees   ADD CONSTRAINT FK_TaskAssignees_User            FOREIGN KEY (UserId) REFERENCES Core.Users(UserId) ON DELETE CASCADE;
 
 ALTER TABLE Project.Comments        ADD CONSTRAINT FK_Comments_Project              FOREIGN KEY (ProjectId) REFERENCES Project.Projects(ProjectId) ON DELETE CASCADE;
 ALTER TABLE Project.Comments        ADD CONSTRAINT FK_Comments_Task                 FOREIGN KEY (TaskId) REFERENCES Project.Tasks(TaskId);
@@ -590,7 +600,8 @@ INSERT INTO Core.SystemList (SystemId, SystemName, Description, IsActive) VALUES
     (N'SOLO',     N'Project Solo Management',    N'ระบบบริหารจัดการโปรเจกต์เดี่ยว', 1),
     (N'TEAM',     N'Project Team Management',    N'ระบบบริหารจัดการโปรเจกต์ทีม', 1),
     (N'FLOW',     N'Project Flow Architecture',  N'ระบบออกแบบและติดตามผังการทำงานของโปรเจกต์', 1),
-    (N'PRESENT',  N'สถานีนำเสนอผลงาน (Present Station)', N'ศูนย์รวม Showcase ผลงาน การสาธิตระบบ และ Media Lightbox Gallery', 1);
+    (N'PRESENT',  N'สถานีนำเสนอผลงาน (Present Station)', N'ศูนย์รวม Showcase ผลงาน การสาธิตระบบ และ Media Lightbox Gallery', 1),
+    (N'TESTING',  N'Tester Automation',          N'ระบบบันทึกและติดตามผลการทดสอบอัตโนมัติของโปรเจกต์ (Solo/Team)', 1);
 GO
 
 -- Core.Users — Default Admin Account (ให้ Login เข้าใช้งานได้ทันทีหลัง Restore บนฐานข้อมูลเปล่า)
@@ -629,24 +640,231 @@ INSERT INTO Project.Departments (DepartmentId, DepartmentName, IsActive, SortOrd
 SET IDENTITY_INSERT Project.Departments OFF;
 GO
 
--- Project.TechStackCatalog — Stack "ประเภท/ชื่อ/Layer" dropdown master data (3 independent option groups)
+-- Project.TechStackCatalog — Stack "ประเภท/ชื่อ/Layer" dropdown master data (3 option groups: TYPE/NAME/LAYER)
+-- TypeId บนแถว NAME ผูกกลับไปแถว TYPE ต้นทาง (Self-Reference) — ใช้กรอง Dropdown "ชื่อ" ตาม "ประเภท" ที่เลือก
+-- (Resync เต็มรูปแบบจากฐานข้อมูลจริง ณ วันที่ทำ Data Isolation รอบ Stack/Library — ของเดิมในไฟล์นี้เก่ากว่าฐาน
+-- ข้อมูลจริงมาก มีแค่ 16 แถว ขาดอีก 38 แถวที่ถูกเพิ่มเข้าไปตรงๆ ในฐานข้อมูลระหว่างพัฒนาโดยไม่เคย Sync กลับมาที่นี่)
 SET IDENTITY_INSERT Project.TechStackCatalog ON;
-INSERT INTO Project.TechStackCatalog (CatalogId, OptionGroup, OptionValue, IsActive, SortOrder) VALUES
-    (1,  N'TYPE',  N'ภาษา (Language)',    1, 1),
-    (2,  N'TYPE',  N'Framework',          1, 2),
-    (3,  N'TYPE',  N'Library / Package',  1, 3),
-    (4,  N'TYPE',  N'Database',           1, 4),
-    (5,  N'NAME',  N'Next.js',            1, 1),
-    (6,  N'NAME',  N'React',              1, 2),
-    (7,  N'NAME',  N'TypeScript',         1, 3),
-    (8,  N'NAME',  N'ASP.NET Core',       1, 4),
-    (9,  N'NAME',  N'SQL Server',         1, 5),
-    (10, N'NAME',  N'Tailwind CSS',       1, 6),
-    (11, N'NAME',  N'Zustand',            1, 7),
-    (12, N'NAME',  N'Docker',             1, 8),
-    (13, N'LAYER', N'Frontend',           1, 1),
-    (14, N'LAYER', N'Backend',            1, 2),
-    (15, N'LAYER', N'Database',           1, 3),
-    (16, N'LAYER', N'DevOps',             1, 4);
+INSERT INTO Project.TechStackCatalog (CatalogId, OptionGroup, OptionValue, TypeId, IsActive, SortOrder) VALUES
+    -- TYPE (10)
+    (1,  N'TYPE',  N'ภาษา (Language)',              NULL, 1, 1),
+    (2,  N'TYPE',  N'Framework',                     NULL, 1, 2),
+    (3,  N'TYPE',  N'Library / Package',             NULL, 1, 3),
+    (4,  N'TYPE',  N'Database',                      NULL, 1, 4),
+    (17, N'TYPE',  N'AI / LLM Tool',                 NULL, 1, 5),
+    (18, N'TYPE',  N'UI/UX & Design Tool',           NULL, 1, 6),
+    (19, N'TYPE',  N'Testing & QA',                  NULL, 1, 7),
+    (20, N'TYPE',  N'API & Communication Protocol',  NULL, 1, 8),
+    (51, N'TYPE',  N'RPA / Automation',              NULL, 1, 9),
+    (54, N'TYPE',  N'DevOps / Infra Tool',           NULL, 1, 10),
+    -- NAME (36) — TypeId อ้างถึง CatalogId ของแถว TYPE ด้านบน
+    (5,  N'NAME',  N'Next.js',            2,  1, 1),
+    (6,  N'NAME',  N'React.js',           2,  1, 2),
+    (7,  N'NAME',  N'TypeScript',         1,  1, 3),
+    (8,  N'NAME',  N'ASP.NET Core',       2,  1, 4),
+    (9,  N'NAME',  N'SQL Server',         4,  1, 5),
+    (10, N'NAME',  N'Tailwind CSS',       3,  1, 6),
+    (11, N'NAME',  N'Zustand',            3,  1, 7),
+    (12, N'NAME',  N'Docker',             54, 1, 8),
+    (21, N'NAME',  N'Python',             1,  1, 9),
+    (22, N'NAME',  N'HTML5',              1,  1, 10),
+    (23, N'NAME',  N'CSS3',               1,  1, 11),
+    (24, N'NAME',  N'JavaScript',         1,  1, 12),
+    (25, N'NAME',  N'Node.js',            2,  1, 13),
+    (26, N'NAME',  N'WPF',                2,  1, 14),
+    (27, N'NAME',  N'MVVM Architecture',  2,  1, 15),
+    (28, N'NAME',  N'C#',                 1,  1, 16),
+    (29, N'NAME',  N'C++',                1,  1, 17),
+    (30, N'NAME',  N'C',                  1,  1, 18),
+    (31, N'NAME',  N'Java',               1,  1, 19),
+    (32, N'NAME',  N'MongoDB',            4,  1, 20),
+    (33, N'NAME',  N'PostgreSQL',         4,  1, 21),
+    (34, N'NAME',  N'REST API',           20, 1, 22),
+    (35, N'NAME',  N'WebSocket',          20, 1, 23),
+    (36, N'NAME',  N'SignalR',            20, 1, 24),
+    (37, N'NAME',  N'PostCSS',            3,  1, 25),
+    (38, N'NAME',  N'ESLint',             19, 1, 26),
+    (39, N'NAME',  N'Figma',              18, 1, 27),
+    (40, N'NAME',  N'Uiverse',            18, 1, 28),
+    (43, N'NAME',  N'Lovable',            17, 1, 29),
+    (44, N'NAME',  N'v0 by Vercel',       17, 1, 30),
+    (45, N'NAME',  N'Gemini',             17, 1, 31),
+    (46, N'NAME',  N'Claude Code',        17, 1, 32),
+    (47, N'NAME',  N'Anti-gravity',       17, 1, 33),
+    (48, N'NAME',  N'ChatGPT',            17, 1, 34),
+    (49, N'NAME',  N'Test Automation',    19, 1, 35),
+    (50, N'NAME',  N'WinActor',           51, 1, 36),
+    -- LAYER (8)
+    (13, N'LAYER', N'Frontend',           NULL, 1, 1),
+    (14, N'LAYER', N'Backend',            NULL, 1, 2),
+    (15, N'LAYER', N'Database',           NULL, 1, 3),
+    (16, N'LAYER', N'DevOps',             NULL, 1, 4),
+    (41, N'LAYER', N'Testing / QA',       NULL, 1, 5),
+    (42, N'LAYER', N'Design / UI-UX',     NULL, 1, 6),
+    (52, N'LAYER', N'AI / Automation',    NULL, 1, 7),
+    (53, N'LAYER', N'Automation (RPA)',   NULL, 1, 8);
 SET IDENTITY_INSERT Project.TechStackCatalog OFF;
+GO
+
+-- =============================================================================
+-- SECTION 7 — VIEWS (Phase 7: ลด Query ซ้ำซ้อนสำหรับหน้าที่เรียกบ่อย)
+-- =============================================================================
+
+-- สรุปสิทธิ์ของแต่ละ User เป็น 1 แถวต่อคน (จำนวนโมดูลที่มองเห็นได้ + รายชื่อ SystemId ที่ View ได้)
+-- ใช้แทนการ Join Users+Permissions ซ้ำๆ ในหน้า User Management / รายงานสิทธิ์การใช้งาน
+GO
+CREATE VIEW Core.vw_UserPermissionSummary AS
+SELECT
+    u.UserId,
+    u.EmpId,
+    u.FullName,
+    u.IsSuperAdmin,
+    u.IsActive,
+    u.IsSuspended,
+    (SELECT COUNT(*) FROM Core.Permissions p WHERE p.UserId = u.UserId AND p.CanView = 1) AS VisibleModuleCount,
+    STUFF((
+        SELECT ',' + p2.SystemId
+        FROM Core.Permissions p2
+        WHERE p2.UserId = u.UserId AND p2.CanView = 1
+        FOR XML PATH('')
+    ), 1, 1, '') AS ViewableSystemIds
+FROM Core.Users u;
+GO
+
+-- สรุปสถิติต่อโปรเจกต์ (จำนวน Task/Milestone/สมาชิก) สำหรับหน้า Dashboard และรายงานภาพรวม
+-- ลดการยิง COUNT(*) แยกหลายรอบต่อโปรเจกต์ในฝั่ง Application
+GO
+CREATE VIEW Project.vw_ProjectDashboardSummary AS
+SELECT
+    p.ProjectId,
+    p.ProjectCode,
+    p.ProjectName,
+    p.ProjectOwnerId,
+    p.Status,
+    p.IsActive,
+    (SELECT COUNT(*) FROM Project.Tasks t WHERE t.ProjectId = p.ProjectId) AS TotalTasks,
+    (SELECT COUNT(*) FROM Project.Tasks t WHERE t.ProjectId = p.ProjectId AND t.Status = 'DONE') AS CompletedTasks,
+    (SELECT COUNT(*) FROM Project.Milestones m WHERE m.ProjectId = p.ProjectId) AS TotalMilestones,
+    (SELECT COUNT(*) FROM Project.ProjectMembers pm WHERE pm.ProjectId = p.ProjectId AND pm.IsActive = 1) AS MemberCount
+FROM Project.Projects p;
+GO
+
+-- =============================================================================
+-- SECTION 8 — STORED PROCEDURES (Phase 7: Operation ที่ซับซ้อน/เรียกบ่อย)
+-- =============================================================================
+
+-- คืนรายการ ProjectId ที่ @UserId เข้าถึงได้ (เป็นเจ้าของ หรือเป็นสมาชิกทีมที่ Active) — กติกาเดียวกับ
+-- ProjectAccess.For(userId) ฝั่ง Backend (backend/Services/ProjectAccess.cs) ใช้สำหรับ Query/รายงานเฉพาะกิจนอกแอป
+GO
+CREATE PROCEDURE Core.sp_GetAccessibleProjectIds
+    @UserId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DISTINCT p.ProjectId
+    FROM Project.Projects p
+    LEFT JOIN Project.ProjectMembers pm ON pm.ProjectId = p.ProjectId AND pm.UserId = @UserId AND pm.IsActive = 1
+    WHERE p.IsActive = 1 AND (p.ProjectOwnerId = @UserId OR pm.ProjectMemberId IS NOT NULL);
+END;
+GO
+
+-- ลบโปรเจกต์แบบ Hard Delete พร้อมข้อมูลลูกทั้งหมด สำหรับใช้งานตรงจาก DB/สคริปต์ Ops เท่านั้น
+-- (แอปจริงลบผ่าน EF ใน ProjectSoloService/ProjectTeamService.DeleteProjectAsync ซึ่งทำสิ่งเดียวกันนี้
+-- อยู่แล้วผ่าน ON DELETE CASCADE ของ FK ส่วนใหญ่ + เคลียร์ตารางที่เป็น NoAction ด้วยโค้ด C# เอง)
+GO
+CREATE PROCEDURE Project.sp_DeleteProjectCascade
+    @ProjectId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRAN;
+    BEGIN TRY
+        DELETE FROM Project.StatusHistory WHERE ProjectId = @ProjectId
+            OR TaskId IN (SELECT TaskId FROM Project.Tasks WHERE ProjectId = @ProjectId);
+        UPDATE Planning.Events SET LinkedProjectId = NULL WHERE LinkedProjectId = @ProjectId;
+        UPDATE Planning.Events SET LinkedTaskId = NULL
+            WHERE LinkedTaskId IN (SELECT TaskId FROM Project.Tasks WHERE ProjectId = @ProjectId);
+        DELETE FROM Project.Projects WHERE ProjectId = @ProjectId;
+        COMMIT TRAN;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRAN;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- =============================================================================
+-- SECTION 9 — TRIGGERS (Phase 7: เท่าที่จำเป็นจริงๆ เพื่อไม่ให้กระทบ Performance)
+-- =============================================================================
+
+-- Sync Project.ProgressPercent อัตโนมัติจากค่าเฉลี่ย ProgressPercent ของ Task ระดับบนสุด (ไม่รวม Subtask)
+-- ทุกครั้งที่มี Task ถูกเพิ่ม/แก้ไขในโปรเจกต์นั้น — กันไม่ให้ Progress ของโปรเจกต์เพี้ยนไปจาก Task จริง
+GO
+CREATE TRIGGER Project.Trg_UpdateProjectProgress
+ON Project.Tasks
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH AffectedProjects AS (
+        SELECT DISTINCT ProjectId FROM inserted
+    )
+    UPDATE p
+    SET p.ProgressPercent = ISNULL(t.AvgProgress, 0),
+        p.UpdatedDate = SYSDATETIMEOFFSET()
+    FROM Project.Projects p
+    INNER JOIN AffectedProjects ap ON ap.ProjectId = p.ProjectId
+    OUTER APPLY (
+        SELECT AVG(ProgressPercent) AS AvgProgress
+        FROM Project.Tasks
+        WHERE ProjectId = p.ProjectId AND ParentTaskId IS NULL
+    ) t;
+END;
+GO
+
+-- Sync Flow.FlowDefinitions.ProgressPercent อัตโนมัติจากค่าเฉลี่ย ProgressPercent ของ FlowSteps ทั้งหมด
+-- ในผังนั้น ทุกครั้งที่มี Step ถูกเพิ่ม/แก้ไข/ลบ — กันไม่ให้ Progress ของผังเพี้ยนไปจาก Step จริง
+GO
+CREATE TRIGGER Flow.Trg_UpdateFlowProgress
+ON Flow.FlowSteps
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    ;WITH AffectedFlows AS (
+        SELECT DISTINCT FlowDefinitionId FROM inserted
+        UNION
+        SELECT DISTINCT FlowDefinitionId FROM deleted
+    )
+    UPDATE f
+    SET f.ProgressPercent = ISNULL(s.AvgProgress, 0),
+        f.UpdatedDate = SYSDATETIMEOFFSET()
+    FROM Flow.FlowDefinitions f
+    INNER JOIN AffectedFlows af ON af.FlowDefinitionId = f.FlowDefinitionId
+    OUTER APPLY (
+        SELECT AVG(CAST(ProgressPercent AS DECIMAL(5,2))) AS AvgProgress
+        FROM Flow.FlowSteps
+        WHERE FlowDefinitionId = f.FlowDefinitionId
+    ) s;
+END;
+GO
+
+-- ลบ Log เก่าอายุเกิน 90 วันอัตโนมัติทุกครั้งที่มีการเขียน Log ใหม่ (Batch เล็กๆ ครั้งละ 500 แถว กัน Table Lock)
+-- ป้องกัน Core.AuditLogs โตไม่มีที่สิ้นสุดโดยไม่ต้องพึ่ง Job/Maintenance Plan แยกต่างหาก
+GO
+CREATE TRIGGER Core.Trg_AutoCleanup_AuditLogs
+ON Core.AuditLogs
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- ลบ Log ที่เก่ากว่า 90 วัน
+    -- ใช้ BATCH DELETE ขนาดเล็ก เพื่อป้องกัน Table Lock ตอนตารางมีขนาดใหญ่
+    DELETE TOP (500) FROM Core.AuditLogs
+    WHERE LogDate < DATEADD(DAY, -90, SYSDATETIMEOFFSET());
+END;
 GO

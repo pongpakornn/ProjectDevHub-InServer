@@ -11,6 +11,8 @@ interface FlowGanttQaSectionsProps {
   executions: FlowExecution[];
   setExecutions: React.Dispatch<React.SetStateAction<FlowExecution[]>>;
   currentUserId: number;
+  canAdd?: boolean;
+  canDelete?: boolean;
 }
 
 const executionBadgeStyle: Record<FlowExecutionStatus, string> = {
@@ -77,6 +79,8 @@ export default function FlowGanttQaSections({
   executions,
   setExecutions,
   currentUserId,
+  canAdd = true,
+  canDelete = true,
 }: FlowGanttQaSectionsProps) {
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<FlowExecutionStatus>("SUCCESS");
@@ -103,7 +107,7 @@ export default function FlowGanttQaSections({
     const prev = executions;
     setExecutions(executions.filter((e) => e.id !== executionId));
     try {
-      await deleteExecution(Number(executionId));
+      await deleteExecution(Number(executionId), currentUserId);
     } catch (err) {
       console.error("ลบประวัติการรันไม่สำเร็จ", err);
       alert("ลบประวัติการรันไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -114,7 +118,7 @@ export default function FlowGanttQaSections({
   const handleAddLog = async (executionId: string) => {
     if (!logDraft.trim()) return;
     try {
-      const log = await addLog(Number(executionId), "INFO", logDraft.trim());
+      const log = await addLog(Number(executionId), "INFO", logDraft.trim(), currentUserId);
       setExecutions(
         executions.map((e) => (e.id === executionId ? { ...e, logs: [...e.logs, log] } : e))
       );
@@ -143,33 +147,35 @@ export default function FlowGanttQaSections({
           <h2 className="font-bold text-slate-900 text-sm">ประวัติการรัน Flow (Execution History)</h2>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as FlowExecutionStatus)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold"
-          >
-            <option value="SUCCESS">SUCCESS</option>
-            <option value="FAILED">FAILED</option>
-            <option value="RUNNING">RUNNING</option>
-          </select>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="บันทึกผลการรัน / หมายเหตุ..."
-            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-          />
-          <button
-            type="button"
-            onClick={handleAddExecution}
-            disabled={isSaving}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shrink-0"
-          >
-            <Play className="w-3.5 h-3.5" />
-            บันทึกการรัน
-          </button>
-        </div>
+        {canAdd && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as FlowExecutionStatus)}
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold"
+            >
+              <option value="SUCCESS">SUCCESS</option>
+              <option value="FAILED">FAILED</option>
+              <option value="RUNNING">RUNNING</option>
+            </select>
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="บันทึกผลการรัน / หมายเหตุ..."
+              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+            />
+            <button
+              type="button"
+              onClick={handleAddExecution}
+              disabled={isSaving}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shrink-0"
+            >
+              <Play className="w-3.5 h-3.5" />
+              บันทึกการรัน
+            </button>
+          </div>
+        )}
 
         {executions.length === 0 ? (
           <p className="text-xs text-slate-400 font-medium py-4">ยังไม่มีประวัติการรันของ Flow นี้</p>
@@ -195,14 +201,16 @@ export default function FlowGanttQaSections({
                       <span className="text-[10px] text-slate-400 shrink-0 ml-auto">โดย {ex.triggeredByName}</span>
                       {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteExecution(ex.id)}
-                      className="text-slate-400 hover:text-rose-600 shrink-0"
-                      title="ลบประวัติการรันนี้"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExecution(ex.id)}
+                        className="text-slate-400 hover:text-rose-600 shrink-0"
+                        title="ลบประวัติการรันนี้"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   {isExpanded && (
@@ -219,23 +227,25 @@ export default function FlowGanttQaSections({
                           ))}
                         </div>
                       )}
-                      <div className="flex gap-2 pt-1">
-                        <input
-                          type="text"
-                          value={logDraft}
-                          onChange={(e) => setLogDraft(e.target.value)}
-                          placeholder="เพิ่มบรรทัด Log..."
-                          className="flex-1 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleAddLog(ex.id)}
-                          disabled={!logDraft.trim()}
-                          className="bg-slate-700 hover:bg-slate-800 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-md shrink-0"
-                        >
-                          เพิ่ม
-                        </button>
-                      </div>
+                      {canAdd && (
+                        <div className="flex gap-2 pt-1">
+                          <input
+                            type="text"
+                            value={logDraft}
+                            onChange={(e) => setLogDraft(e.target.value)}
+                            placeholder="เพิ่มบรรทัด Log..."
+                            className="flex-1 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddLog(ex.id)}
+                            disabled={!logDraft.trim()}
+                            className="bg-slate-700 hover:bg-slate-800 disabled:opacity-50 text-white text-[11px] font-bold px-3 py-1.5 rounded-md shrink-0"
+                          >
+                            เพิ่ม
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

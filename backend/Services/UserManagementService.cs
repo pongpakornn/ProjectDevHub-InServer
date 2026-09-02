@@ -34,7 +34,9 @@ namespace backend.Services
 
         public async Task<List<UserListItemDto>> GetUsersAsync()
         {
+            // IsActive=false = ผู้ใช้ที่ถูก "ลบ" แบบ Soft Delete (ดูเหตุผลใน DeleteUserAsync) จึงไม่แสดงในรายการอีก
             var users = await _context.Users
+                .Where(u => u.IsActive)
                 .Include(u => u.Permissions)
                 .OrderByDescending(u => u.CreatedDate)
                 .ToListAsync();
@@ -153,17 +155,49 @@ namespace backend.Services
 
         public async Task<bool> DeleteUserAsync(int userId, int? currentUserId)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId && u.IsActive);
             if (user == null) return false;
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            var empId = user.EmpId;
+            var fullName = user.FullName;
 
-            await _auditLogService.LogAsync(
-                currentUserId, "CORE", "USER_DELETE",
-                $"ลบสมาชิก {user.FullName} ({user.EmpId}) ออกจากระบบ", userId.ToString());
+            // พยายาม Hard Delete จริงก่อนเสมอ — Project.ProjectMembers / Project.TaskAssignees ผูก
+            // CASCADE กับ Core.Users แล้ว (เป็นแค่ความสัมพันธ์ ไม่ใช่ข้อมูลที่ User เป็นเจ้าของ) จึงลบตามได้เอง
+            // ส่วนตารางที่ User เป็นเจ้าของ/ผู้สร้างจริง (Projects, Tasks, Comments, Attachments,
+            // Milestones, ShowcaseItems, TestSuites, FlowDefinitions ฯลฯ) ยังผูกแบบ NO ACTION ไว้โดยตั้งใจ
+            // เพื่อรักษาประวัติ — ถ้าผู้ใช้คนนี้เป็นเจ้าของข้อมูลเหล่านั้นอยู่ การลบจริงจะชน FK แล้วตกไป
+            // Fallback เป็น Soft Delete (ปิดใช้งานถาวร) แทน เพื่อไม่ให้ผู้ใช้เห็น Error ไม่ว่ากรณีไหน
+            try
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
 
-            return true;
+                await _auditLogService.LogAsync(
+                    currentUserId, "CORE", "USER_DELETE",
+                    $"ลบสมาชิก {fullName} ({empId}) ออกจากระบบถาวร (Hard Delete)",
+                    userId.ToString());
+
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                _context.Entry(user).State = EntityState.Unchanged;
+
+                user.IsActive = false;
+                user.IsSuspended = true;
+                user.IsOnline = false;
+                user.CurrentSessionId = null;
+                user.UpdatedDate = DateTimeOffset.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                await _auditLogService.LogAsync(
+                    currentUserId, "CORE", "USER_DELETE",
+                    $"ลบสมาชิก {fullName} ({empId}) ออกจากระบบ (ยังมีข้อมูลที่เป็นเจ้าของอยู่ — ปิดใช้งานถาวรแทนแล้วเก็บประวัติข้อมูลอ้างอิงไว้)",
+                    userId.ToString());
+
+                return true;
+            }
         }
 
         public async Task<UserListItemDto?> ToggleSuspendAsync(int userId, int? currentUserId)

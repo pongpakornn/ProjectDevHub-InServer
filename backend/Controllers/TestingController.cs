@@ -1,4 +1,5 @@
 // backend/Controllers/TestingController.cs
+using backend.Authorization;
 using backend.DTOs;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("runs")]
+        [RequirePermission("TESTING", PermissionAction.View)]
         public async Task<IActionResult> GetTestRuns([FromQuery] int userId)
         {
             try
@@ -36,6 +38,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("runs")]
+        [RequirePermission("TESTING", PermissionAction.Add)]
         public async Task<IActionResult> CreateTestRun([FromBody] CreateTestRunRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -54,6 +57,7 @@ namespace backend.Controllers
         }
 
         [HttpPut("runs")]
+        [RequirePermission("TESTING", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateTestRun([FromBody] UpdateTestRunRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -72,6 +76,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("runs/{testRunId:int}")]
+        [RequirePermission("TESTING", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteTestRun(int testRunId)
         {
             try

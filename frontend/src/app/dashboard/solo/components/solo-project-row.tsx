@@ -13,6 +13,8 @@ interface SoloProjectRowProps {
   onProjectClick: (id: number) => void;
   onEdit: (project: SoloProject) => void;
   onDelete: (id: number) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 const STATUS_LABEL: Record<SoloProject["status"], string> = {
@@ -36,6 +38,8 @@ export default function SoloProjectRow({
   onProjectClick,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: SoloProjectRowProps) {
   // หมายเหตุ: ตอนนี้ Backend คำนวณ progress ให้อัตโนมัติผ่าน Trigger แล้ว ใช้ project.progress ได้ตรงๆ
   const currentProgress = project.progress;
@@ -117,8 +121,8 @@ export default function SoloProjectRow({
       <td className="py-3.5 px-3.5 text-center">
         <div className="flex items-center justify-center gap-2">
           <ViewButtonV2 title="ดูรายละเอียดโปรเจกต์" onClick={() => onProjectClick(project.id)} />
-          <EditButtonV2 title="แก้ไขโปรเจกต์" onClick={() => onEdit(project)} />
-          <DeleteButtonV2 title="ลบโปรเจกต์" onClick={() => onDelete(project.id)} />
+          {canEdit && <EditButtonV2 title="แก้ไขโปรเจกต์" onClick={() => onEdit(project)} />}
+          {canDelete && <DeleteButtonV2 title="ลบโปรเจกต์" onClick={() => onDelete(project.id)} />}
         </div>
       </td>
     </tr>

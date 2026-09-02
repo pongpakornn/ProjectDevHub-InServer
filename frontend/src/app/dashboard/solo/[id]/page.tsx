@@ -7,7 +7,7 @@ import { SoloProject, CreateProjectFormData } from "@/types/project";
 import { Phase, StackItem, WorkItem, TaskItem } from "@/types/project-detail";
 import { ProjectDetailHeader } from "@/components/projects/detail/project-detail-header";
 import { ProjectPhaseSection } from "@/components/projects/detail/project-phase-section";
-import { ProjectStackSection } from "@/components/projects/detail/project-stack-section";
+import StackLibrarySection from "@/components/projects/detail/stack-library-section";
 import { ProjectTimelineSection } from "@/components/projects/detail/project-timeline-section";
 import { ProjectShowcaseSection } from "@/components/projects/detail/project-showcase-section";
 import { AddWorkModal } from "@/components/projects/detail/add-work-modal";
@@ -18,9 +18,12 @@ import {
   updateWorkItem,
   updateTaskItem,
   autoGeneratePhases,
+  createStackItem,
+  deleteStackItem,
 } from "@/lib/project-solo-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ตอนนี้ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -28,6 +31,7 @@ const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 export default function ProjectDetailPage() {
   const params = useParams();
   const toast = useToast();
+  const permissions = useSystemPermissions("SOLO");
   const projectId = Number(params?.id);
 
   const [projectInfo, setProjectInfo] = useState<SoloProject | null>(null);
@@ -94,7 +98,7 @@ export default function ProjectDetailPage() {
   const handleAutoGeneratePhases = async () => {
     if (!projectInfo) return;
     try {
-      const generated = await autoGeneratePhases(projectInfo.id);
+      const generated = await autoGeneratePhases(projectInfo.id, CURRENT_USER_ID);
       setPhases(generated);
       toast.success("สร้าง Phase อัตโนมัติสำเร็จ", `สร้าง ${generated.length} Phase ให้โปรเจกต์นี้เรียบร้อยแล้ว`);
     } catch (err) {
@@ -108,7 +112,7 @@ export default function ProjectDetailPage() {
   // ===========================================================================
   const syncTaskItem = async (task: TaskItem) => {
     try {
-      await updateTaskItem(Number(task.id), task);
+      await updateTaskItem(Number(task.id), task, CURRENT_USER_ID);
     } catch (err) {
       console.error("อัปเดต Task ไม่สำเร็จ", err);
       toast.error("อัปเดต Task ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
@@ -143,7 +147,7 @@ export default function ProjectDetailPage() {
           description: workData.desc,
           flowDescription: workData.flow,
           imageUrl: workData.image || "",
-        });
+        }, CURRENT_USER_ID);
       } else {
         await createWorkItem(
           projectInfo.id,
@@ -200,12 +204,19 @@ export default function ProjectDetailPage() {
         setPhases={setPhases}
         onAutoGeneratePhases={handleAutoGeneratePhases}
         onToggleTask={syncTaskItem}
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
-      <ProjectStackSection
+      <StackLibrarySection
         projectId={projectInfo.id}
         stacks={stacks}
         setStacks={setStacks}
+        createStackItem={(projectId, data) => createStackItem(projectId, data, CURRENT_USER_ID)}
+        deleteStackItem={(techStackId) => deleteStackItem(techStackId, CURRENT_USER_ID)}
+        focusRingColorClass="focus:ring-emerald-500/20 focus:border-emerald-500"
+        canAdd={permissions.canAdd}
+        canDelete={permissions.canDelete}
       />
 
       <ProjectTimelineSection phases={phases} />
@@ -214,8 +225,12 @@ export default function ProjectDetailPage() {
         works={works}
         setWorks={setWorks}
         phases={phases}
+        currentUserId={CURRENT_USER_ID}
         onOpenAddModal={handleOpenAddWorkModal}
         onOpenEditModal={handleOpenEditWorkModal}
+        canAdd={permissions.canAdd}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       {/* <AddWorkModal

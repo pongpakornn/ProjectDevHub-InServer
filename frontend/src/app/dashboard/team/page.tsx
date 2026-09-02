@@ -16,6 +16,7 @@ import {
 } from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -23,6 +24,7 @@ const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 export default function TeamWorkPage() {
   const router = useRouter();
   const toast = useToast();
+  const permissions = useSystemPermissions("TEAM");
   const [projects, setProjects] = useState<TeamProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,8 +97,8 @@ export default function TeamWorkPage() {
           .filter((id) => !nextUserIds.has(id) && id !== formData.ownerId);
 
         await Promise.all([
-          ...toAdd.map((userId) => addMember(projectId, userId, "MEMBER")),
-          ...toRemove.map((userId) => removeMember(projectId, userId)),
+          ...toAdd.map((userId) => addMember(projectId, userId, CURRENT_USER_ID, "MEMBER")),
+          ...toRemove.map((userId) => removeMember(projectId, userId, CURRENT_USER_ID)),
         ]);
         toast.success("อัปเดตโปรเจกต์ทีมสำเร็จ", `บันทึกการแก้ไข "${formData.name}" เรียบร้อยแล้ว`);
       }
@@ -136,6 +138,7 @@ export default function TeamWorkPage() {
         avgProgress={avgProgress}
         totalProjects={totalProjects}
         onOpenCreateModal={handleOpenCreateModal}
+        canAdd={permissions.canAdd}
       />
 
       {loadError && (
@@ -149,6 +152,8 @@ export default function TeamWorkPage() {
         onProjectClick={handleProjectClick}
         onEditProject={handleOpenEditModal}
         onDeleteProject={handleDelete}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       <TeamProjectFormModal

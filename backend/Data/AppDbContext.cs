@@ -103,10 +103,12 @@ namespace backend.Data
                     .HasForeignKey(pm => pm.ProjectId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // Cascade เมื่อลบ User: ProjectMembers เป็นแค่ความสัมพันธ์ "เป็นสมาชิกของ" ไม่ใช่ข้อมูลที่ User
+                // เป็นเจ้าของ จึงลบตามได้อย่างปลอดภัย (ต่างจาก Projects/Tasks/Comments ที่ยัง NoAction ไว้)
                 entity.HasOne(pm => pm.User)
                     .WithMany()
                     .HasForeignKey(pm => pm.UserId)
-                    .OnDelete(DeleteBehavior.NoAction);
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Milestones (Cascade เมื่อลบ Project, Owner ผูกกับ Core.Users จริง)
@@ -130,6 +132,16 @@ namespace backend.Data
                     .WithMany()
                     .HasForeignKey(ts => ts.ProjectId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // TechStackCatalog — Self-Reference (แถว NAME ชี้กลับไปแถว TYPE ในตารางเดียวกัน)
+            // NoAction กัน SQL Server Error "may cause cycles" ของ Self-Referencing FK ที่ Cascade
+            modelBuilder.Entity<TechStackCatalog>(entity =>
+            {
+                entity.HasOne(c => c.Type)
+                    .WithMany()
+                    .HasForeignKey(c => c.TypeId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             // ShowcaseItems (Cascade เมื่อลบ Project)
@@ -182,10 +194,12 @@ namespace backend.Data
                     .HasForeignKey(ta => ta.TaskId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // Cascade เมื่อลบ User: TaskAssignees เป็นแค่ความสัมพันธ์ "ถูกมอบหมายงาน" ไม่ใช่ข้อมูลที่ User
+                // เป็นเจ้าของ จึงลบตามได้อย่างปลอดภัย (ต่างจาก Projects/Tasks/Comments ที่ยัง NoAction ไว้)
                 entity.HasOne(ta => ta.User)
                     .WithMany()
                     .HasForeignKey(ta => ta.UserId)
-                    .OnDelete(DeleteBehavior.NoAction);
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Comments (ต้องมี ProjectId หรือ TaskId อย่างน้อย 1 อัน, Cascade เฉพาะฝั่ง Project)

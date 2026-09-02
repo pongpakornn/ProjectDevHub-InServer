@@ -9,6 +9,7 @@ import { SoloProject, CreateProjectFormData } from "@/types/project";
 import { getProjects, createProject, updateProject, deleteProject } from "@/lib/project-solo-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -16,6 +17,7 @@ const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 export default function SoloWorkPage() {
   const router = useRouter();
   const toast = useToast();
+  const permissions = useSystemPermissions("SOLO");
   const [projects, setProjects] = useState<SoloProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,6 +116,7 @@ export default function SoloWorkPage() {
         totalProjects={totalProjects}
         avgProgress={avgProgress}
         onOpenCreateModal={handleOpenCreateModal}
+        canAdd={permissions.canAdd}
       />
 
       {loadError && (
@@ -127,6 +130,8 @@ export default function SoloWorkPage() {
         onProjectClick={handleProjectClick}
         onEdit={handleOpenEditModal}
         onDelete={handleDelete}
+        canEdit={permissions.canEdit}
+        canDelete={permissions.canDelete}
       />
 
       <ProjectFormModal

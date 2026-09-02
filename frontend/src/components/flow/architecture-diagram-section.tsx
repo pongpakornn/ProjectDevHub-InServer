@@ -2,13 +2,18 @@
 
 import React, { useState } from "react";
 import { Layers, Plus, X } from "lucide-react";
+import { Dropdown } from "@/components/ui/inputs/dropdown";
 import { FlowTechLayer, FlowTechStackTag } from "@/types/flow";
 import { createTechStack, deleteTechStack } from "@/lib/flow-api";
+import { useTechStackPicker } from "@/hooks/use-tech-stack-picker";
 
 interface ArchitectureDiagramSectionProps {
   flowDefinitionId: number;
   techStacks: FlowTechStackTag[];
   setTechStacks: React.Dispatch<React.SetStateAction<FlowTechStackTag[]>>;
+  currentUserId: number;
+  canAdd?: boolean;
+  canDelete?: boolean;
 }
 
 const layers: { key: FlowTechLayer; label: string }[] = [
@@ -21,6 +26,9 @@ export default function ArchitectureDiagramSection({
   flowDefinitionId,
   techStacks,
   setTechStacks,
+  currentUserId,
+  canAdd = true,
+  canDelete = true,
 }: ArchitectureDiagramSectionProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
@@ -39,6 +47,9 @@ export default function ArchitectureDiagramSection({
             tags={techStacks.filter((t) => t.layer === l.key)}
             techStacks={techStacks}
             setTechStacks={setTechStacks}
+            currentUserId={currentUserId}
+            canAdd={canAdd}
+            canDelete={canDelete}
           />
         ))}
       </div>
@@ -53,6 +64,9 @@ function ArchColumn({
   tags,
   techStacks,
   setTechStacks,
+  currentUserId,
+  canAdd = true,
+  canDelete = true,
 }: {
   flowDefinitionId: number;
   label: string;
@@ -60,17 +74,22 @@ function ArchColumn({
   tags: FlowTechStackTag[];
   techStacks: FlowTechStackTag[];
   setTechStacks: React.Dispatch<React.SetStateAction<FlowTechStackTag[]>>;
+  currentUserId: number;
+  canAdd?: boolean;
+  canDelete?: boolean;
 }) {
-  const [newName, setNewName] = useState("");
+  // Type -> Name Cascading Picker เดียวกับหน้า Solo/Team (ดู hooks/use-tech-stack-picker.ts)
+  // Layer ของรายการนี้กำหนดจากคอลัมน์อยู่แล้ว จึงไม่ต้องมี Layer Dropdown ซ้ำในนี้
+  const picker = useTechStackPicker();
   const [isSaving, setIsSaving] = useState(false);
 
   const handleAdd = async () => {
-    if (!newName.trim() || isSaving) return;
+    if (!picker.selectedName || isSaving) return;
     setIsSaving(true);
     try {
-      const created = await createTechStack(flowDefinitionId, layer, newName.trim());
+      const created = await createTechStack(flowDefinitionId, layer, picker.selectedName, currentUserId);
       setTechStacks([...techStacks, created]);
-      setNewName("");
+      picker.setSelectedName("");
     } catch (err) {
       console.error("เพิ่ม Tech Stack ไม่สำเร็จ", err);
       alert("เพิ่ม Tech Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -83,7 +102,7 @@ function ArchColumn({
     const prev = techStacks;
     setTechStacks(techStacks.filter((t) => t.id !== id));
     try {
-      await deleteTechStack(Number(id));
+      await deleteTechStack(Number(id), currentUserId);
     } catch (err) {
       console.error("ลบ Tech Stack ไม่สำเร็จ", err);
       alert("ลบ Tech Stack ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -102,36 +121,53 @@ function ArchColumn({
               className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 rounded-md text-slate-700 font-semibold text-[11px]"
             >
               {tag.name}
-              <button
-                type="button"
-                onClick={() => handleDelete(tag.id)}
-                className="text-slate-400 hover:text-rose-500"
-              >
-                <X className="w-3 h-3" />
-              </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(tag.id)}
+                  className="text-slate-400 hover:text-rose-500"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </span>
           ))
         ) : (
           <span className="text-[11px] text-slate-300 font-medium">ยังไม่ระบุ</span>
         )}
       </div>
-      <div className="flex gap-1.5 pt-1">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="เพิ่มรายการ..."
-          className="flex-1 min-w-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!newName.trim() || isSaving}
-          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-md p-1.5 shrink-0"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
-      </div>
+
+      {canAdd && (
+        <div className="space-y-1.5 pt-1">
+          <Dropdown
+            options={picker.typeOptions}
+            value={picker.selectedTypeId != null ? String(picker.selectedTypeId) : ""}
+            onChange={picker.handleTypeChange}
+            placeholder="ประเภท..."
+            className="[&_button]:py-1.5 [&_button]:text-[11px]"
+          />
+          <div className="flex gap-1.5">
+            <Dropdown
+              options={picker.nameOptions}
+              value={picker.selectedName}
+              onChange={picker.setSelectedName}
+              disabled={picker.isNameDisabled}
+              placeholder={
+                picker.isNameDisabled ? "เลือกประเภทก่อน" : picker.isLoadingNames ? "กำลังโหลด..." : "ชื่อ..."
+              }
+              className="flex-1 min-w-0 [&_button]:py-1.5 [&_button]:text-[11px]"
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!picker.selectedName || isSaving}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-md p-1.5 shrink-0 self-start cursor-pointer"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

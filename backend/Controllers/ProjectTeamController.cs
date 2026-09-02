@@ -1,4 +1,5 @@
 // backend/Controllers/ProjectTeamController.cs
+using backend.Authorization;
 using backend.DTOs;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,7 @@ namespace backend.Controllers
         // Project
         // ===========================================================================
         [HttpGet]
+        [RequirePermission("TEAM", PermissionAction.View)]
         public async Task<IActionResult> GetProjects([FromQuery] int userId)
         {
             try
@@ -40,6 +42,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("{projectId:int}")]
+        [RequirePermission("TEAM", PermissionAction.View)]
         public async Task<IActionResult> GetProjectDetail(int projectId, [FromQuery] int userId)
         {
             try
@@ -56,6 +59,7 @@ namespace backend.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("TEAM", PermissionAction.Add)]
         public async Task<IActionResult> CreateProject([FromBody] CreateTeamProjectRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -73,6 +77,7 @@ namespace backend.Controllers
         }
 
         [HttpPut]
+        [RequirePermission("TEAM", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateProject([FromBody] UpdateTeamProjectRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -91,6 +96,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{projectId:int}")]
+        [RequirePermission("TEAM", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteProject(int projectId, [FromQuery] int userId)
         {
             try
@@ -110,11 +116,12 @@ namespace backend.Controllers
         // ProjectMembers — GET/POST /api/ProjectTeam/{id}/members, DELETE .../members/{userId}
         // ===========================================================================
         [HttpGet("{id:int}/members")]
-        public async Task<IActionResult> GetMembers(int id)
+        [RequirePermission("TEAM", PermissionAction.View)]
+        public async Task<IActionResult> GetMembers(int id, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectTeamService.GetMembersAsync(id);
+                var result = await _projectTeamService.GetMembersAsync(id, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
@@ -126,13 +133,14 @@ namespace backend.Controllers
         }
 
         [HttpPost("{id:int}/members")]
-        public async Task<IActionResult> AddMember(int id, [FromBody] AddProjectMemberRequest request)
+        [RequirePermission("TEAM", PermissionAction.Add)]
+        public async Task<IActionResult> AddMember(int id, [FromBody] AddProjectMemberRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.AddMemberAsync(id, request);
+                var result = await _projectTeamService.AddMemberAsync(id, request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
@@ -144,11 +152,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{id:int}/members/{userId:int}")]
-        public async Task<IActionResult> RemoveMember(int id, int userId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> RemoveMember(int id, int userId, [FromQuery(Name = "userId")] int currentUserId)
         {
             try
             {
-                var success = await _projectTeamService.RemoveMemberAsync(id, userId);
+                var success = await _projectTeamService.RemoveMemberAsync(id, userId, currentUserId);
                 if (!success) return NotFound(new { message = "ไม่พบสมาชิกคนนี้ในโปรเจกต์" });
                 return NoContent();
             }
@@ -163,13 +172,15 @@ namespace backend.Controllers
         // Phase (Milestone)
         // ===========================================================================
         [HttpPost("phases")]
-        public async Task<IActionResult> CreatePhase([FromBody] CreatePhaseRequest request)
+        [RequirePermission("TEAM", PermissionAction.Add)]
+        public async Task<IActionResult> CreatePhase([FromBody] CreatePhaseRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.CreatePhaseAsync(request);
+                var result = await _projectTeamService.CreatePhaseAsync(request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
             catch (Exception ex)
@@ -180,13 +191,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("phases")]
-        public async Task<IActionResult> UpdatePhase([FromBody] UpdatePhaseRequest request)
+        [RequirePermission("TEAM", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdatePhase([FromBody] UpdatePhaseRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.UpdatePhaseAsync(request);
+                var result = await _projectTeamService.UpdatePhaseAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Phase นี้" });
                 return Ok(result);
             }
@@ -198,11 +210,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("phases/{milestoneId:int}")]
-        public async Task<IActionResult> DeletePhase(int milestoneId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeletePhase(int milestoneId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeletePhaseAsync(milestoneId);
+                var success = await _projectTeamService.DeletePhaseAsync(milestoneId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Phase นี้" });
                 return NoContent();
             }
@@ -214,11 +227,12 @@ namespace backend.Controllers
         }
 
         [HttpPost("{projectId:int}/phases/auto-generate")]
-        public async Task<IActionResult> AutoGeneratePhases(int projectId)
+        [RequirePermission("TEAM", PermissionAction.Add)]
+        public async Task<IActionResult> AutoGeneratePhases(int projectId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectTeamService.AutoGeneratePhasesAsync(projectId);
+                var result = await _projectTeamService.AutoGeneratePhasesAsync(projectId, userId);
                 return Ok(result);
             }
             catch (InvalidOperationException ex)
@@ -236,6 +250,7 @@ namespace backend.Controllers
         // TaskItem (Task) + TaskAssignees
         // ===========================================================================
         [HttpPost("tasks")]
+        [RequirePermission("TEAM", PermissionAction.Add)]
         public async Task<IActionResult> CreateTaskItem([FromBody] CreateTaskItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -253,13 +268,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("tasks")]
-        public async Task<IActionResult> UpdateTaskItem([FromBody] UpdateTaskItemRequest request)
+        [RequirePermission("TEAM", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdateTaskItem([FromBody] UpdateTaskItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.UpdateTaskItemAsync(request);
+                var result = await _projectTeamService.UpdateTaskItemAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Task นี้" });
                 return Ok(result);
             }
@@ -271,11 +287,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("tasks/{taskId:int}")]
-        public async Task<IActionResult> DeleteTaskItem(int taskId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteTaskItem(int taskId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeleteTaskItemAsync(taskId);
+                var success = await _projectTeamService.DeleteTaskItemAsync(taskId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Task นี้" });
                 return NoContent();
             }
@@ -287,11 +304,12 @@ namespace backend.Controllers
         }
 
         [HttpPost("{id:int}/tasks/{taskId:int}/assignees")]
-        public async Task<IActionResult> AssignTaskAssignees(int id, int taskId, [FromBody] AssignTaskAssigneesRequest request)
+        [RequirePermission("TEAM", PermissionAction.Edit)]
+        public async Task<IActionResult> AssignTaskAssignees(int id, int taskId, [FromBody] AssignTaskAssigneesRequest request, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectTeamService.AssignTaskAssigneesAsync(taskId, request);
+                var result = await _projectTeamService.AssignTaskAssigneesAsync(taskId, request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Task นี้" });
                 return Ok(result);
             }
@@ -306,13 +324,15 @@ namespace backend.Controllers
         // StackItem (TechStack)
         // ===========================================================================
         [HttpPost("stacks")]
-        public async Task<IActionResult> CreateStackItem([FromBody] CreateStackItemRequest request)
+        [RequirePermission("TEAM", PermissionAction.Add)]
+        public async Task<IActionResult> CreateStackItem([FromBody] CreateStackItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.CreateStackItemAsync(request);
+                var result = await _projectTeamService.CreateStackItemAsync(request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
             catch (Exception ex)
@@ -323,11 +343,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("stacks/{techStackId:int}")]
-        public async Task<IActionResult> DeleteStackItem(int techStackId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteStackItem(int techStackId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeleteStackItemAsync(techStackId);
+                var success = await _projectTeamService.DeleteStackItemAsync(techStackId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Tech Stack นี้" });
                 return NoContent();
             }
@@ -342,6 +363,7 @@ namespace backend.Controllers
         // WorkItem (ShowcaseItem)
         // ===========================================================================
         [HttpPost("showcases")]
+        [RequirePermission("TEAM", PermissionAction.Add)]
         public async Task<IActionResult> CreateWorkItem([FromBody] CreateWorkItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -359,13 +381,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("showcases")]
-        public async Task<IActionResult> UpdateWorkItem([FromBody] UpdateWorkItemRequest request)
+        [RequirePermission("TEAM", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdateWorkItem([FromBody] UpdateWorkItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectTeamService.UpdateWorkItemAsync(request);
+                var result = await _projectTeamService.UpdateWorkItemAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Showcase Item นี้" });
                 return Ok(result);
             }
@@ -377,11 +400,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("showcases/{showcaseItemId:int}")]
-        public async Task<IActionResult> DeleteWorkItem(int showcaseItemId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteWorkItem(int showcaseItemId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeleteWorkItemAsync(showcaseItemId);
+                var success = await _projectTeamService.DeleteWorkItemAsync(showcaseItemId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Showcase Item นี้" });
                 return NoContent();
             }
@@ -396,11 +420,12 @@ namespace backend.Controllers
         // Comments — GET/POST /api/ProjectTeam/{id}/comments, DELETE /api/ProjectTeam/comments/{commentId}
         // ===========================================================================
         [HttpGet("{id:int}/comments")]
-        public async Task<IActionResult> GetComments(int id, [FromQuery] int? taskId)
+        [RequirePermission("TEAM", PermissionAction.View)]
+        public async Task<IActionResult> GetComments(int id, [FromQuery] int? taskId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectTeamService.GetCommentsAsync(id, taskId);
+                var result = await _projectTeamService.GetCommentsAsync(id, taskId, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
@@ -412,6 +437,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("{id:int}/comments")]
+        [RequirePermission("TEAM", PermissionAction.Add)]
         public async Task<IActionResult> AddComment(int id, [FromBody] CreateCommentRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -430,11 +456,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("comments/{commentId:long}")]
-        public async Task<IActionResult> DeleteComment(long commentId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteComment(long commentId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeleteCommentAsync(commentId);
+                var success = await _projectTeamService.DeleteCommentAsync(commentId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบความคิดเห็นนี้" });
                 return NoContent();
             }
@@ -449,11 +476,12 @@ namespace backend.Controllers
         // Attachments — GET/POST /api/ProjectTeam/{id}/attachments, DELETE /api/ProjectTeam/attachments/{attachmentId}
         // ===========================================================================
         [HttpGet("{id:int}/attachments")]
-        public async Task<IActionResult> GetAttachments(int id, [FromQuery] int? taskId)
+        [RequirePermission("TEAM", PermissionAction.View)]
+        public async Task<IActionResult> GetAttachments(int id, [FromQuery] int? taskId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectTeamService.GetAttachmentsAsync(id, taskId);
+                var result = await _projectTeamService.GetAttachmentsAsync(id, taskId, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
@@ -465,6 +493,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("{id:int}/attachments")]
+        [RequirePermission("TEAM", PermissionAction.Add)]
         public async Task<IActionResult> AddAttachment(int id, [FromBody] CreateAttachmentRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -483,11 +512,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("attachments/{attachmentId:long}")]
-        public async Task<IActionResult> DeleteAttachment(long attachmentId)
+        [RequirePermission("TEAM", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteAttachment(long attachmentId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectTeamService.DeleteAttachmentAsync(attachmentId);
+                var success = await _projectTeamService.DeleteAttachmentAsync(attachmentId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบไฟล์แนบนี้" });
                 return NoContent();
             }

@@ -1,4 +1,5 @@
 // backend/Controllers/ProjectSoloController.cs
+using backend.Authorization;
 using backend.DTOs;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -70,12 +71,13 @@ namespace backend.Controllers
             }
         }
 
+        // typeId ไม่ใส่มา = ได้เฉพาะ TYPE/LAYER (ยังไม่มี NAME ให้เลือก จนกว่าจะระบุ Type)
         [HttpGet("techstack-catalog")]
-        public async Task<IActionResult> GetTechStackCatalog()
+        public async Task<IActionResult> GetTechStackCatalog([FromQuery] int? typeId)
         {
             try
             {
-                var result = await _projectSoloService.GetTechStackCatalogAsync();
+                var result = await _projectSoloService.GetTechStackCatalogAsync(typeId);
                 return Ok(result);
             }
             catch (Exception ex)
@@ -89,6 +91,7 @@ namespace backend.Controllers
         // Project
         // ===========================================================================
         [HttpGet]
+        [RequirePermission("SOLO", PermissionAction.View)]
         public async Task<IActionResult> GetProjects([FromQuery] int userId)
         {
             try
@@ -104,6 +107,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("{projectId:int}")]
+        [RequirePermission("SOLO", PermissionAction.View)]
         public async Task<IActionResult> GetProjectDetail(int projectId, [FromQuery] int userId)
         {
             try
@@ -120,6 +124,7 @@ namespace backend.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("SOLO", PermissionAction.Add)]
         public async Task<IActionResult> CreateProject([FromBody] CreateSoloProjectRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -137,6 +142,7 @@ namespace backend.Controllers
         }
 
         [HttpPut]
+        [RequirePermission("SOLO", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateProject([FromBody] UpdateSoloProjectRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -155,6 +161,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{projectId:int}")]
+        [RequirePermission("SOLO", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteProject(int projectId, [FromQuery] int userId)
         {
             try
@@ -174,13 +181,15 @@ namespace backend.Controllers
         // Phase (Milestone)
         // ===========================================================================
         [HttpPost("phases")]
-        public async Task<IActionResult> CreatePhase([FromBody] CreatePhaseRequest request)
+        [RequirePermission("SOLO", PermissionAction.Add)]
+        public async Task<IActionResult> CreatePhase([FromBody] CreatePhaseRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectSoloService.CreatePhaseAsync(request);
+                var result = await _projectSoloService.CreatePhaseAsync(request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
             catch (Exception ex)
@@ -191,13 +200,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("phases")]
-        public async Task<IActionResult> UpdatePhase([FromBody] UpdatePhaseRequest request)
+        [RequirePermission("SOLO", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdatePhase([FromBody] UpdatePhaseRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectSoloService.UpdatePhaseAsync(request);
+                var result = await _projectSoloService.UpdatePhaseAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Phase นี้" });
                 return Ok(result);
             }
@@ -209,11 +219,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("phases/{milestoneId:int}")]
-        public async Task<IActionResult> DeletePhase(int milestoneId)
+        [RequirePermission("SOLO", PermissionAction.Delete)]
+        public async Task<IActionResult> DeletePhase(int milestoneId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectSoloService.DeletePhaseAsync(milestoneId);
+                var success = await _projectSoloService.DeletePhaseAsync(milestoneId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Phase นี้" });
                 return NoContent();
             }
@@ -225,11 +236,12 @@ namespace backend.Controllers
         }
 
         [HttpPost("{projectId:int}/phases/auto-generate")]
-        public async Task<IActionResult> AutoGeneratePhases(int projectId)
+        [RequirePermission("SOLO", PermissionAction.Add)]
+        public async Task<IActionResult> AutoGeneratePhases(int projectId, [FromQuery] int userId)
         {
             try
             {
-                var result = await _projectSoloService.AutoGeneratePhasesAsync(projectId);
+                var result = await _projectSoloService.AutoGeneratePhasesAsync(projectId, userId);
                 return Ok(result);
             }
             catch (InvalidOperationException ex)
@@ -247,6 +259,7 @@ namespace backend.Controllers
         // TaskItem (Task)
         // ===========================================================================
         [HttpPost("tasks")]
+        [RequirePermission("SOLO", PermissionAction.Add)]
         public async Task<IActionResult> CreateTaskItem([FromBody] CreateTaskItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -264,13 +277,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("tasks")]
-        public async Task<IActionResult> UpdateTaskItem([FromBody] UpdateTaskItemRequest request)
+        [RequirePermission("SOLO", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdateTaskItem([FromBody] UpdateTaskItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectSoloService.UpdateTaskItemAsync(request);
+                var result = await _projectSoloService.UpdateTaskItemAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Task นี้" });
                 return Ok(result);
             }
@@ -282,11 +296,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("tasks/{taskId:int}")]
-        public async Task<IActionResult> DeleteTaskItem(int taskId)
+        [RequirePermission("SOLO", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteTaskItem(int taskId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectSoloService.DeleteTaskItemAsync(taskId);
+                var success = await _projectSoloService.DeleteTaskItemAsync(taskId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Task นี้" });
                 return NoContent();
             }
@@ -301,13 +316,15 @@ namespace backend.Controllers
         // StackItem (TechStack)
         // ===========================================================================
         [HttpPost("stacks")]
-        public async Task<IActionResult> CreateStackItem([FromBody] CreateStackItemRequest request)
+        [RequirePermission("SOLO", PermissionAction.Add)]
+        public async Task<IActionResult> CreateStackItem([FromBody] CreateStackItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectSoloService.CreateStackItemAsync(request);
+                var result = await _projectSoloService.CreateStackItemAsync(request, userId);
+                if (result == null) return NotFound(new { message = "ไม่พบโปรเจกต์นี้" });
                 return Ok(result);
             }
             catch (Exception ex)
@@ -318,11 +335,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("stacks/{techStackId:int}")]
-        public async Task<IActionResult> DeleteStackItem(int techStackId)
+        [RequirePermission("SOLO", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteStackItem(int techStackId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectSoloService.DeleteStackItemAsync(techStackId);
+                var success = await _projectSoloService.DeleteStackItemAsync(techStackId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Tech Stack นี้" });
                 return NoContent();
             }
@@ -337,6 +355,7 @@ namespace backend.Controllers
         // WorkItem (ShowcaseItem)
         // ===========================================================================
         [HttpPost("showcases")]
+        [RequirePermission("SOLO", PermissionAction.Add)]
         public async Task<IActionResult> CreateWorkItem([FromBody] CreateWorkItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -354,13 +373,14 @@ namespace backend.Controllers
         }
 
         [HttpPut("showcases")]
-        public async Task<IActionResult> UpdateWorkItem([FromBody] UpdateWorkItemRequest request)
+        [RequirePermission("SOLO", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdateWorkItem([FromBody] UpdateWorkItemRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             try
             {
-                var result = await _projectSoloService.UpdateWorkItemAsync(request);
+                var result = await _projectSoloService.UpdateWorkItemAsync(request, userId);
                 if (result == null) return NotFound(new { message = "ไม่พบ Showcase Item นี้" });
                 return Ok(result);
             }
@@ -372,11 +392,12 @@ namespace backend.Controllers
         }
 
         [HttpDelete("showcases/{showcaseItemId:int}")]
-        public async Task<IActionResult> DeleteWorkItem(int showcaseItemId)
+        [RequirePermission("SOLO", PermissionAction.Delete)]
+        public async Task<IActionResult> DeleteWorkItem(int showcaseItemId, [FromQuery] int userId)
         {
             try
             {
-                var success = await _projectSoloService.DeleteWorkItemAsync(showcaseItemId);
+                var success = await _projectSoloService.DeleteWorkItemAsync(showcaseItemId, userId);
                 if (!success) return NotFound(new { message = "ไม่พบ Showcase Item นี้" });
                 return NoContent();
             }

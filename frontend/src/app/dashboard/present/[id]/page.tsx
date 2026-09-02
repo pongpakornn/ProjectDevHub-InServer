@@ -16,6 +16,7 @@ import * as soloApi from "@/lib/project-solo-api";
 import * as teamApi from "@/lib/project-team-api";
 import { useToast } from "@/lib/toast-context";
 import { getStoredUser } from "@/lib/session";
+import { useSystemPermissions } from "@/hooks/use-system-permissions";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
@@ -34,6 +35,9 @@ export default function PresentProjectDetailPage() {
   const projectId = Number(params?.id);
   const routeType = searchParams.get("type") === "team" ? "team" : "solo";
   const api = routeType === "team" ? teamApi : soloApi;
+  // ปุ่ม Add/Edit/Delete ของ Showcase Item ในหน้านี้เรียก API ของ Solo/Team อยู่เบื้องหลัง (ตาม routeType)
+  // จึงต้องอิงสิทธิ์ตามระบบต้นทางนั้นเสมอ ไม่ใช่ระบบ PRESENT ที่คุมแค่การมองเห็นเมนู/หน้านี้
+  const permissions = useSystemPermissions(routeType === "team" ? "TEAM" : "SOLO");
 
   const [projectInfo, setProjectInfo] = useState<ProjectHeaderInfo | null>(null);
   const [items, setItems] = useState<WorkItem[]>([]);
@@ -155,7 +159,7 @@ export default function PresentProjectDetailPage() {
           description,
           flowDescription: items.find((it) => it.id === editingId)?.flowDescription || "",
           imageUrl: finalImageUrl,
-        });
+        }, CURRENT_USER_ID);
       } else {
         await api.createWorkItem(
           projectId,
@@ -184,7 +188,7 @@ export default function PresentProjectDetailPage() {
       return next;
     });
     try {
-      await api.deleteWorkItem(Number(id));
+      await api.deleteWorkItem(Number(id), CURRENT_USER_ID);
       toast.info("ลบรายการสำเร็จ", "ลบรายการนำเสนอออกจากระบบเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
@@ -222,6 +226,7 @@ export default function PresentProjectDetailPage() {
       <PresentHeader
         project={projectInfo}
         itemCount={items.length}
+        canAdd={permissions.canAdd}
         onOpenAddModal={() => {
           setEditingId(null);
           setTitle("");
@@ -253,6 +258,8 @@ export default function PresentProjectDetailPage() {
               onOpenLightbox={openLightbox}
               onEdit={openEditModal}
               onDelete={handleDeleteItem}
+              canEdit={permissions.canEdit}
+              canDelete={permissions.canDelete}
             />
           ))}
         </div>

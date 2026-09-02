@@ -15,6 +15,7 @@ interface PresentHeaderProps {
   project: PresentHeaderProject;
   itemCount: number;
   onOpenAddModal: () => void;
+  canAdd?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -31,7 +32,7 @@ const statusBadgeClass = (status: string) => {
   return "bg-slate-100 text-slate-600 border-slate-200";
 };
 
-export function PresentHeader({ project, itemCount, onOpenAddModal }: PresentHeaderProps) {
+export function PresentHeader({ project, itemCount, onOpenAddModal, canAdd = true }: PresentHeaderProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#0f172a] via-[#1e1b4b] to-[#311042] border border-slate-800/80 p-6 shadow-xl">
       <div className="absolute -top-20 -right-20 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -52,15 +53,17 @@ export function PresentHeader({ project, itemCount, onOpenAddModal }: PresentHea
           </div>
         </div>
 
-        <div className="w-full sm:w-auto shrink-0">
-          <Button
-            onClick={onOpenAddModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium px-4 py-2 rounded-xl transition-all shadow-md hover:shadow-indigo-500/25 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            เพิ่มรูป / รายละเอียด
-          </Button>
-        </div>
+        {canAdd && (
+          <div className="w-full sm:w-auto shrink-0">
+            <Button
+              onClick={onOpenAddModal}
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium px-4 py-2 rounded-xl transition-all shadow-md hover:shadow-indigo-500/25 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              เพิ่มรูป / รายละเอียด
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

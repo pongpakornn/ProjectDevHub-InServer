@@ -7,12 +7,14 @@ interface TestingHeaderBannerProps {
   passRate: number;
   totalRuns: number;
   onOpenCreateModal: () => void;
+  canAdd?: boolean;
 }
 
 export default function TestingHeaderBanner({
   passRate,
   totalRuns,
   onOpenCreateModal,
+  canAdd = true,
 }: TestingHeaderBannerProps) {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f1123] via-[#161936] to-[#201c47] p-6 sm:p-8 text-white shadow-xl border border-indigo-900/40">
@@ -62,13 +64,15 @@ export default function TestingHeaderBanner({
             </div>
           </div>
 
-          <button
-            onClick={onOpenCreateModal}
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all active:scale-95 shrink-0 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            New Test Run
-          </button>
+          {canAdd && (
+            <button
+              onClick={onOpenCreateModal}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all active:scale-95 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              New Test Run
+            </button>
+          )}
         </div>
       </div>
     </div>

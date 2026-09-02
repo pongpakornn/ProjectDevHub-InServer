@@ -15,6 +15,8 @@ interface TestingTableReportProps {
   onView: (run: TestRunItem) => void;
   onEdit: (run: TestRunItem) => void;
   onDelete: (id: string | number) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export default function TestingTableReport({
@@ -25,6 +27,8 @@ export default function TestingTableReport({
   onView,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: TestingTableReportProps) {
   return (
     <div className="space-y-4">
@@ -117,8 +121,8 @@ export default function TestingTableReport({
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <ViewButton onClick={() => onView(run)} />
-                        <EditButton onClick={() => onEdit(run)} />
-                        <DeleteButton onClick={() => onDelete(run.id)} />
+                        {canEdit && <EditButton onClick={() => onEdit(run)} />}
+                        {canDelete && <DeleteButton onClick={() => onDelete(run.id)} />}
                       </div>
                     </td>
                   </tr>

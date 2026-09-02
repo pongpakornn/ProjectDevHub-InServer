@@ -1,4 +1,5 @@
 // backend/Controllers/FlowController.cs
+using backend.Authorization;
 using backend.DTOs;
 using backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,7 @@ namespace backend.Controllers
         // FlowDefinitions
         // ===========================================================================
         [HttpGet]
+        [RequirePermission("FLOW", PermissionAction.View)]
         public async Task<IActionResult> GetFlows([FromQuery] int userId)
         {
             try
@@ -39,6 +41,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("{flowDefinitionId:int}")]
+        [RequirePermission("FLOW", PermissionAction.View)]
         public async Task<IActionResult> GetFlowDetail(int flowDefinitionId, [FromQuery] int userId)
         {
             try
@@ -55,6 +58,7 @@ namespace backend.Controllers
         }
 
         [HttpPost]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> CreateFlow([FromBody] CreateFlowDefinitionRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -72,6 +76,7 @@ namespace backend.Controllers
         }
 
         [HttpPut]
+        [RequirePermission("FLOW", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateFlow([FromBody] UpdateFlowDefinitionRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -90,6 +95,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("{flowDefinitionId:int}")]
+        [RequirePermission("FLOW", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteFlow(int flowDefinitionId)
         {
             try
@@ -109,6 +115,7 @@ namespace backend.Controllers
         // FlowSteps
         // ===========================================================================
         [HttpPost("steps")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> CreateStep([FromBody] CreateFlowStepRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -127,6 +134,7 @@ namespace backend.Controllers
         }
 
         [HttpPut("steps")]
+        [RequirePermission("FLOW", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateStep([FromBody] UpdateFlowStepRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -145,6 +153,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("steps/{flowStepId:int}")]
+        [RequirePermission("FLOW", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteStep(int flowStepId)
         {
             try
@@ -161,6 +170,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("{flowDefinitionId:int}/steps/auto-generate")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> AutoGenerateSteps(int flowDefinitionId)
         {
             try
@@ -183,6 +193,7 @@ namespace backend.Controllers
         // FlowTechStacks
         // ===========================================================================
         [HttpPost("{flowDefinitionId:int}/techstacks/auto-generate")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> AutoGenerateTechStacks(int flowDefinitionId)
         {
             try
@@ -202,6 +213,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("techstacks")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> CreateTechStack([FromBody] CreateFlowTechStackRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -220,6 +232,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("techstacks/{flowTechStackId:int}")]
+        [RequirePermission("FLOW", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteTechStack(int flowTechStackId)
         {
             try
@@ -255,6 +268,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("{flowDefinitionId:int}/executions")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> CreateExecution(int flowDefinitionId, [FromBody] CreateFlowExecutionRequest request, [FromQuery] int userId)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -273,6 +287,7 @@ namespace backend.Controllers
         }
 
         [HttpPut("executions/{flowExecutionId:int}")]
+        [RequirePermission("FLOW", PermissionAction.Edit)]
         public async Task<IActionResult> UpdateExecution(int flowExecutionId, [FromBody] UpdateFlowExecutionRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -291,6 +306,7 @@ namespace backend.Controllers
         }
 
         [HttpDelete("executions/{flowExecutionId:int}")]
+        [RequirePermission("FLOW", PermissionAction.Delete)]
         public async Task<IActionResult> DeleteExecution(int flowExecutionId)
         {
             try
@@ -310,6 +326,7 @@ namespace backend.Controllers
         // FlowLogs
         // ===========================================================================
         [HttpPost("executions/{flowExecutionId:int}/logs")]
+        [RequirePermission("FLOW", PermissionAction.Add)]
         public async Task<IActionResult> AddLog(int flowExecutionId, [FromBody] CreateFlowLogRequest request)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);

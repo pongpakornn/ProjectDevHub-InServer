@@ -9,6 +9,8 @@ interface SoloProjectTableProps {
   onProjectClick: (id: number) => void;
   onEdit: (project: SoloProject) => void;
   onDelete: (id: number) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
 export default function SoloProjectTable({
@@ -16,6 +18,8 @@ export default function SoloProjectTable({
   onProjectClick,
   onEdit,
   onDelete,
+  canEdit = true,
+  canDelete = true,
 }: SoloProjectTableProps) {
   return (
     <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden p-4 sm:p-6">
@@ -44,6 +48,8 @@ export default function SoloProjectTable({
                   onProjectClick={onProjectClick}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  canEdit={canEdit}
+                  canDelete={canDelete}
                 />
               ))}
             </tbody>

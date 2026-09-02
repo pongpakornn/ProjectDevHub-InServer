@@ -11,6 +11,8 @@ interface TeamProjectMembersPanelProps {
   ownerId: number;
   onAddMember: (userId: number) => void;
   onRemoveMember: (userId: number) => void;
+  canAdd?: boolean;
+  canDelete?: boolean;
 }
 
 export default function TeamProjectMembersPanel({
@@ -18,6 +20,8 @@ export default function TeamProjectMembersPanel({
   ownerId,
   onAddMember,
   onRemoveMember,
+  canAdd = true,
+  canDelete = true,
 }: TeamProjectMembersPanelProps) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -52,26 +56,28 @@ export default function TeamProjectMembersPanel({
         สมาชิกทีม ({members.length})
       </h3>
 
-      <div className="flex flex-col sm:flex-row gap-2 items-end">
-        <div className="flex-1 w-full">
-          <SearchableSelect
-            label="เพิ่มสมาชิกจากรายชื่อ User ในระบบ"
-            options={candidateOptions}
-            value={selectedUserId}
-            onChange={setSelectedUserId}
-            placeholder="ค้นหาชื่อผู้ใช้..."
-          />
+      {canAdd && (
+        <div className="flex flex-col sm:flex-row gap-2 items-end">
+          <div className="flex-1 w-full">
+            <SearchableSelect
+              label="เพิ่มสมาชิกจากรายชื่อ User ในระบบ"
+              options={candidateOptions}
+              value={selectedUserId}
+              onChange={setSelectedUserId}
+              placeholder="ค้นหาชื่อผู้ใช้..."
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!selectedUserId || isAdding}
+            className="w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] normal-case text-xs font-bold px-4 py-2 h-[38px] rounded-lg flex items-center gap-1.5 shrink-0"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            {isAdding ? "กำลังเพิ่ม..." : "เพิ่มสมาชิก"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!selectedUserId || isAdding}
-          className="w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] normal-case text-xs font-bold px-4 py-2 h-[38px] rounded-lg flex items-center gap-1.5 shrink-0"
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          {isAdding ? "กำลังเพิ่ม..." : "เพิ่มสมาชิก"}
-        </button>
-      </div>
+      )}
 
       <div className="flex flex-wrap gap-2 pt-1">
         {members.length === 0 ? (
@@ -91,7 +97,7 @@ export default function TeamProjectMembersPanel({
                 {isOwner && <Crown className="w-3.5 h-3.5 text-amber-500" />}
                 {m.fullName}
                 <span className="text-[10px] font-mono font-semibold opacity-70">{m.roleInProject}</span>
-                {!isOwner && (
+                {!isOwner && canDelete && (
                   <button
                     type="button"
                     onClick={() => onRemoveMember(m.userId)}
