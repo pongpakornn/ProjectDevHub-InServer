@@ -601,7 +601,8 @@ INSERT INTO Core.SystemList (SystemId, SystemName, Description, IsActive) VALUES
     (N'TEAM',     N'Project Team Management',    N'ระบบบริหารจัดการโปรเจกต์ทีม', 1),
     (N'FLOW',     N'Project Flow Architecture',  N'ระบบออกแบบและติดตามผังการทำงานของโปรเจกต์', 1),
     (N'PRESENT',  N'สถานีนำเสนอผลงาน (Present Station)', N'ศูนย์รวม Showcase ผลงาน การสาธิตระบบ และ Media Lightbox Gallery', 1),
-    (N'TESTING',  N'Tester Automation',          N'ระบบบันทึกและติดตามผลการทดสอบอัตโนมัติของโปรเจกต์ (Solo/Team)', 1);
+    (N'TESTING',  N'Tester Automation',          N'ระบบบันทึกและติดตามผลการทดสอบอัตโนมัติของโปรเจกต์ (Solo/Team)', 1),
+    (N'VISITOR',  N'โหมดผู้เยี่ยมชม (Visitor Mode)', N'สำหรับผู้บริหาร/หัวหน้างานเข้าดูภาพรวมโปรเจกต์ของสมาชิกแต่ละคนแบบดูอย่างเดียว (View Only)', 1);
 GO
 
 -- Core.Users — Default Admin Account (ให้ Login เข้าใช้งานได้ทันทีหลัง Restore บนฐานข้อมูลเปล่า)

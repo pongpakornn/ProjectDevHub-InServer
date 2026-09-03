@@ -88,7 +88,7 @@ interface WorkItemDtoRaw {
   createdDate: string;
 }
 
-interface TeamProjectDetailDtoRaw {
+export interface TeamProjectDetailDtoRaw {
   project: TeamProjectDtoRaw;
   phases: TeamPhaseDtoRaw[];
   stacks: StackItemDtoRaw[];
@@ -117,7 +117,7 @@ interface AttachmentDtoRaw {
   uploadedDate: string;
 }
 
-function mapMember(raw: ProjectMemberDtoRaw): ProjectMember {
+export function mapMember(raw: ProjectMemberDtoRaw): ProjectMember {
   return {
     projectMemberId: raw.projectMemberId,
     userId: raw.userId,
@@ -128,7 +128,7 @@ function mapMember(raw: ProjectMemberDtoRaw): ProjectMember {
   };
 }
 
-function mapProject(raw: TeamProjectDtoRaw): TeamProject {
+export function mapProject(raw: TeamProjectDtoRaw): TeamProject {
   return {
     id: raw.projectId,
     projectCode: raw.projectCode,
@@ -175,7 +175,7 @@ function mapTaskItem(raw: TeamTaskItemDtoRaw): TaskItem {
   };
 }
 
-function mapPhase(raw: TeamPhaseDtoRaw): Phase {
+export function mapPhase(raw: TeamPhaseDtoRaw): Phase {
   return {
     id: String(raw.milestoneId),
     name: raw.milestoneName,
@@ -188,7 +188,7 @@ function mapPhase(raw: TeamPhaseDtoRaw): Phase {
   };
 }
 
-function mapStackItem(raw: StackItemDtoRaw): StackItem {
+export function mapStackItem(raw: StackItemDtoRaw): StackItem {
   return {
     id: String(raw.techStackId),
     type: raw.type,
@@ -230,7 +230,7 @@ function mapAttachment(raw: AttachmentDtoRaw): ProjectAttachment {
   };
 }
 
-function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
+export function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
   return {
     id: String(raw.showcaseItemId),
     title: raw.title,

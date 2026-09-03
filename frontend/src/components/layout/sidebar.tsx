@@ -15,6 +15,7 @@ import {
   Box,
   UserCheck,
   UserCircle,
+  Eye,
   X
 } from "lucide-react";
 import { getStoredUser, hasSystemPermission, isAdminOrAbove } from "@/lib/session";
@@ -39,6 +40,7 @@ const menuItems = [
   { name: "Tester Automation", href: "/dashboard/testing", icon: TestTube, systemId: "TESTING" },
   { name: "Flow Diagram", href: "/dashboard/flow", icon: GitFork, systemId: "FLOW" },
   { name: "Present Station", href: "/dashboard/present", icon: Tv, systemId: "PRESENT" },
+  { name: "Visitor Mode", href: "/dashboard/visitor", icon: Eye, systemId: "VISITOR" }, // 👈 โหมดผู้เยี่ยมชม — ดูภาพรวมโปรเจกต์ของสมาชิกแต่ละคนแบบดูอย่างเดียว
   { name: "3D Model Test", href: "/dashboard/test3d", icon: Box, adminOnly: true }, // 👈 เมนูทดสอบ 3D model viewer (หมุนได้ทุกแกน)
   { name: "User Management", href: "/dashboard/users", icon: UserCheck, adminOnly: true, systemId: "CORE" }, // 👈 เมนูจัดการสมาชิกและสิทธิ์การใช้งาน
 ];

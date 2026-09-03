@@ -68,14 +68,14 @@ interface WorkItemDtoRaw {
   createdDate: string;
 }
 
-interface SoloProjectDetailDtoRaw {
+export interface SoloProjectDetailDtoRaw {
   project: SoloProjectDtoRaw;
   phases: PhaseDtoRaw[];
   stacks: StackItemDtoRaw[];
   showcases: WorkItemDtoRaw[];
 }
 
-function mapProject(raw: SoloProjectDtoRaw): SoloProject {
+export function mapProject(raw: SoloProjectDtoRaw): SoloProject {
   return {
     id: raw.projectId,
     projectCode: raw.projectCode,
@@ -116,7 +116,7 @@ function mapTaskItem(raw: TaskItemDtoRaw): TaskItem {
   };
 }
 
-function mapPhase(raw: PhaseDtoRaw): Phase {
+export function mapPhase(raw: PhaseDtoRaw): Phase {
   return {
     id: String(raw.milestoneId),
     name: raw.milestoneName,
@@ -131,7 +131,7 @@ function mapPhase(raw: PhaseDtoRaw): Phase {
   };
 }
 
-function mapStackItem(raw: StackItemDtoRaw): StackItem {
+export function mapStackItem(raw: StackItemDtoRaw): StackItem {
   return {
     id: String(raw.techStackId),
     type: raw.type,
@@ -152,7 +152,7 @@ function toIsoDate(dateStr?: string | null): string | null {
   return dateStr; // เผื่อกรณีเป็น ISO อยู่แล้ว (เช่นตอน edit ไม่ได้แตะวันที่)
 }
 
-function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
+export function mapWorkItem(raw: WorkItemDtoRaw): WorkItem {
   return {
     id: String(raw.showcaseItemId),
     title: raw.title,

@@ -337,3 +337,10 @@ C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\.claude\wor
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\.claude\worktrees\projectdevhub-refactor\backend\obj\Debug\net10.0\backend.pdb
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\.claude\worktrees\projectdevhub-refactor\backend\obj\Debug\net10.0\backend.genruntimeconfig.cache
 C:\Users\pongp\Desktop\WorkMe\8 . Project FullStack\4. ProjectDevHub\.claude\worktrees\projectdevhub-refactor\backend\obj\Debug\net10.0\ref\backend.dll
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\appsettings.Development.json
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\appsettings.json
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\backend.staticwebassets.endpoints.json
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\backend.deps.json
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\backend.runtimeconfig.json
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\backend.dll
+C:\Users\pongp\AppData\Local\Temp\backend_buildcheck\backend.pdb
