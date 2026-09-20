@@ -549,6 +549,10 @@ namespace backend.Services
             return 1;
         }
 
+        // ความคืบหน้าของ Flow อ้างอิงจากโปรเจกต์ต้นทางเสมอ (Project.Projects.ProgressPercent ที่ Trigger
+        // Trg_UpdateProjectProgress คำนวณจาก Task จริงให้อัตโนมัติอยู่แล้ว — Pattern เดียวกับ Solo/Team)
+        // FlowDefinitions.ProgressPercent เดิมมาจาก FlowSteps ซึ่งไม่ได้ใช้แล้วหลังเปลี่ยนมาใช้ Workflow
+        // Diagram Studio จึงค้างอยู่ที่ 0 เสมอ ใช้ Fallback ค่านี้เฉพาะ Flow เก่าที่ไม่ได้ผูก Project (ProjectId เป็น NULL)
         private static FlowDefinitionDto MapToFlowDefinitionDto(FlowDefinitions f) => new()
         {
             FlowDefinitionId = f.FlowDefinitionId,
@@ -560,7 +564,7 @@ namespace backend.Services
             WorkType = f.WorkType,
             StartDate = f.StartDate,
             EndDate = f.EndDate,
-            ProgressPercent = f.ProgressPercent,
+            ProgressPercent = f.Project?.ProgressPercent ?? f.ProgressPercent,
             SystemType = f.SystemType,
             ModuleList = f.ModuleList,
             DfdLevel = f.DfdLevel,

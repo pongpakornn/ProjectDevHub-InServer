@@ -10,6 +10,7 @@ interface FlowDetailHeaderProps {
   startDate: string;
   endDate: string;
   workType: string;
+  progress: number;
   backHref?: string;
   backLabel?: string;
 }
@@ -26,6 +27,7 @@ export default function FlowDetailHeader({
   startDate,
   endDate,
   workType,
+  progress,
   backHref = "/dashboard/flow",
   backLabel = "กลับไปเลือกโปรเจค",
 }: FlowDetailHeaderProps) {
@@ -59,6 +61,20 @@ export default function FlowDetailHeader({
               </span>
               <span className="font-mono text-slate-400">{startDate} → {endDate}</span>
               <span className="text-slate-500">· {workType}</span>
+            </div>
+          </div>
+
+          {/* ความคืบหน้า — อ้างอิงค่าเดียวกับ Solo/Team (Project.ProgressPercent จาก Task จริง) */}
+          <div className="min-w-40 bg-slate-900/80 backdrop-blur-md p-4 rounded-xl border border-slate-800/80">
+            <div className="flex justify-between items-center text-xs mb-1.5">
+              <span className="text-slate-400 font-medium">ความคืบหน้ารวม</span>
+              <span className="text-indigo-400 font-bold font-mono">{progress}%</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+              <div
+                className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
         </div>

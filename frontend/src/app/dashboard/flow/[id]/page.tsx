@@ -62,6 +62,7 @@ export default function FlowProjectDetailPage() {
         startDate={flow.startDate}
         endDate={flow.endDate}
         workType={flow.workType}
+        progress={flow.progress}
       />
 
       <FlowDiagramStudio

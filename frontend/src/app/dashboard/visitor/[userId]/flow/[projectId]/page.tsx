@@ -65,6 +65,7 @@ export default function VisitorProjectFlowPage() {
         startDate={flow.startDate}
         endDate={flow.endDate}
         workType={flow.workType}
+        progress={flow.progress}
         backHref={`/dashboard/visitor/${targetUserId}`}
         backLabel="กลับไปดูโปรเจกต์"
       />

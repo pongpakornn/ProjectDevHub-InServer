@@ -75,7 +75,9 @@ export function PresentLightbox({
     if (!vp) return;
     const rect = vp.getBoundingClientRect();
     const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
-    zoomAt(Math.exp(-dy * 0.0018), e.clientX - rect.left, e.clientY - rect.top);
+    // เลื่อนขึ้น (deltaY ติดลบ) = ซูมเข้า (factor > 1) — เลื่อนลง (deltaY เป็นบวก) = ซูมออก (factor < 1)
+    const factor = Math.exp(-dy * 0.0018);
+    zoomAt(factor, e.clientX - rect.left, e.clientY - rect.top);
   };
 
   useEffect(() => {
@@ -119,7 +121,7 @@ export function PresentLightbox({
     <Portal>
     <div
       onClick={onClose}
-      className={`fixed inset-0 z-70 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-2 sm:p-6 transition-opacity duration-300 ease-out ${
+      className={`fixed inset-0 z-70 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 sm:p-10 transition-opacity duration-300 ease-out ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -133,7 +135,7 @@ export function PresentLightbox({
       {activeIndex > 0 && (
         <button
           onClick={onPrev}
-          className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors duration-300 z-20"
+          className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors duration-300 z-20"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -141,7 +143,7 @@ export function PresentLightbox({
       {activeIndex < totalItems - 1 && (
         <button
           onClick={onNext}
-          className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors duration-300 z-20"
+          className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors duration-300 z-20"
         >
           <ChevronRight className="w-5 h-5" />
         </button>
@@ -149,7 +151,7 @@ export function PresentLightbox({
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full h-full max-w-[96vw] max-h-[94vh] grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-3 transition-all duration-300 ease-out ${
+        className={`relative w-full h-full max-w-[85vw] max-h-[82vh] grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-3 transition-all duration-300 ease-out ${
           isVisible ? "opacity-100 scale-100" : "opacity-0 scale-95"
         } ${slideDirection === "right" ? "animate-slideInRight" : "animate-slideInLeft"}`}
       >

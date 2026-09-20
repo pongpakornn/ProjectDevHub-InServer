@@ -42,6 +42,19 @@ export default function FlowProjectCard({ project: p }: FlowProjectCardProps) {
         </span>
       </div>
 
+      {/* ความคืบหน้า — อ้างอิงค่าเดียวกับ Solo/Team (Project.ProgressPercent จาก Task จริง ไม่ใช่ Flow เอง) */}
+      <div className="flex items-center gap-2.5">
+        <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden border border-slate-200">
+          <div
+            className="bg-indigo-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(99,102,241,0.7)]"
+            style={{ width: `${p.progress}%` }}
+          />
+        </div>
+        <span className="text-indigo-600 font-mono font-extrabold text-[11px] shrink-0 w-8 text-right">
+          {p.progress}%
+        </span>
+      </div>
+
       <div className="flex items-center justify-between pt-1 border-t border-slate-100">
         <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
           {p.workType === "ทำคนเดียว" ? <User className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}

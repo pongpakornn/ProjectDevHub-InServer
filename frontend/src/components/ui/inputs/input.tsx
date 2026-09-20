@@ -4,27 +4,32 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   label: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, id, className = '', ...props }) => {
-  return (
-    <div className="relative my-2.5 w-full">
-      <input
-        id={id}
-        placeholder=" "
-        className={`peer w-full bg-transparent py-1.5 text-xs sm:text-sm text-white border-b border-gray-600 outline-none transition-colors duration-300 focus:border-transparent 
-        [&:-webkit-autofill]:shadow-[0_0_0_1000px_#2d2d2d_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white] ${className}`}
-        {...props}
-      />
-      
-      {/* Floating Label */}
-      <label
-        htmlFor={id}
-        className="absolute left-0 top-1.5 text-gray-400 text-xs tracking-wider pointer-events-none transition-all duration-300 ease-in-out peer-focus:-top-4 peer-focus:text-[10px] peer-focus:text-gray-300 peer-not-placeholder-shown:-top-4 peer-not-placeholder-shown:text-[10px] peer-not-placeholder-shown:text-gray-300 uppercase font-semibold"
-      >
-        {label}
-      </label>
-      
-      {/* Active Indicator Line */}
-      <div className="absolute bottom-0 left-0 h-0.5 w-full bg-white scale-x-0 transition-transform duration-300 ease-in-out origin-center peer-focus:scale-x-100" />
-    </div>
-  );
-};
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ label, id, className = '', ...props }, ref) => {
+    return (
+      <div className="relative my-2.5 w-full">
+        <input
+          ref={ref}
+          id={id}
+          placeholder=" "
+          className={`peer w-full bg-transparent py-1.5 text-xs sm:text-sm text-white border-b border-gray-600 outline-none transition-colors duration-300 focus:border-transparent
+          [&:-webkit-autofill]:[-webkit-text-fill-color:white] [&:-webkit-autofill]:[caret-color:white] [&:-webkit-autofill]:[transition:background-color_9999s_ease-in-out_0s] ${className}`}
+          {...props}
+        />
+
+        {/* Floating Label */}
+        <label
+          htmlFor={id}
+          className="absolute left-0 top-1.5 text-gray-400 text-xs tracking-wider pointer-events-none transition-all duration-300 ease-in-out peer-focus:-top-4 peer-focus:text-[10px] peer-focus:text-gray-300 peer-not-placeholder-shown:-top-4 peer-not-placeholder-shown:text-[10px] peer-not-placeholder-shown:text-gray-300 uppercase font-semibold"
+        >
+          {label}
+        </label>
+
+        {/* Active Indicator Line */}
+        <div className="absolute bottom-0 left-0 h-0.5 w-full bg-white scale-x-0 transition-transform duration-300 ease-in-out origin-center peer-focus:scale-x-100" />
+      </div>
+    );
+  }
+);
+
+Input.displayName = 'Input';

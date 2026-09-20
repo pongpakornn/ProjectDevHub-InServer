@@ -85,3 +85,39 @@ export function sendOfflineBeacon(): void {
   const blob = new Blob([payload], { type: "application/json" });
   navigator.sendBeacon(`${API_BASE_URL}/auth/logout`, blob);
 }
+
+// ===========================================================================
+// บัญชีที่เคยเข้าสู่ระบบล่าสุด — จำเฉพาะ EmpId/ชื่อไว้เพื่อคลิกเติมช่อง Username ให้อัตโนมัติในหน้า Login
+// (ไม่เก็บรหัสผ่านเด็ดขาดไม่ว่ากรณีใดๆ — ยังต้องพิมพ์รหัสผ่านเองเสมอ ต่างจาก "จดจำรหัสผ่าน" ของเบราว์เซอร์
+// ซึ่งเป็นฟีเจอร์ของเบราว์เซอร์เองที่แอปควบคุมไม่ได้)
+// ===========================================================================
+const RECENT_LOGINS_KEY = "recentLogins";
+const MAX_RECENT_LOGINS = 5;
+
+export interface RecentLogin {
+  empId: string;
+  fullName: string;
+}
+
+export function getRecentLogins(): RecentLogin[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_LOGINS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addRecentLogin(entry: RecentLogin): void {
+  if (typeof window === "undefined" || !entry.empId) return;
+  const next = [entry, ...getRecentLogins().filter((r) => r.empId !== entry.empId)].slice(0, MAX_RECENT_LOGINS);
+  localStorage.setItem(RECENT_LOGINS_KEY, JSON.stringify(next));
+}
+
+export function removeRecentLogin(empId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(RECENT_LOGINS_KEY, JSON.stringify(getRecentLogins().filter((r) => r.empId !== empId)));
+}

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Terminal } from 'lucide-react';
+import { Terminal, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/buttons/button';
 import { Input } from '@/components/ui/inputs/input';
 import { authService } from '@/services/auth.service';
-import { saveSession } from '@/lib/session';
+import { saveSession, getRecentLogins, addRecentLogin, RecentLogin } from '@/lib/session';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([]);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // โหลดหลัง Mount กัน SSR/Hydration Mismatch (LocalStorage มีแค่ฝั่ง Browser)
+  useEffect(() => {
+    setRecentLogins(getRecentLogins());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -30,6 +37,8 @@ export default function LoginPage() {
       if (response.success && response.token && response.user) {
         // จัดเก็บ Session & User Info ลง LocalStorage (รวม sessionId เพื่อใช้จำกัด Login พร้อมกันได้ครั้งละ 1 Session)
         saveSession(response.user, response.token, response.sessionId);
+        // จำไว้เฉพาะ EmpId/ชื่อ (ไม่เก็บรหัสผ่าน) ให้คลิกเติม Username ได้เร็วขึ้นครั้งถัดไป
+        addRecentLogin({ empId: response.user.empId, fullName: response.user.fullName });
 
         // นำทางไปยังหน้า Dashboard
         router.push('/dashboard');
@@ -51,6 +60,12 @@ export default function LoginPage() {
     setErrorMessage('');
   };
 
+  const handlePickRecent = (empId: string) => {
+    setUsername(empId);
+    setErrorMessage('');
+    passwordRef.current?.focus();
+  };
+
   return (
     // พื้นหลัง + การ์ดกระจกฝ้า (Glassmorphism) โทน Indigo — ให้ตรงกับ Theme เดียวกับทั้งระบบ
     // (bg-slate-950 + Glow เบลอ ให้ความรู้สึกเดียวกับตอนกด Preview หน้า Present ที่เป็น Overlay มืดเบลอๆ)
@@ -69,8 +84,8 @@ export default function LoginPage() {
         </h1>
       </div>
 
-      {/* Login Card — กระจกฝ้าโปร่งแสง ลอยบนพื้นหลังมืด */}
-      <div className="relative z-10 w-full max-w-xs bg-white/10 backdrop-blur-2xl rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/40 border border-white/15">
+      {/* Login Card — กระจกฝ้าโปร่งแสง ลอยบนพื้นหลังมืด (เพิ่ม Inner Highlight บางๆ ขอบบนให้ดูเป็นกระจกจริง) */}
+      <div className="relative z-10 w-full max-w-xs bg-white/8 backdrop-blur-2xl rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/40 border border-white/15 ring-1 ring-white/5 ring-inset">
         <h2 className="text-2xl font-black text-white text-center mb-6 tracking-wider uppercase">
           LOGIN
         </h2>
@@ -91,7 +106,7 @@ export default function LoginPage() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
             disabled={isLoading}
             required
-            className="border-white/20 focus:border-indigo-400 [&:-webkit-autofill]:shadow-[0_0_0_1000px_#1e1b4b_inset]!"
+            className="border-white/20 focus:border-indigo-400"
           />
 
           <Input
@@ -102,7 +117,8 @@ export default function LoginPage() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             disabled={isLoading}
             required
-            className="border-white/20 focus:border-indigo-400 [&:-webkit-autofill]:shadow-[0_0_0_1000px_#1e1b4b_inset]!"
+            ref={passwordRef}
+            className="border-white/20 focus:border-indigo-400"
           />
 
           {/* โซนปุ่มกด */}
@@ -127,6 +143,33 @@ export default function LoginPage() {
           </div>
         </form>
       </div>
+
+      {/* บัญชีที่เคยเข้าสู่ระบบล่าสุด — คลิกเพื่อเติม Username ให้ทันที (ยังต้องพิมพ์รหัสผ่านเองเสมอ) */}
+      {recentLogins.length > 0 && (
+        <div className="relative z-10 w-full max-w-xs mt-4">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2">
+            เข้าสู่ระบบล่าสุด
+          </p>
+          <div className="bg-white/8 backdrop-blur-2xl rounded-2xl border border-white/15 divide-y divide-white/10 overflow-hidden">
+            {recentLogins.map((r) => (
+              <button
+                key={r.empId}
+                type="button"
+                onClick={() => handlePickRecent(r.empId)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-white/10 transition-colors"
+              >
+                <span className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0">
+                  <UserCircle className="w-4 h-4" strokeWidth={1.75} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-white truncate">{r.fullName}</span>
+                  <span className="block text-[10px] font-mono text-slate-400 truncate">{r.empId}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
