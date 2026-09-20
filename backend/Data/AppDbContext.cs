@@ -58,9 +58,15 @@ namespace backend.Data
             });
 
             // 3. Configure Unique Constraint for EmpId
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.EmpId)
-                .IsUnique();
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasIndex(u => u.EmpId).IsUnique();
+
+                // Trg_SyncProjectOwnerDenormFromUser (AFTER UPDATE) — ต้องบอก EF ไว้ ไม่งั้น EF จะพยายามใช้
+                // OUTPUT clause ตอน UPDATE ซึ่ง SQL Server ห้ามใช้ร่วมกับตารางที่มี Trigger (Error: "target
+                // table has database triggers")
+                entity.ToTable("Users", "Core", tb => tb.HasTrigger("Trg_SyncProjectOwnerDenormFromUser"));
+            });
 
             // 4. Configure Composite Unique Constraint for Permission (UserId + SystemId)
             modelBuilder.Entity<Permission>()
@@ -75,6 +81,9 @@ namespace backend.Data
             modelBuilder.Entity<Projects>(entity =>
             {
                 entity.HasIndex(p => p.ProjectCode).IsUnique();
+
+                // Trg_SyncProjectOwnerDenorm (AFTER INSERT, UPDATE) — เหตุผลเดียวกับ Core.Users ด้านบน
+                entity.ToTable("Projects", "Project", tb => tb.HasTrigger("Trg_SyncProjectOwnerDenorm"));
 
                 entity.HasOne(p => p.Owner)
                     .WithMany()
