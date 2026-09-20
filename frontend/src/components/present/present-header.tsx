@@ -9,6 +9,7 @@ interface PresentHeaderProject {
   status: string; // PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
   startDate?: string;
   endDate?: string;
+  progress: number;
 }
 
 interface PresentHeaderProps {
@@ -50,6 +51,20 @@ export function PresentHeader({ project, itemCount, onOpenAddModal, canAdd = tru
             </span>
             <span className="font-mono text-slate-400">{project.startDate || "-"} → {project.endDate || "-"}</span>
             <span className="text-slate-500">· {itemCount} รายการนำเสนอ</span>
+          </div>
+        </div>
+
+        {/* ความคืบหน้า — ค่าเดียวกับ Solo/Team/Flow (Project.ProgressPercent จาก Task จริง) */}
+        <div className="min-w-40 bg-slate-900/80 backdrop-blur-md p-4 rounded-xl border border-slate-800/80">
+          <div className="flex justify-between items-center text-xs mb-1.5">
+            <span className="text-slate-400 font-medium">ความคืบหน้ารวม</span>
+            <span className="text-indigo-400 font-bold font-mono">{project.progress}%</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-500 shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+              style={{ width: `${project.progress}%` }}
+            />
           </div>
         </div>
 

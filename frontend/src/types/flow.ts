@@ -1,30 +1,8 @@
-// ตรงกับ FlowDefinitionDto / FlowStepDto / FlowTechStackDto / FlowExecutionDto / FlowLogDto ฝั่ง Backend
+// ตรงกับ FlowDefinitionDto ฝั่ง Backend
 // Status/WorkType แสดงเป็น Label ภาษาไทยฝั่ง Frontend (แปลงที่ lib/flow-api.ts) เพื่อให้ตรงกับ UI เดิม
 
 export type FlowStatus = "เสร็จแล้ว" | "กำลังทำ" | "วางแผน";
-export type FlowStepStatus = "เสร็จแล้ว" | "กำลังทำ" | "รอดำเนินการ";
 export type FlowWorkType = "ทำคนเดียว" | "ทำกับทีม";
-export type FlowTechLayer = "FRONTEND" | "BACKEND" | "DATABASE";
-export type FlowExecutionStatus = "RUNNING" | "SUCCESS" | "FAILED";
-export type FlowLogLevel = "INFO" | "WARN" | "ERROR";
-
-export interface FlowStep {
-  id: string;
-  milestoneId?: number | null;
-  stepNo: string;
-  title: string;
-  status: FlowStepStatus;
-  progress: number;
-  startDate?: string; // ISO "YYYY-MM-DD" — ใช้ทำ Gantt
-  endDate?: string;
-}
-
-export interface FlowTechStackTag {
-  id: string;
-  techStackId?: number | null;
-  layer: FlowTechLayer;
-  name: string;
-}
 
 export interface FlowListItem {
   id: string; // FlowDefinitionId
@@ -40,24 +18,4 @@ export interface FlowListItem {
   ownerName: string; // ผู้สร้าง Flow (Project Owner/Creator) — ใช้เป็นค่าเริ่มต้นของ Owner ใน Diagram Studio
 }
 
-export interface FlowDetail extends FlowListItem {
-  techStacks: FlowTechStackTag[];
-  phases: FlowStep[];
-}
-
-export interface FlowLog {
-  id: string;
-  logLevel: FlowLogLevel;
-  message: string;
-  loggedDate: string;
-}
-
-export interface FlowExecution {
-  id: string;
-  status: FlowExecutionStatus;
-  startedDate: string;
-  finishedDate?: string;
-  triggeredByName: string;
-  note?: string;
-  logs: FlowLog[];
-}
+export type FlowDetail = FlowListItem;

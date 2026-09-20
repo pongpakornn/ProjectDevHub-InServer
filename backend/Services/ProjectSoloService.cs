@@ -781,15 +781,6 @@ namespace backend.Services
                 .Where(h => h.ProjectId == projectId || (h.TaskId != null && taskIds.Contains(h.TaskId.Value)));
             _context.StatusHistory.RemoveRange(histories);
 
-            var linkedEvents = await _context.Events
-                .Where(e => e.LinkedProjectId == projectId || (e.LinkedTaskId != null && taskIds.Contains(e.LinkedTaskId.Value)))
-                .ToListAsync();
-            foreach (var ev in linkedEvents)
-            {
-                if (ev.LinkedProjectId == projectId) ev.LinkedProjectId = null;
-                if (ev.LinkedTaskId != null && taskIds.Contains(ev.LinkedTaskId.Value)) ev.LinkedTaskId = null;
-            }
-
             _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
 

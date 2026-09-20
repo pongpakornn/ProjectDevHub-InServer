@@ -1,7 +1,6 @@
 "use client";
 
-// Flow Diagram — เปลี่ยนมาใช้ Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD) แทนของเดิม
-// (FlowDiagramSection/ArchitectureDiagramSection/FlowGanttQaSections ยังอยู่ในโปรเจกต์ แค่เลิกใช้ในหน้านี้)
+// Flow Diagram — ใช้ Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD)
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import FlowDetailHeader from "@/components/flow/flow-detail-header";

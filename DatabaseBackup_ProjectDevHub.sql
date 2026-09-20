@@ -54,7 +54,6 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Core')     EXEC('CREATE SCHEMA Core');
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Project')  EXEC('CREATE SCHEMA Project');
-IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Planning') EXEC('CREATE SCHEMA Planning');
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Flow')     EXEC('CREATE SCHEMA Flow');
 IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Testing')  EXEC('CREATE SCHEMA Testing');
 GO
@@ -179,7 +178,10 @@ CREATE TABLE Project.Projects (
     CreatedDate      DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset()),
     UpdatedDate      DATETIMEOFFSET(7) NULL,
     ProjectTypeId    INT NULL,
-    RequesterName    NVARCHAR(100) NULL
+    RequesterName    NVARCHAR(100) NULL,
+    -- Denormalize จาก Core.Users(EmpId, FullName) ผ่าน Trigger — ให้เปิดตารางนี้ตรงๆ แล้วรู้ทันทีว่าโปรเจกต์เป็นของใคร
+    OwnerEmpId       VARCHAR(20) NULL,
+    OwnerName        NVARCHAR(255) NULL
 );
 GO
 
@@ -293,44 +295,6 @@ CREATE TABLE Project.Tasks (
 );
 GO
 
--- ---------- Flow.FlowSteps ----------
-CREATE TABLE Flow.FlowSteps (
-    FlowStepId        INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    FlowDefinitionId  INT NOT NULL,
-    StepNo            VARCHAR(20) NOT NULL,
-    Title             NVARCHAR(255) NOT NULL,
-    Status            VARCHAR(20) NOT NULL DEFAULT ('PENDING'),
-    ProgressPercent   INT NOT NULL DEFAULT ((0)),
-    StartDate         DATE NULL,
-    EndDate           DATE NULL,
-    SortOrder         INT NOT NULL DEFAULT ((0)),
-    MilestoneId       INT NULL
-);
-GO
-
--- ---------- Flow.FlowTechStacks ----------
-CREATE TABLE Flow.FlowTechStacks (
-    FlowTechStackId   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    FlowDefinitionId  INT NOT NULL,
-    Layer             VARCHAR(20) NOT NULL,
-    Name              NVARCHAR(100) NOT NULL,
-    SortOrder         INT NOT NULL DEFAULT ((0)),
-    TechStackId       INT NULL
-);
-GO
-
--- ---------- Flow.FlowExecutions ----------
-CREATE TABLE Flow.FlowExecutions (
-    FlowExecutionId   INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    FlowDefinitionId  INT NOT NULL,
-    Status            VARCHAR(20) NOT NULL DEFAULT ('RUNNING'),
-    StartedDate       DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset()),
-    FinishedDate      DATETIMEOFFSET(7) NULL,
-    TriggeredBy       INT NOT NULL,
-    Note              NVARCHAR(500) NULL
-);
-GO
-
 -- ---------- Testing.TestRuns ----------
 CREATE TABLE Testing.TestRuns (
     TestRunId        INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -397,37 +361,6 @@ CREATE TABLE Project.StatusHistory (
 );
 GO
 
--- ---------- Planning.Events ----------
-CREATE TABLE Planning.Events (
-    EventId                INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    UserId                 INT NOT NULL,
-    EventTitle             NVARCHAR(255) NOT NULL,
-    Description            NVARCHAR(MAX) NULL,
-    EventType              VARCHAR(20) NOT NULL DEFAULT ('APPOINTMENT'),
-    StartDateTime          DATETIMEOFFSET(7) NOT NULL,
-    EndDateTime            DATETIMEOFFSET(7) NOT NULL,
-    IsAllDay               BIT NOT NULL DEFAULT ((0)),
-    Location               NVARCHAR(255) NULL,
-    ReminderMinutesBefore  INT NULL,
-    RecurrenceRule         VARCHAR(100) NULL,
-    Status                 VARCHAR(20) NOT NULL DEFAULT ('SCHEDULED'),
-    LinkedProjectId        INT NULL,
-    LinkedTaskId           INT NULL,
-    CreatedDate            DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset()),
-    UpdatedDate            DATETIMEOFFSET(7) NULL
-);
-GO
-
--- ---------- Flow.FlowLogs ----------
-CREATE TABLE Flow.FlowLogs (
-    FlowLogId        BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    FlowExecutionId  INT NOT NULL,
-    LogLevel         VARCHAR(10) NOT NULL DEFAULT ('INFO'),
-    Message          NVARCHAR(MAX) NOT NULL,
-    LoggedDate       DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
-);
-GO
-
 -- ---------- Flow.FlowDiagramRows (Workflow Diagram Studio — พอร์ตมาจาก AutoFlowStudio_ModulesD) ----------
 CREATE TABLE Flow.FlowDiagramRows (
     FlowDiagramRowId  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -442,22 +375,6 @@ CREATE TABLE Flow.FlowDiagramRows (
     OptionValue       NVARCHAR(100) NULL,
     SortOrder         INT NOT NULL DEFAULT ((0)),
     CreatedDate       DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
-);
-GO
-
--- ---------- Planning.Todos ----------
-CREATE TABLE Planning.Todos (
-    TodoId         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    UserId         INT NOT NULL,
-    TodoText       NVARCHAR(500) NOT NULL,
-    IsCompleted    BIT NOT NULL DEFAULT ((0)),
-    CompletedDate  DATETIMEOFFSET(7) NULL,
-    DueDate        DATE NULL,
-    Priority       VARCHAR(10) NOT NULL DEFAULT ('MEDIUM'),
-    SortOrder      INT NOT NULL DEFAULT ((0)),
-    LinkedEventId  INT NULL,
-    CreatedDate    DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset()),
-    UpdatedDate    DATETIMEOFFSET(7) NULL
 );
 GO
 
@@ -497,15 +414,6 @@ ALTER TABLE Project.Tasks           ADD CONSTRAINT FK_Tasks_Milestone           
 ALTER TABLE Project.Tasks           ADD CONSTRAINT FK_Tasks_Parent                  FOREIGN KEY (ParentTaskId) REFERENCES Project.Tasks(TaskId);
 ALTER TABLE Project.Tasks           ADD CONSTRAINT FK_Tasks_Creator                 FOREIGN KEY (CreatedBy) REFERENCES Core.Users(UserId);
 
-ALTER TABLE Flow.FlowSteps          ADD CONSTRAINT FK_FlowSteps_FlowDefinition      FOREIGN KEY (FlowDefinitionId) REFERENCES Flow.FlowDefinitions(FlowDefinitionId) ON DELETE CASCADE;
-ALTER TABLE Flow.FlowSteps          ADD CONSTRAINT FK_FlowSteps_Milestone           FOREIGN KEY (MilestoneId) REFERENCES Project.Milestones(MilestoneId);
-
-ALTER TABLE Flow.FlowTechStacks     ADD CONSTRAINT FK_FlowTechStacks_FlowDefinition FOREIGN KEY (FlowDefinitionId) REFERENCES Flow.FlowDefinitions(FlowDefinitionId) ON DELETE CASCADE;
-ALTER TABLE Flow.FlowTechStacks     ADD CONSTRAINT FK_FlowTechStacks_TechStack      FOREIGN KEY (TechStackId) REFERENCES Project.TechStacks(TechStackId);
-
-ALTER TABLE Flow.FlowExecutions     ADD CONSTRAINT FK_FlowExecutions_FlowDefinition FOREIGN KEY (FlowDefinitionId) REFERENCES Flow.FlowDefinitions(FlowDefinitionId) ON DELETE CASCADE;
-ALTER TABLE Flow.FlowExecutions     ADD CONSTRAINT FK_FlowExecutions_TriggeredBy    FOREIGN KEY (TriggeredBy) REFERENCES Core.Users(UserId);
-
 ALTER TABLE Testing.TestRuns        ADD CONSTRAINT FK_TestRuns_Suite                FOREIGN KEY (TestSuiteId) REFERENCES Testing.TestSuites(TestSuiteId) ON DELETE CASCADE;
 ALTER TABLE Testing.TestRuns        ADD CONSTRAINT FK_TestRuns_TriggeredBy          FOREIGN KEY (TriggeredBy) REFERENCES Core.Users(UserId);
 
@@ -525,16 +433,7 @@ ALTER TABLE Project.StatusHistory   ADD CONSTRAINT FK_StatusHistory_Project     
 ALTER TABLE Project.StatusHistory   ADD CONSTRAINT FK_StatusHistory_Task            FOREIGN KEY (TaskId) REFERENCES Project.Tasks(TaskId);
 ALTER TABLE Project.StatusHistory   ADD CONSTRAINT FK_StatusHistory_User            FOREIGN KEY (ChangedBy) REFERENCES Core.Users(UserId);
 
-ALTER TABLE Planning.Events         ADD CONSTRAINT FK_Events_User                   FOREIGN KEY (UserId) REFERENCES Core.Users(UserId);
-ALTER TABLE Planning.Events         ADD CONSTRAINT FK_Events_Project                FOREIGN KEY (LinkedProjectId) REFERENCES Project.Projects(ProjectId);
-ALTER TABLE Planning.Events         ADD CONSTRAINT FK_Events_Task                   FOREIGN KEY (LinkedTaskId) REFERENCES Project.Tasks(TaskId);
-
-ALTER TABLE Flow.FlowLogs           ADD CONSTRAINT FK_FlowLogs_Execution            FOREIGN KEY (FlowExecutionId) REFERENCES Flow.FlowExecutions(FlowExecutionId) ON DELETE CASCADE;
-
 ALTER TABLE Flow.FlowDiagramRows    ADD CONSTRAINT FK_FlowDiagramRows_FlowDefinition FOREIGN KEY (FlowDefinitionId) REFERENCES Flow.FlowDefinitions(FlowDefinitionId) ON DELETE CASCADE;
-
-ALTER TABLE Planning.Todos          ADD CONSTRAINT FK_Todos_User                    FOREIGN KEY (UserId) REFERENCES Core.Users(UserId);
-ALTER TABLE Planning.Todos          ADD CONSTRAINT FK_Todos_Event                   FOREIGN KEY (LinkedEventId) REFERENCES Planning.Events(EventId);
 GO
 
 -- =============================================================================
@@ -566,9 +465,6 @@ CREATE INDEX IX_Permissions_User_System ON Core.Permissions(UserId, SystemId);
 CREATE INDEX IX_Users_EmpId ON Core.Users(EmpId);
 CREATE INDEX IX_Users_LoginStatus ON Core.Users(IsActive, IsSuspended, IsOnline);
 
-CREATE INDEX IX_Events_User_Range ON Planning.Events(UserId, StartDateTime, EndDateTime);
-CREATE INDEX IX_Todos_User_Status ON Planning.Todos(UserId, IsCompleted, DueDate);
-
 CREATE INDEX IX_Attachments_Project ON Project.Attachments(ProjectId);
 CREATE INDEX IX_Attachments_Task ON Project.Attachments(TaskId);
 CREATE INDEX IX_Comments_Project ON Project.Comments(ProjectId);
@@ -596,13 +492,7 @@ GO
 
 ALTER TABLE Flow.FlowDefinitions  ADD CONSTRAINT CK_FlowDefinitions_Status CHECK ([Status]='COMPLETED' OR [Status]='IN_PROGRESS' OR [Status]='PLANNING');
 ALTER TABLE Flow.FlowDefinitions  ADD CONSTRAINT CK_FlowDefinitions_WorkType CHECK ([WorkType]='TEAM' OR [WorkType]='SOLO');
-ALTER TABLE Flow.FlowExecutions   ADD CONSTRAINT CK_FlowExecutions_Status CHECK ([Status]='FAILED' OR [Status]='SUCCESS' OR [Status]='RUNNING');
-ALTER TABLE Flow.FlowLogs         ADD CONSTRAINT CK_FlowLogs_Level CHECK ([LogLevel]='ERROR' OR [LogLevel]='WARN' OR [LogLevel]='INFO');
-ALTER TABLE Flow.FlowSteps        ADD CONSTRAINT CK_FlowSteps_Status CHECK ([Status]='DONE' OR [Status]='IN_PROGRESS' OR [Status]='PENDING');
-ALTER TABLE Flow.FlowSteps        ADD CONSTRAINT CK_FlowSteps_Progress CHECK ([ProgressPercent]>=(0) AND [ProgressPercent]<=(100));
-ALTER TABLE Flow.FlowTechStacks   ADD CONSTRAINT CK_FlowTechStacks_Layer CHECK ([Layer]='DATABASE' OR [Layer]='BACKEND' OR [Layer]='FRONTEND');
 ALTER TABLE Flow.FlowDiagramRows  ADD CONSTRAINT CK_FlowDiagramRows_DiagramType CHECK ([DiagramType]='FLOWCHART' OR [DiagramType]='USECASE' OR [DiagramType]='DFD' OR [DiagramType]='SEQUENCE' OR [DiagramType]='ERD' OR [DiagramType]='STATE');
-ALTER TABLE Planning.Events       ADD CONSTRAINT CK_Events_DateRange CHECK ([EndDateTime]>=[StartDateTime]);
 ALTER TABLE Project.Attachments   ADD CONSTRAINT CK_Attachments_RefTarget CHECK ([ProjectId] IS NOT NULL OR [TaskId] IS NOT NULL);
 ALTER TABLE Project.Comments      ADD CONSTRAINT CK_Comments_RefTarget CHECK ([ProjectId] IS NOT NULL OR [TaskId] IS NOT NULL);
 ALTER TABLE Testing.TestRuns      ADD CONSTRAINT CK_TestRuns_Tool CHECK ([Tool]='robot' OR [Tool]='jest' OR [Tool]='vitest' OR [Tool]='cypress' OR [Tool]='playwright');
@@ -735,27 +625,6 @@ GO
 -- SECTION 7 — VIEWS (Phase 7: ลด Query ซ้ำซ้อนสำหรับหน้าที่เรียกบ่อย)
 -- =============================================================================
 
--- สรุปสิทธิ์ของแต่ละ User เป็น 1 แถวต่อคน (จำนวนโมดูลที่มองเห็นได้ + รายชื่อ SystemId ที่ View ได้)
--- ใช้แทนการ Join Users+Permissions ซ้ำๆ ในหน้า User Management / รายงานสิทธิ์การใช้งาน
-GO
-CREATE VIEW Core.vw_UserPermissionSummary AS
-SELECT
-    u.UserId,
-    u.EmpId,
-    u.FullName,
-    u.IsSuperAdmin,
-    u.IsActive,
-    u.IsSuspended,
-    (SELECT COUNT(*) FROM Core.Permissions p WHERE p.UserId = u.UserId AND p.CanView = 1) AS VisibleModuleCount,
-    STUFF((
-        SELECT ',' + p2.SystemId
-        FROM Core.Permissions p2
-        WHERE p2.UserId = u.UserId AND p2.CanView = 1
-        FOR XML PATH('')
-    ), 1, 1, '') AS ViewableSystemIds
-FROM Core.Users u;
-GO
-
 -- สรุปสถิติต่อโปรเจกต์ (จำนวน Task/Milestone/สมาชิก) สำหรับหน้า Dashboard และรายงานภาพรวม
 -- ลดการยิง COUNT(*) แยกหลายรอบต่อโปรเจกต์ในฝั่ง Application
 GO
@@ -806,9 +675,6 @@ BEGIN
     BEGIN TRY
         DELETE FROM Project.StatusHistory WHERE ProjectId = @ProjectId
             OR TaskId IN (SELECT TaskId FROM Project.Tasks WHERE ProjectId = @ProjectId);
-        UPDATE Planning.Events SET LinkedProjectId = NULL WHERE LinkedProjectId = @ProjectId;
-        UPDATE Planning.Events SET LinkedTaskId = NULL
-            WHERE LinkedTaskId IN (SELECT TaskId FROM Project.Tasks WHERE ProjectId = @ProjectId);
         DELETE FROM Project.Projects WHERE ProjectId = @ProjectId;
         COMMIT TRAN;
     END TRY
@@ -849,31 +715,40 @@ BEGIN
 END;
 GO
 
--- Sync Flow.FlowDefinitions.ProgressPercent อัตโนมัติจากค่าเฉลี่ย ProgressPercent ของ FlowSteps ทั้งหมด
--- ในผังนั้น ทุกครั้งที่มี Step ถูกเพิ่ม/แก้ไข/ลบ — กันไม่ให้ Progress ของผังเพี้ยนไปจาก Step จริง
+-- Denormalize Project.Projects.OwnerEmpId/OwnerName จาก Core.Users ให้เปิดตาราง Projects ตรงๆ
+-- (ไม่ JOIN) แล้วรู้ทันทีว่าโปรเจกต์เป็นของใคร — Sync 2 ทิศทาง: ตอนตั้ง/เปลี่ยนเจ้าของ Project และ
+-- ตอน User เจ้าของเปลี่ยนชื่อ/EmpId ของตัวเอง
 GO
-CREATE TRIGGER Flow.Trg_UpdateFlowProgress
-ON Flow.FlowSteps
-AFTER INSERT, UPDATE, DELETE
+CREATE TRIGGER Project.Trg_SyncProjectOwnerDenorm
+ON Project.Projects
+AFTER INSERT, UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
+    IF NOT UPDATE(ProjectOwnerId) RETURN;
 
-    ;WITH AffectedFlows AS (
-        SELECT DISTINCT FlowDefinitionId FROM inserted
-        UNION
-        SELECT DISTINCT FlowDefinitionId FROM deleted
-    )
-    UPDATE f
-    SET f.ProgressPercent = ISNULL(s.AvgProgress, 0),
-        f.UpdatedDate = SYSDATETIMEOFFSET()
-    FROM Flow.FlowDefinitions f
-    INNER JOIN AffectedFlows af ON af.FlowDefinitionId = f.FlowDefinitionId
-    OUTER APPLY (
-        SELECT AVG(CAST(ProgressPercent AS DECIMAL(5,2))) AS AvgProgress
-        FROM Flow.FlowSteps
-        WHERE FlowDefinitionId = f.FlowDefinitionId
-    ) s;
+    UPDATE p
+    SET p.OwnerEmpId = u.EmpId,
+        p.OwnerName = u.FullName
+    FROM Project.Projects p
+    INNER JOIN inserted i ON i.ProjectId = p.ProjectId
+    INNER JOIN Core.Users u ON u.UserId = i.ProjectOwnerId;
+END;
+GO
+
+CREATE TRIGGER Core.Trg_SyncProjectOwnerDenormFromUser
+ON Core.Users
+AFTER UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT (UPDATE(EmpId) OR UPDATE(FullName)) RETURN;
+
+    UPDATE p
+    SET p.OwnerEmpId = i.EmpId,
+        p.OwnerName = i.FullName
+    FROM Project.Projects p
+    INNER JOIN inserted i ON i.UserId = p.ProjectOwnerId;
 END;
 GO
 
@@ -895,7 +770,7 @@ END;
 GO
 
 -- =============================================================================
--- SECTION 7 — REPORTING VIEWS (อ่านอย่างเดียว ไม่เปลี่ยนพฤติกรรมการเขียนข้อมูลใดๆ)
+-- SECTION 10 — REPORTING VIEWS (อ่านอย่างเดียว ไม่เปลี่ยนพฤติกรรมการเขียนข้อมูลใดๆ)
 -- รวม JOIN/Projection ที่ Service หลายจุดเขียนซ้ำกันไว้ในที่เดียว ให้ Query จริงหรือ Report ในอนาคต
 -- เรียกใช้ได้ตรงๆ แทนการต่อ JOIN เองยาวๆ ทุกครั้ง — ดู create_reporting_views.sql (root) สำหรับต้นฉบับ
 -- =============================================================================

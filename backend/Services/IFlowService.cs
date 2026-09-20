@@ -12,26 +12,6 @@ namespace backend.Services
         Task<FlowDefinitionDto?> UpdateFlowAsync(UpdateFlowDefinitionRequest request);
         Task<bool> DeleteFlowAsync(int flowDefinitionId);
 
-        // FlowSteps
-        Task<FlowStepDto?> CreateStepAsync(CreateFlowStepRequest request);
-        Task<FlowStepDto?> UpdateStepAsync(UpdateFlowStepRequest request);
-        Task<bool> DeleteStepAsync(int flowStepId);
-        Task<List<FlowStepDto>> AutoGenerateStepsAsync(int flowDefinitionId);
-
-        // FlowTechStacks
-        Task<FlowTechStackDto?> CreateTechStackAsync(CreateFlowTechStackRequest request);
-        Task<bool> DeleteTechStackAsync(int flowTechStackId);
-        Task<List<FlowTechStackDto>> AutoGenerateTechStacksAsync(int flowDefinitionId);
-
-        // FlowExecutions
-        Task<List<FlowExecutionDto>?> GetExecutionsAsync(int flowDefinitionId);
-        Task<FlowExecutionDto?> CreateExecutionAsync(int flowDefinitionId, CreateFlowExecutionRequest request, int currentUserId);
-        Task<FlowExecutionDto?> UpdateExecutionAsync(int flowExecutionId, UpdateFlowExecutionRequest request);
-        Task<bool> DeleteExecutionAsync(int flowExecutionId);
-
-        // FlowLogs
-        Task<FlowLogDto?> AddLogAsync(int flowExecutionId, CreateFlowLogRequest request);
-
         // FlowDiagramRows — Workflow Diagram Studio
         Task<FlowDiagramDataDto?> GetDiagramDataAsync(int flowDefinitionId);
         Task<List<FlowDiagramRowDto>?> SaveDiagramRowsAsync(int flowDefinitionId, SaveFlowDiagramRowsRequest request);

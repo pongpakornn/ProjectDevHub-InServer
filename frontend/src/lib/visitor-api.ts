@@ -158,7 +158,7 @@ export async function getUserProjectFlow(
     const raw = await fetchApi<FlowDefinitionDetailDtoRaw>(
       `/Visitor/projects/${projectId}/flow?targetUserId=${targetUserId}&userId=${viewerUserId}`
     );
-    return { ...mapFlowListItem(raw.flow), techStacks: [], phases: [] };
+    return mapFlowListItem(raw.flow);
   } catch {
     return null;
   }

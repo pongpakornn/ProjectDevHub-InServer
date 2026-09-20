@@ -26,6 +26,7 @@ interface ProjectHeaderInfo {
   status: string;
   startDate?: string;
   endDate?: string;
+  progress: number;
 }
 
 export default function PresentProjectDetailPage() {
@@ -70,6 +71,7 @@ export default function PresentProjectDetailPage() {
         status: detail.project.status,
         startDate: detail.project.startDate,
         endDate: detail.project.endDate,
+        progress: detail.project.progress,
       });
       setItems(detail.showcases);
       setActiveIndex((i) => Math.min(i, Math.max(0, detail.showcases.length - 1)));

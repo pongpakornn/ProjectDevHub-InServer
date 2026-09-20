@@ -23,6 +23,14 @@ namespace backend.Models.Project
         public int ProjectOwnerId { get; set; }
         public int? ProjectTypeId { get; set; }
 
+        // Denormalize จาก Core.Users(EmpId, FullName) ผ่าน Trigger (Project.Trg_SyncProjectOwnerDenorm /
+        // Core.Trg_SyncProjectOwnerDenormFromUser) — ห้ามแก้เอง แค่ให้เปิดตารางนี้ตรงๆ แล้วรู้ทันทีว่าโปรเจกต์เป็นของใคร
+        [StringLength(20)]
+        public string? OwnerEmpId { get; set; }
+
+        [StringLength(255)]
+        public string? OwnerName { get; set; }
+
         [StringLength(100)]
         public string? DivisionName { get; set; }
 

@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.Project;
-using backend.Models.Planning;
 using backend.Models.Flow;
 using backend.Models.Testing;
 
@@ -35,15 +34,9 @@ namespace backend.Data
         public DbSet<TechStackCatalog> TechStackCatalog => Set<TechStackCatalog>();
 
         // ---------- Planning ----------
-        public DbSet<Events> Events => Set<Events>();
-        public DbSet<Todos> Todos => Set<Todos>();
 
         // ---------- Flow ----------
         public DbSet<FlowDefinitions> FlowDefinitions => Set<FlowDefinitions>();
-        public DbSet<FlowSteps> FlowSteps => Set<FlowSteps>();
-        public DbSet<FlowTechStacks> FlowTechStacks => Set<FlowTechStacks>();
-        public DbSet<FlowExecutions> FlowExecutions => Set<FlowExecutions>();
-        public DbSet<FlowLogs> FlowLogs => Set<FlowLogs>();
         public DbSet<FlowDiagramRows> FlowDiagramRows => Set<FlowDiagramRows>();
 
         // ---------- Testing ----------
@@ -269,47 +262,6 @@ namespace backend.Data
             });
 
             // ===========================================================================
-            // ---------- Planning Schema ----------
-            // ===========================================================================
-
-            // Events
-            modelBuilder.Entity<Events>(entity =>
-            {
-                entity.ToTable(tb => tb.HasCheckConstraint(
-                    "CK_Events_DateRange",
-                    "[EndDateTime] >= [StartDateTime]"));
-
-                entity.HasOne(e => e.User)
-                    .WithMany()
-                    .HasForeignKey(e => e.UserId)
-                    .OnDelete(DeleteBehavior.NoAction);
-
-                entity.HasOne(e => e.LinkedProject)
-                    .WithMany()
-                    .HasForeignKey(e => e.LinkedProjectId)
-                    .OnDelete(DeleteBehavior.NoAction);
-
-                entity.HasOne(e => e.LinkedTask)
-                    .WithMany()
-                    .HasForeignKey(e => e.LinkedTaskId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // Todos
-            modelBuilder.Entity<Todos>(entity =>
-            {
-                entity.HasOne(td => td.User)
-                    .WithMany()
-                    .HasForeignKey(td => td.UserId)
-                    .OnDelete(DeleteBehavior.NoAction);
-
-                entity.HasOne(td => td.LinkedEvent)
-                    .WithMany(e => e.Todos)
-                    .HasForeignKey(td => td.LinkedEventId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // ===========================================================================
             // ---------- Flow Schema ----------
             // ===========================================================================
 
@@ -327,61 +279,6 @@ namespace backend.Data
                 entity.HasOne(f => f.Project)
                     .WithMany()
                     .HasForeignKey(f => f.ProjectId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // FlowSteps (มี Trigger คำนวณ FlowDefinitions.ProgressPercent อัตโนมัติ, Cascade เมื่อลบ FlowDefinition)
-            modelBuilder.Entity<FlowSteps>(entity =>
-            {
-                entity.ToTable("FlowSteps", "Flow", tb => tb.HasTrigger("Trg_UpdateFlowProgress"));
-
-                entity.HasOne(s => s.FlowDefinition)
-                    .WithMany(f => f.Steps)
-                    .HasForeignKey(s => s.FlowDefinitionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                // ไม่ Cascade — ลบ Milestone ต้นทางแล้ว Step ที่ Auto-Generate ไว้ยังอยู่ (แค่ตัดการอ้างอิง)
-                entity.HasOne(s => s.Milestone)
-                    .WithMany()
-                    .HasForeignKey(s => s.MilestoneId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // FlowTechStacks (Cascade เมื่อลบ FlowDefinition)
-            modelBuilder.Entity<FlowTechStacks>(entity =>
-            {
-                entity.HasOne(ts => ts.FlowDefinition)
-                    .WithMany(f => f.TechStacks)
-                    .HasForeignKey(ts => ts.FlowDefinitionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                // ไม่ Cascade — ลบ TechStack ต้นทางแล้วรายการที่ Auto-Generate ไว้ยังอยู่ (แค่ตัดการอ้างอิง)
-                entity.HasOne(ts => ts.TechStack)
-                    .WithMany()
-                    .HasForeignKey(ts => ts.TechStackId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // FlowExecutions (Cascade เมื่อลบ FlowDefinition)
-            modelBuilder.Entity<FlowExecutions>(entity =>
-            {
-                entity.HasOne(e => e.FlowDefinition)
-                    .WithMany(f => f.Executions)
-                    .HasForeignKey(e => e.FlowDefinitionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(e => e.TriggeredByUser)
-                    .WithMany()
-                    .HasForeignKey(e => e.TriggeredBy)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
-
-            // FlowLogs (Cascade เมื่อลบ FlowExecution)
-            modelBuilder.Entity<FlowLogs>(entity =>
-            {
-                entity.HasOne(l => l.FlowExecution)
-                    .WithMany(e => e.Logs)
-                    .HasForeignKey(l => l.FlowExecutionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

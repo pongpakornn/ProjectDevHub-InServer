@@ -35,7 +35,8 @@ namespace backend.Models.Flow
         public DateOnly? StartDate { get; set; }
         public DateOnly? EndDate { get; set; }
 
-        // คำนวณอัตโนมัติจาก AVG(FlowSteps.ProgressPercent) ผ่าน Trigger Flow.Trg_UpdateFlowProgress — ห้ามแก้เอง
+        // เดิมคำนวณจาก AVG(FlowSteps.ProgressPercent) ผ่าน Trigger — FlowSteps ถูกลบไปแล้ว (ไม่มีหน้าจอใช้งาน)
+        // ค้างไว้เป็น Fallback สำหรับ Flow แบบ Standalone (ProjectId เป็น NULL) เท่านั้น ปกติอ่าน Project.ProgressPercent แทน
         public decimal ProgressPercent { get; set; } = 0;
 
         // ===== Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD) — Meta ของชุดไดอะแกรม 6 ประเภท =====
@@ -60,9 +61,6 @@ namespace backend.Models.Flow
         [ForeignKey(nameof(ProjectId))]
         public Projects? Project { get; set; }
 
-        public ICollection<FlowSteps> Steps { get; set; } = new List<FlowSteps>();
-        public ICollection<FlowTechStacks> TechStacks { get; set; } = new List<FlowTechStacks>();
-        public ICollection<FlowExecutions> Executions { get; set; } = new List<FlowExecutions>();
         public ICollection<FlowDiagramRows> DiagramRows { get; set; } = new List<FlowDiagramRows>();
     }
 }
