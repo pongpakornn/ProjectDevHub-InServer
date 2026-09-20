@@ -3626,23 +3626,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\pongp\\.nuget\\packages\\": {},
+    "C:\\Users\\Administrator\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
+      "projectUniqueName": "D:\\ProgramCHR\\9. ProjectDevHub\\backend\\backend.csproj",
       "projectName": "backend",
-      "projectPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\backend.csproj",
-      "packagesPath": "C:\\Users\\pongp\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\pongp\\Desktop\\WorkMe\\8 . Project FullStack\\4. ProjectDevHub\\backend\\obj\\",
+      "projectPath": "D:\\ProgramCHR\\9. ProjectDevHub\\backend\\backend.csproj",
+      "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
+      "outputPath": "D:\\ProgramCHR\\9. ProjectDevHub\\backend\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\pongp\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -3721,7 +3721,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

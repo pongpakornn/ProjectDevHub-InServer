@@ -2,9 +2,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Terminal, UserCircle } from 'lucide-react';
+import { Terminal, UserCircle, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/buttons/button';
 import { Input } from '@/components/ui/inputs/input';
+import { Checkbox } from '@/components/ui/inputs/checkbox';
 import { authService } from '@/services/auth.service';
 import { saveSession, getRecentLogins, addRecentLogin, RecentLogin } from '@/lib/session';
 
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [rememberPassword, setRememberPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [recentLogins, setRecentLogins] = useState<RecentLogin[]>([]);
@@ -37,8 +39,13 @@ export default function LoginPage() {
       if (response.success && response.token && response.user) {
         // จัดเก็บ Session & User Info ลง LocalStorage (รวม sessionId เพื่อใช้จำกัด Login พร้อมกันได้ครั้งละ 1 Session)
         saveSession(response.user, response.token, response.sessionId);
-        // จำไว้เฉพาะ EmpId/ชื่อ (ไม่เก็บรหัสผ่าน) ให้คลิกเติม Username ได้เร็วขึ้นครั้งถัดไป
-        addRecentLogin({ empId: response.user.empId, fullName: response.user.fullName });
+        // จำ EmpId/ชื่อไว้เสมอให้คลิกเติม Username ได้เร็วขึ้นครั้งถัดไป ส่วนรหัสผ่านจะถูกจำไว้ด้วย
+        // ก็ต่อเมื่อติ๊ก "จดจำรหัสผ่าน" เท่านั้น (ไม่ติ๊ก = ล้างรหัสผ่านเก่าที่เคยจำไว้ของบัญชีนี้ออกด้วย)
+        addRecentLogin({
+          empId: response.user.empId,
+          fullName: response.user.fullName,
+          password: rememberPassword ? password : undefined,
+        });
 
         // นำทางไปยังหน้า Dashboard
         router.push('/dashboard');
@@ -57,13 +64,23 @@ export default function LoginPage() {
   const handleCancel = () => {
     setUsername('');
     setPassword('');
+    setRememberPassword(false);
     setErrorMessage('');
   };
 
-  const handlePickRecent = (empId: string) => {
-    setUsername(empId);
+  // คลิกการ์ด "เข้าสู่ระบบล่าสุด" — ถ้าบัญชีนี้เคยติ๊กจดจำรหัสผ่านไว้ จะเติมรหัสผ่านให้พร้อมกดเข้าสู่ระบบ
+  // ได้ทันที (หรือแก้ไขต่อก่อนกดก็ได้) ถ้าไม่เคยจำรหัสผ่านไว้ ก็เติมแค่ Username แล้วโฟกัสช่องรหัสผ่านเหมือนเดิม
+  const handlePickRecent = (recent: RecentLogin) => {
+    setUsername(recent.empId);
     setErrorMessage('');
-    passwordRef.current?.focus();
+    if (recent.password) {
+      setPassword(recent.password);
+      setRememberPassword(true);
+    } else {
+      setPassword('');
+      setRememberPassword(false);
+      passwordRef.current?.focus();
+    }
   };
 
   return (
@@ -121,6 +138,15 @@ export default function LoginPage() {
             className="border-white/20 focus:border-indigo-400"
           />
 
+          {/* จดจำรหัสผ่าน — ติ๊กแล้วครั้งหน้าคลิกการ์ด "เข้าสู่ระบบล่าสุด" จะเติมรหัสผ่านให้ทันที */}
+          <Checkbox
+            checked={rememberPassword}
+            onChange={(e) => setRememberPassword(e.target.checked)}
+            disabled={isLoading}
+            label={<span className="text-slate-300! hover:text-white!">จดจำรหัสผ่าน</span>}
+            className="-mt-1"
+          />
+
           {/* โซนปุ่มกด */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             <Button
@@ -144,7 +170,8 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* บัญชีที่เคยเข้าสู่ระบบล่าสุด — คลิกเพื่อเติม Username ให้ทันที (ยังต้องพิมพ์รหัสผ่านเองเสมอ) */}
+      {/* บัญชีที่เคยเข้าสู่ระบบล่าสุด — คลิกเพื่อเติม Username ให้ทันที (บัญชีที่มีไอคอนกุญแจ = เคยติ๊กจดจำ
+          รหัสผ่านไว้ จะเติมรหัสผ่านให้พร้อมกดเข้าสู่ระบบเลย ส่วนที่เหลือต้องพิมพ์รหัสผ่านเองเหมือนเดิม) */}
       {recentLogins.length > 0 && (
         <div className="relative z-10 w-full max-w-xs mt-4">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2">
@@ -155,16 +182,19 @@ export default function LoginPage() {
               <button
                 key={r.empId}
                 type="button"
-                onClick={() => handlePickRecent(r.empId)}
+                onClick={() => handlePickRecent(r)}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left hover:bg-white/10 transition-colors"
               >
                 <span className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0">
                   <UserCircle className="w-4 h-4" strokeWidth={1.75} />
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block text-xs font-bold text-white truncate">{r.fullName}</span>
                   <span className="block text-[10px] font-mono text-slate-400 truncate">{r.empId}</span>
                 </span>
+                {r.password && (
+                  <KeyRound className="w-3.5 h-3.5 text-amber-400 shrink-0" strokeWidth={2} />
+                )}
               </button>
             ))}
           </div>

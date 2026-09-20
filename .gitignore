@@ -8,3 +8,9 @@
 # OS/editor junk
 .DS_Store
 Thumbs.db
+
+# .NET build output (publish/ also carries a live appsettings.json copy with real DB credentials —
+# never commit it)
+/backend/bin/
+/backend/obj/
+/backend/publish/
