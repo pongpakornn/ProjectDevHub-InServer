@@ -1,0 +1,10 @@
+# root-level npm deps (used only for the `concurrently` dev:frontend/dev:backend scripts)
+/node_modules
+
+# stray Next.js build cache that can land here if Turbopack mis-infers the workspace root
+# (the real one is frontend/.next, which frontend/.gitignore already excludes)
+/.next
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
