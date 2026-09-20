@@ -14,3 +14,6 @@ Thumbs.db
 /backend/bin/
 /backend/obj/
 /backend/publish/
+
+# holds the real production DB connection string for this server — stays local only, never on GitHub
+/backend/appsettings.json
