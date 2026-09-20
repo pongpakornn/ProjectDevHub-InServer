@@ -18,6 +18,9 @@ namespace backend.DTOs
         public DateOnly? StartDate { get; set; }
         public DateOnly? EndDate { get; set; }
         public decimal ProgressPercent { get; set; }
+        public string? SystemType { get; set; }
+        public string? ModuleList { get; set; }
+        public string DfdLevel { get; set; } = "level0";
         public int CreatedBy { get; set; }
         public string CreatedByName { get; set; } = string.Empty;
     }
@@ -182,5 +185,60 @@ namespace backend.DTOs
 
         [Required]
         public string Message { get; set; } = string.Empty;
+    }
+
+    // ===========================================================================
+    // Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD) — FlowDiagramRows
+    // 6 ประเภท: FLOWCHART, USECASE, DFD, SEQUENCE, ERD, STATE
+    // ===========================================================================
+    public class FlowDiagramRowDto
+    {
+        public int FlowDiagramRowId { get; set; }
+        public string StepNo { get; set; } = string.Empty;
+        public string Actor { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
+        public string DataField { get; set; } = string.Empty;
+        public string Decision { get; set; } = string.Empty;
+        public string NextStep { get; set; } = string.Empty;
+        public string? OptionValue { get; set; }
+    }
+
+    public class SaveFlowDiagramRowItem
+    {
+        public string? StepNo { get; set; }
+        public string? Actor { get; set; }
+        public string? Action { get; set; }
+        public string? DataField { get; set; }
+        public string? Decision { get; set; }
+        public string? NextStep { get; set; }
+        public string? OptionValue { get; set; }
+    }
+
+    public class SaveFlowDiagramRowsRequest
+    {
+        [Required, StringLength(20)]
+        public string DiagramType { get; set; } = string.Empty;
+
+        public List<SaveFlowDiagramRowItem> Rows { get; set; } = new();
+    }
+
+    public class FlowDiagramDataDto
+    {
+        public string? SystemType { get; set; }
+        public string? ModuleList { get; set; }
+        public string DfdLevel { get; set; } = "level0";
+        public Dictionary<string, List<FlowDiagramRowDto>> RowsByType { get; set; } = new();
+    }
+
+    public class UpdateFlowMetaRequest
+    {
+        [StringLength(255)]
+        public string? SystemType { get; set; }
+
+        [StringLength(500)]
+        public string? ModuleList { get; set; }
+
+        [StringLength(10)]
+        public string? DfdLevel { get; set; }
     }
 }

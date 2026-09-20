@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, User, Users, Tv, FileSearch, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, User, Users, Tv, FileSearch, GitFork, Sparkles } from "lucide-react";
 import { getVisitableUsers, getUserProjectCards, VisitorUser, VisitorProjectCard } from "@/lib/visitor-api";
 import { getStoredUser } from "@/lib/session";
 
@@ -166,20 +166,30 @@ export default function VisitorUserProjectsPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100">
                 <Link
                   href={`/dashboard/visitor/${targetUserId}/present/${p.id}?type=${p.workType.toLowerCase()}`}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+                  title="สไลด์"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
                   <Tv className="w-3.5 h-3.5" />
                   สไลด์
                 </Link>
                 <Link
                   href={`/dashboard/visitor/${targetUserId}/detail/${p.id}?type=${p.workType.toLowerCase()}`}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+                  title="ดูรายละเอียด"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
                 >
                   <FileSearch className="w-3.5 h-3.5" />
-                  ดูรายละเอียด
+                  รายละเอียด
+                </Link>
+                <Link
+                  href={`/dashboard/visitor/${targetUserId}/flow/${p.id}`}
+                  title="ดู Flow Diagram"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+                >
+                  <GitFork className="w-3.5 h-3.5" />
+                  Flow
                 </Link>
               </div>
 

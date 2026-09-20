@@ -18,6 +18,8 @@ import {
   mapStackItem as mapTeamStackItem,
   mapWorkItem as mapTeamWorkItem,
 } from "@/lib/project-team-api";
+import { FlowDefinitionDetailDtoRaw, mapListItem as mapFlowListItem } from "@/lib/flow-api";
+import { FlowDetail } from "@/types/flow";
 
 export interface VisitorUser {
   userId: number;
@@ -143,4 +145,21 @@ export async function getTeamProjectDetail(
     stacks: raw.stacks.map(mapTeamStackItem),
     showcases: raw.showcases.map(mapTeamWorkItem),
   };
+}
+
+// อ่านอย่างเดียว: Flow Diagram ของโปรเจกต์นี้ — ใช้ FlowDefinitionId ที่ได้ไปเรียก getFlowDiagramData
+// (frontend/src/lib/flow-api.ts) ต่อได้เลย เพราะ Endpoint นั้นไม่ได้ผูก Ownership Check เพิ่ม (Global Read)
+export async function getUserProjectFlow(
+  projectId: number,
+  targetUserId: number,
+  viewerUserId: number
+): Promise<FlowDetail | null> {
+  try {
+    const raw = await fetchApi<FlowDefinitionDetailDtoRaw>(
+      `/Visitor/projects/${projectId}/flow?targetUserId=${targetUserId}&userId=${viewerUserId}`
+    );
+    return { ...mapFlowListItem(raw.flow), techStacks: [], phases: [] };
+  } catch {
+    return null;
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import Portal from "@/components/ui/portal";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -11,9 +11,11 @@ interface PresentItemModalProps {
   editingId: string | null;
   title: string;
   description: string;
+  details: string[];
   imagePreview: string | null;
   setTitle: (val: string) => void;
   setDescription: (val: string) => void;
+  setDetails: (val: string[]) => void;
   onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClose: () => void;
   onSave: () => void;
@@ -24,9 +26,11 @@ export function PresentItemModal({
   editingId,
   title,
   description,
+  details,
   imagePreview,
   setTitle,
   setDescription,
+  setDetails,
   onImageChange,
   onClose,
   onSave,
@@ -35,11 +39,19 @@ export function PresentItemModal({
 
   if (!isOpen) return null;
 
+  const updateDetail = (index: number, value: string) => {
+    setDetails(details.map((d, i) => (i === index ? value : d)));
+  };
+
+  const addDetail = () => setDetails([...details, ""]);
+
+  const removeDetail = (index: number) => setDetails(details.filter((_, i) => i !== index));
+
   return (
     <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <h2 className="text-base font-bold text-slate-900">
             {editingId ? "แก้ไขรายการนำเสนอ" : "เพิ่มรายการนำเสนอ"}
           </h2>
@@ -76,14 +88,53 @@ export function PresentItemModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">รายละเอียด</label>
+            <label className="block text-xs font-bold text-slate-800 mb-1">รายละเอียดย่อ</label>
             <textarea
-              rows={3}
+              rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="อธิบายว่าหน้านี้ทำอะไรได้บ้าง"
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium resize-none focus:outline-none focus:border-indigo-500"
             />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-800">รายละเอียดระบบ (แสดงเป็นข้อ)</label>
+              <button
+                type="button"
+                onClick={addDetail}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600 text-[11px] font-bold hover:bg-indigo-100 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                เพิ่ม
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              {details.length === 0 ? (
+                <p className="text-[11px] text-slate-400 py-1">ยังไม่มีรายการ — กด &quot;เพิ่ม&quot; เพื่อใส่รายละเอียดข้อที่ 1</p>
+              ) : (
+                details.map((d, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <span className="w-5 shrink-0 text-right text-[11px] font-bold text-slate-400">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={d}
+                      onChange={(e) => updateDetail(idx, e.target.value)}
+                      placeholder={`รายละเอียดข้อที่ ${idx + 1}`}
+                      className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-indigo-500 focus:bg-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeDetail(idx)}
+                      className="p-1.5 rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">

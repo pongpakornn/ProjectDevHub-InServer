@@ -37,6 +37,7 @@ export interface FlowListItem {
   endDate: string;
   workType: FlowWorkType;
   progress: number;
+  ownerName: string; // ผู้สร้าง Flow (Project Owner/Creator) — ใช้เป็นค่าเริ่มต้นของ Owner ใน Diagram Studio
 }
 
 export interface FlowDetail extends FlowListItem {

@@ -16,7 +16,7 @@ import {
   FlowLogLevel,
 } from "@/types/flow";
 
-interface FlowDefinitionDtoRaw {
+export interface FlowDefinitionDtoRaw {
   flowDefinitionId: number;
   projectId?: number | null;
   flowCode: string;
@@ -53,7 +53,7 @@ interface FlowTechStackDtoRaw {
   sortOrder: number;
 }
 
-interface FlowDefinitionDetailDtoRaw {
+export interface FlowDefinitionDetailDtoRaw {
   flow: FlowDefinitionDtoRaw;
   steps: FlowStepDtoRaw[];
   techStacks: FlowTechStackDtoRaw[];
@@ -114,7 +114,7 @@ function toDisplayDate(iso?: string | null): string {
   return iso;
 }
 
-function mapListItem(raw: FlowDefinitionDtoRaw): FlowListItem {
+export function mapListItem(raw: FlowDefinitionDtoRaw): FlowListItem {
   return {
     id: String(raw.flowDefinitionId),
     projectId: raw.projectId ?? null,
@@ -126,6 +126,7 @@ function mapListItem(raw: FlowDefinitionDtoRaw): FlowListItem {
     endDate: toDisplayDate(raw.endDate),
     workType: mapWorkType(raw.workType),
     progress: Math.round(raw.progressPercent),
+    ownerName: raw.createdByName || "",
   };
 }
 
@@ -334,4 +335,112 @@ export async function addLog(
     body: JSON.stringify({ logLevel, message }),
   });
   return mapLog(raw);
+}
+
+// ===========================================================================
+// FlowDiagramRows — Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD)
+// ===========================================================================
+import type {
+  FlowDiagramRow,
+  FlowDiagramRowsByType,
+  FlowDiagramType,
+} from "@/types/flow-diagram";
+import { FLOW_DIAGRAM_TYPES, uid } from "@/lib/flow-diagram-templates";
+
+interface FlowDiagramRowDtoRaw {
+  flowDiagramRowId: number;
+  stepNo: string;
+  actor: string;
+  action: string;
+  dataField: string;
+  decision: string;
+  nextStep: string;
+  optionValue?: string | null;
+}
+
+interface FlowDiagramDataDtoRaw {
+  systemType?: string | null;
+  moduleList?: string | null;
+  dfdLevel: string;
+  rowsByType: Record<string, FlowDiagramRowDtoRaw[]>;
+}
+
+export interface FlowDiagramMeta {
+  systemType: string;
+  moduleList: string;
+  dfdLevel: "context" | "level0" | "level1";
+}
+
+export interface FlowDiagramData extends FlowDiagramMeta {
+  rows: FlowDiagramRowsByType;
+}
+
+function mapDiagramRow(raw: FlowDiagramRowDtoRaw): FlowDiagramRow {
+  return {
+    id: uid(),
+    dbId: raw.flowDiagramRowId,
+    stepNo: raw.stepNo,
+    actor: raw.actor,
+    action: raw.action,
+    dataField: raw.dataField,
+    decision: raw.decision,
+    nextStep: raw.nextStep,
+    optionValue: raw.optionValue ?? undefined,
+  };
+}
+
+export async function getFlowDiagramData(flowDefinitionId: number): Promise<FlowDiagramData> {
+  const raw = await fetchApi<FlowDiagramDataDtoRaw>(`/Flow/${flowDefinitionId}/diagram`);
+  const rows = Object.fromEntries(
+    FLOW_DIAGRAM_TYPES.map((f) => [f.id, (raw.rowsByType[f.id] ?? []).map(mapDiagramRow)]),
+  ) as FlowDiagramRowsByType;
+
+  return {
+    systemType: raw.systemType ?? "",
+    moduleList: raw.moduleList ?? "",
+    dfdLevel: (raw.dfdLevel as FlowDiagramMeta["dfdLevel"]) || "level0",
+    rows,
+  };
+}
+
+export async function saveFlowDiagramRows(
+  flowDefinitionId: number,
+  diagramType: FlowDiagramType,
+  rows: FlowDiagramRow[],
+  currentUserId: number,
+): Promise<FlowDiagramRow[]> {
+  const raw = await fetchApi<FlowDiagramRowDtoRaw[]>(
+    `/Flow/${flowDefinitionId}/diagram-rows?userId=${currentUserId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        diagramType,
+        rows: rows.map((r) => ({
+          stepNo: r.stepNo,
+          actor: r.actor,
+          action: r.action,
+          dataField: r.dataField,
+          decision: r.decision,
+          nextStep: r.nextStep,
+          optionValue: r.optionValue,
+        })),
+      }),
+    },
+  );
+  return raw.map(mapDiagramRow);
+}
+
+export async function updateFlowMeta(
+  flowDefinitionId: number,
+  meta: Partial<FlowDiagramMeta>,
+  currentUserId: number,
+): Promise<void> {
+  await fetchApi<FlowDefinitionDtoRaw>(`/Flow/${flowDefinitionId}/meta?userId=${currentUserId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      systemType: meta.systemType,
+      moduleList: meta.moduleList,
+      dfdLevel: meta.dfdLevel,
+    }),
+  });
 }

@@ -15,17 +15,20 @@ namespace backend.Controllers
         private readonly IVisitorService _visitorService;
         private readonly IProjectSoloService _soloService;
         private readonly IProjectTeamService _teamService;
+        private readonly IFlowService _flowService;
         private readonly ILogger<VisitorController> _logger;
 
         public VisitorController(
             IVisitorService visitorService,
             IProjectSoloService soloService,
             IProjectTeamService teamService,
+            IFlowService flowService,
             ILogger<VisitorController> logger)
         {
             _visitorService = visitorService;
             _soloService = soloService;
             _teamService = teamService;
+            _flowService = flowService;
             _logger = logger;
         }
 
@@ -88,6 +91,26 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงรายละเอียดโปรเจกต์ {ProjectId} (Visitor Mode)", projectId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        // GET /api/Visitor/projects/{projectId}/flow?targetUserId={targetUserId}&userId={viewerId}
+        // ดู Flow Diagram ของโปรเจกต์นี้แบบอ่านอย่างเดียว — ส่ง targetUserId เข้า FlowService ตรงๆ เหมือนกับ
+        // GetProjectDetail ด้านบน เพื่อผ่านเงื่อนไข Data Isolation เดิม (ProjectOwnerId/Members)
+        [HttpGet("projects/{projectId:int}/flow")]
+        [RequirePermission("VISITOR", PermissionAction.View)]
+        public async Task<IActionResult> GetProjectFlow(int projectId, [FromQuery] int targetUserId)
+        {
+            try
+            {
+                var detail = await _flowService.GetFlowDetailByProjectIdAsync(projectId, targetUserId);
+                if (detail == null) return NotFound(new { message = "โปรเจกต์นี้ยังไม่มี Flow" });
+                return Ok(detail);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึง Flow ของโปรเจกต์ {ProjectId} (Visitor Mode)", projectId);
                 return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
             }
         }

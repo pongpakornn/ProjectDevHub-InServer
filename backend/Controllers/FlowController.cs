@@ -343,5 +343,60 @@ namespace backend.Controllers
                 return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
             }
         }
+
+        // ===========================================================================
+        // FlowDiagramRows — Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD)
+        // ===========================================================================
+        [HttpGet("{flowDefinitionId:int}/diagram")]
+        public async Task<IActionResult> GetDiagramData(int flowDefinitionId)
+        {
+            try
+            {
+                var result = await _flowService.GetDiagramDataAsync(flowDefinitionId);
+                if (result == null) return NotFound(new { message = "ไม่พบ Flow นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการดึงข้อมูลไดอะแกรมของ Flow {FlowDefinitionId}", flowDefinitionId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpPut("{flowDefinitionId:int}/diagram-rows")]
+        [RequirePermission("FLOW", PermissionAction.Edit)]
+        public async Task<IActionResult> SaveDiagramRows(int flowDefinitionId, [FromBody] SaveFlowDiagramRowsRequest request)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            try
+            {
+                var result = await _flowService.SaveDiagramRowsAsync(flowDefinitionId, request);
+                if (result == null) return NotFound(new { message = "ไม่พบ Flow นี้ หรือประเภทไดอะแกรมไม่ถูกต้อง" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการบันทึกตารางไดอะแกรมของ Flow {FlowDefinitionId}", flowDefinitionId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
+
+        [HttpPut("{flowDefinitionId:int}/meta")]
+        [RequirePermission("FLOW", PermissionAction.Edit)]
+        public async Task<IActionResult> UpdateFlowMeta(int flowDefinitionId, [FromBody] UpdateFlowMetaRequest request)
+        {
+            try
+            {
+                var result = await _flowService.UpdateFlowMetaAsync(flowDefinitionId, request);
+                if (result == null) return NotFound(new { message = "ไม่พบ Flow นี้" });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "เกิดข้อผิดพลาดในการอัปเดตข้อมูลโปรเจกต์ของ Flow {FlowDefinitionId}", flowDefinitionId);
+                return StatusCode(500, new { message = $"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์: {ex.Message}" });
+            }
+        }
     }
 }

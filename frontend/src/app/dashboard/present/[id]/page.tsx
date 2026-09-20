@@ -50,6 +50,7 @@ export default function PresentProjectDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [details, setDetails] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -128,6 +129,7 @@ export default function PresentProjectDetailPage() {
     setEditingId(null);
     setTitle("");
     setDescription("");
+    setDetails([]);
     setImagePreview(null);
     setImageFile(null);
   };
@@ -136,6 +138,12 @@ export default function PresentProjectDetailPage() {
     setEditingId(item.id);
     setTitle(item.title);
     setDescription(item.description);
+    setDetails(
+      (item.flowDescription || "")
+        .split("\n")
+        .map((d) => d.trim())
+        .filter(Boolean)
+    );
     setImagePreview(item.imageUrl);
     setImageFile(null);
     setIsAddOpen(true);
@@ -152,18 +160,19 @@ export default function PresentProjectDetailPage() {
         const existing = items.find((it) => it.id === editingId);
         finalImageUrl = existing?.imageUrl || finalImageUrl;
       }
+      const flowDescription = details.map((d) => d.trim()).filter(Boolean).join("\n");
 
       if (editingId) {
         await api.updateWorkItem(Number(editingId), projectId, {
           title,
           description,
-          flowDescription: items.find((it) => it.id === editingId)?.flowDescription || "",
+          flowDescription,
           imageUrl: finalImageUrl,
         }, CURRENT_USER_ID);
       } else {
         await api.createWorkItem(
           projectId,
-          { title, description, flowDescription: "", imageUrl: finalImageUrl },
+          { title, description, flowDescription, imageUrl: finalImageUrl },
           CURRENT_USER_ID
         );
       }
@@ -231,6 +240,7 @@ export default function PresentProjectDetailPage() {
           setEditingId(null);
           setTitle("");
           setDescription("");
+          setDetails([]);
           setImagePreview(null);
           setImageFile(null);
           setIsAddOpen(true);
@@ -282,9 +292,11 @@ export default function PresentProjectDetailPage() {
         editingId={editingId}
         title={title}
         description={description}
+        details={details}
         imagePreview={imagePreview}
         setTitle={setTitle}
         setDescription={setDescription}
+        setDetails={setDetails}
         onImageChange={handleImageChange}
         onClose={closeItemModal}
         onSave={handleSaveItem}

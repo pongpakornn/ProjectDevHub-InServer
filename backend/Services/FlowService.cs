@@ -69,6 +69,20 @@ namespace backend.Services
             };
         }
 
+        // ใช้โดย Visitor Mode: การ์ดโปรเจกต์รู้แค่ ProjectId ไม่รู้ FlowDefinitionId — หา FlowDefinitionId จาก
+        // ProjectId ก่อน แล้วเรียก GetFlowDetailAsync ตัวเดิมต่อ (ผ่านเงื่อนไข Data Isolation เดิมทุกอย่าง)
+        public async Task<FlowDefinitionDetailDto?> GetFlowDetailByProjectIdAsync(int projectId, int userId)
+        {
+            var flowId = await _context.FlowDefinitions
+                .Where(f => f.ProjectId == projectId && f.IsActive)
+                .Select(f => f.FlowDefinitionId)
+                .FirstOrDefaultAsync();
+
+            if (flowId == 0) return null;
+
+            return await GetFlowDetailAsync(flowId, userId);
+        }
+
         public async Task<FlowDefinitionDto> CreateFlowAsync(CreateFlowDefinitionRequest request, int currentUserId)
         {
             var flow = new FlowDefinitions
@@ -547,6 +561,9 @@ namespace backend.Services
             StartDate = f.StartDate,
             EndDate = f.EndDate,
             ProgressPercent = f.ProgressPercent,
+            SystemType = f.SystemType,
+            ModuleList = f.ModuleList,
+            DfdLevel = f.DfdLevel,
             CreatedBy = f.CreatedBy,
             CreatedByName = f.Creator?.FullName ?? string.Empty
         };
@@ -595,6 +612,102 @@ namespace backend.Services
             LogLevel = l.LogLevel,
             Message = l.Message,
             LoggedDate = l.LoggedDate
+        };
+
+        // ===========================================================================
+        // FlowDiagramRows — Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD)
+        // ===========================================================================
+        private static readonly HashSet<string> ValidDiagramTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "FLOWCHART", "USECASE", "DFD", "SEQUENCE", "ERD", "STATE"
+        };
+
+        public async Task<FlowDiagramDataDto?> GetDiagramDataAsync(int flowDefinitionId)
+        {
+            var flow = await _context.FlowDefinitions
+                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+            if (flow == null) return null;
+
+            var rows = await _context.FlowDiagramRows
+                .Where(r => r.FlowDefinitionId == flowDefinitionId)
+                .OrderBy(r => r.SortOrder)
+                .ToListAsync();
+
+            var byType = ValidDiagramTypes.ToDictionary(
+                t => t,
+                t => rows.Where(r => string.Equals(r.DiagramType, t, StringComparison.OrdinalIgnoreCase))
+                    .Select(MapToFlowDiagramRowDto)
+                    .ToList());
+
+            return new FlowDiagramDataDto
+            {
+                SystemType = flow.SystemType,
+                ModuleList = flow.ModuleList,
+                DfdLevel = flow.DfdLevel,
+                RowsByType = byType
+            };
+        }
+
+        // Full-Replace ต่อ (FlowDefinitionId, DiagramType) ทุกครั้งที่ Save — ตรงกับพฤติกรรมต้นทางที่
+        // ทั้งชุดแถวถูกแทนที่ทีเดียวจาก State ฝั่ง Client (ไม่ต้องสน Diff ทีละแถว)
+        public async Task<List<FlowDiagramRowDto>?> SaveDiagramRowsAsync(int flowDefinitionId, SaveFlowDiagramRowsRequest request)
+        {
+            if (!ValidDiagramTypes.Contains(request.DiagramType)) return null;
+
+            var flowExists = await _context.FlowDefinitions.AnyAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+            if (!flowExists) return null;
+
+            var existing = _context.FlowDiagramRows
+                .Where(r => r.FlowDefinitionId == flowDefinitionId
+                    && r.DiagramType.ToUpper() == request.DiagramType.ToUpper());
+            _context.FlowDiagramRows.RemoveRange(existing);
+
+            var newRows = request.Rows.Select((item, index) => new FlowDiagramRows
+            {
+                FlowDefinitionId = flowDefinitionId,
+                DiagramType = request.DiagramType.ToUpperInvariant(),
+                StepNo = item.StepNo,
+                Actor = item.Actor,
+                Action = item.Action,
+                DataField = item.DataField,
+                Decision = item.Decision,
+                NextStep = item.NextStep,
+                OptionValue = item.OptionValue,
+                SortOrder = index
+            }).ToList();
+
+            _context.FlowDiagramRows.AddRange(newRows);
+            await _context.SaveChangesAsync();
+
+            return newRows.Select(MapToFlowDiagramRowDto).ToList();
+        }
+
+        public async Task<FlowDefinitionDto?> UpdateFlowMetaAsync(int flowDefinitionId, UpdateFlowMetaRequest request)
+        {
+            var flow = await _context.FlowDefinitions
+                .Include(f => f.Creator)
+                .FirstOrDefaultAsync(f => f.FlowDefinitionId == flowDefinitionId && f.IsActive);
+            if (flow == null) return null;
+
+            flow.SystemType = request.SystemType;
+            flow.ModuleList = request.ModuleList;
+            if (!string.IsNullOrWhiteSpace(request.DfdLevel)) flow.DfdLevel = request.DfdLevel;
+            flow.UpdatedDate = DateTimeOffset.UtcNow;
+
+            await _context.SaveChangesAsync();
+            return MapToFlowDefinitionDto(flow);
+        }
+
+        private static FlowDiagramRowDto MapToFlowDiagramRowDto(FlowDiagramRows r) => new()
+        {
+            FlowDiagramRowId = r.FlowDiagramRowId,
+            StepNo = r.StepNo ?? string.Empty,
+            Actor = r.Actor ?? string.Empty,
+            Action = r.Action ?? string.Empty,
+            DataField = r.DataField ?? string.Empty,
+            Decision = r.Decision ?? string.Empty,
+            NextStep = r.NextStep ?? string.Empty,
+            OptionValue = r.OptionValue
         };
     }
 }

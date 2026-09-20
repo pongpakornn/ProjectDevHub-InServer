@@ -10,6 +10,8 @@ interface FlowDetailHeaderProps {
   startDate: string;
   endDate: string;
   workType: string;
+  backHref?: string;
+  backLabel?: string;
 }
 
 const statusBadgeClass = (status: string) => {
@@ -24,18 +26,20 @@ export default function FlowDetailHeader({
   startDate,
   endDate,
   workType,
+  backHref = "/dashboard/flow",
+  backLabel = "กลับไปเลือกโปรเจค",
 }: FlowDetailHeaderProps) {
   return (
     <div className="space-y-6">
       {/* ปุ่มย้อนกลับ */}
       <Link
-        href="/dashboard/flow"
+        href={backHref}
         className="group inline-flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:shadow-md transition-all duration-300 w-fit"
       >
         <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center transition-colors duration-300 group-hover:bg-indigo-50">
           <ArrowLeft className="w-3.5 h-3.5" />
         </span>
-        กลับไปเลือกโปรเจค
+        {backLabel}
       </Link>
 
       {/* Header Banner */}

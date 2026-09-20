@@ -38,6 +38,16 @@ namespace backend.Models.Flow
         // คำนวณอัตโนมัติจาก AVG(FlowSteps.ProgressPercent) ผ่าน Trigger Flow.Trg_UpdateFlowProgress — ห้ามแก้เอง
         public decimal ProgressPercent { get; set; } = 0;
 
+        // ===== Workflow Diagram Studio (พอร์ตมาจาก AutoFlowStudio_ModulesD) — Meta ของชุดไดอะแกรม 6 ประเภท =====
+        [StringLength(255)]
+        public string? SystemType { get; set; }
+
+        [StringLength(500)]
+        public string? ModuleList { get; set; }
+
+        [StringLength(10)]
+        public string DfdLevel { get; set; } = "level0"; // context, level0, level1 — จำระดับ DFD ที่เลือกล่าสุด
+
         public int CreatedBy { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTimeOffset CreatedDate { get; set; } = DateTimeOffset.UtcNow;
@@ -53,5 +63,6 @@ namespace backend.Models.Flow
         public ICollection<FlowSteps> Steps { get; set; } = new List<FlowSteps>();
         public ICollection<FlowTechStacks> TechStacks { get; set; } = new List<FlowTechStacks>();
         public ICollection<FlowExecutions> Executions { get; set; } = new List<FlowExecutions>();
+        public ICollection<FlowDiagramRows> DiagramRows { get; set; } = new List<FlowDiagramRows>();
     }
 }

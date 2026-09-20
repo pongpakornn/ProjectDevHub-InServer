@@ -44,6 +44,7 @@ namespace backend.Data
         public DbSet<FlowTechStacks> FlowTechStacks => Set<FlowTechStacks>();
         public DbSet<FlowExecutions> FlowExecutions => Set<FlowExecutions>();
         public DbSet<FlowLogs> FlowLogs => Set<FlowLogs>();
+        public DbSet<FlowDiagramRows> FlowDiagramRows => Set<FlowDiagramRows>();
 
         // ---------- Testing ----------
         public DbSet<TestSuites> TestSuites => Set<TestSuites>();
@@ -381,6 +382,17 @@ namespace backend.Data
                 entity.HasOne(l => l.FlowExecution)
                     .WithMany(e => e.Logs)
                     .HasForeignKey(l => l.FlowExecutionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // FlowDiagramRows (Workflow Diagram Studio — Cascade เมื่อลบ FlowDefinition)
+            modelBuilder.Entity<FlowDiagramRows>(entity =>
+            {
+                entity.HasIndex(r => new { r.FlowDefinitionId, r.DiagramType, r.SortOrder });
+
+                entity.HasOne(r => r.FlowDefinition)
+                    .WithMany(f => f.DiagramRows)
+                    .HasForeignKey(r => r.FlowDefinitionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

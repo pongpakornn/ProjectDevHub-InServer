@@ -261,6 +261,9 @@ CREATE TABLE Flow.FlowDefinitions (
     StartDate         DATE NULL,
     EndDate           DATE NULL,
     ProgressPercent   DECIMAL(5,2) NOT NULL DEFAULT ((0)),
+    SystemType        NVARCHAR(255) NULL,
+    ModuleList        NVARCHAR(500) NULL,
+    DfdLevel          VARCHAR(10) NOT NULL DEFAULT ('level0'),
     CreatedBy         INT NOT NULL,
     IsActive          BIT NOT NULL DEFAULT ((1)),
     CreatedDate       DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset()),
@@ -425,6 +428,23 @@ CREATE TABLE Flow.FlowLogs (
 );
 GO
 
+-- ---------- Flow.FlowDiagramRows (Workflow Diagram Studio — พอร์ตมาจาก AutoFlowStudio_ModulesD) ----------
+CREATE TABLE Flow.FlowDiagramRows (
+    FlowDiagramRowId  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    FlowDefinitionId  INT NOT NULL,
+    DiagramType       VARCHAR(20) NOT NULL,  -- FLOWCHART, USECASE, DFD, SEQUENCE, ERD, STATE
+    StepNo            NVARCHAR(20) NULL,
+    Actor             NVARCHAR(200) NULL,
+    Action            NVARCHAR(500) NULL,
+    DataField         NVARCHAR(300) NULL,
+    Decision          NVARCHAR(300) NULL,
+    NextStep          NVARCHAR(100) NULL,
+    OptionValue       NVARCHAR(100) NULL,
+    SortOrder         INT NOT NULL DEFAULT ((0)),
+    CreatedDate       DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
+);
+GO
+
 -- ---------- Planning.Todos ----------
 CREATE TABLE Planning.Todos (
     TodoId         INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -511,6 +531,8 @@ ALTER TABLE Planning.Events         ADD CONSTRAINT FK_Events_Task               
 
 ALTER TABLE Flow.FlowLogs           ADD CONSTRAINT FK_FlowLogs_Execution            FOREIGN KEY (FlowExecutionId) REFERENCES Flow.FlowExecutions(FlowExecutionId) ON DELETE CASCADE;
 
+ALTER TABLE Flow.FlowDiagramRows    ADD CONSTRAINT FK_FlowDiagramRows_FlowDefinition FOREIGN KEY (FlowDefinitionId) REFERENCES Flow.FlowDefinitions(FlowDefinitionId) ON DELETE CASCADE;
+
 ALTER TABLE Planning.Todos          ADD CONSTRAINT FK_Todos_User                    FOREIGN KEY (UserId) REFERENCES Core.Users(UserId);
 ALTER TABLE Planning.Todos          ADD CONSTRAINT FK_Todos_Event                   FOREIGN KEY (LinkedEventId) REFERENCES Planning.Events(EventId);
 GO
@@ -565,6 +587,7 @@ CREATE INDEX IX_Tasks_DueDate ON Project.Tasks(DueDate);
 CREATE INDEX IX_Tasks_Milestone ON Project.Tasks(MilestoneId);
 CREATE INDEX IX_Tasks_Project_Status ON Project.Tasks(ProjectId, Status);
 CREATE INDEX IX_TechStacks_Project ON Project.TechStacks(ProjectId);
+CREATE INDEX IX_FlowDiagramRows_Flow_Type_Sort ON Flow.FlowDiagramRows(FlowDefinitionId, DiagramType, SortOrder);
 GO
 
 -- =============================================================================
@@ -578,6 +601,7 @@ ALTER TABLE Flow.FlowLogs         ADD CONSTRAINT CK_FlowLogs_Level CHECK ([LogLe
 ALTER TABLE Flow.FlowSteps        ADD CONSTRAINT CK_FlowSteps_Status CHECK ([Status]='DONE' OR [Status]='IN_PROGRESS' OR [Status]='PENDING');
 ALTER TABLE Flow.FlowSteps        ADD CONSTRAINT CK_FlowSteps_Progress CHECK ([ProgressPercent]>=(0) AND [ProgressPercent]<=(100));
 ALTER TABLE Flow.FlowTechStacks   ADD CONSTRAINT CK_FlowTechStacks_Layer CHECK ([Layer]='DATABASE' OR [Layer]='BACKEND' OR [Layer]='FRONTEND');
+ALTER TABLE Flow.FlowDiagramRows  ADD CONSTRAINT CK_FlowDiagramRows_DiagramType CHECK ([DiagramType]='FLOWCHART' OR [DiagramType]='USECASE' OR [DiagramType]='DFD' OR [DiagramType]='SEQUENCE' OR [DiagramType]='ERD' OR [DiagramType]='STATE');
 ALTER TABLE Planning.Events       ADD CONSTRAINT CK_Events_DateRange CHECK ([EndDateTime]>=[StartDateTime]);
 ALTER TABLE Project.Attachments   ADD CONSTRAINT CK_Attachments_RefTarget CHECK ([ProjectId] IS NOT NULL OR [TaskId] IS NOT NULL);
 ALTER TABLE Project.Comments      ADD CONSTRAINT CK_Comments_RefTarget CHECK ([ProjectId] IS NOT NULL OR [TaskId] IS NOT NULL);
@@ -868,4 +892,122 @@ BEGIN
     DELETE TOP (500) FROM Core.AuditLogs
     WHERE LogDate < DATEADD(DAY, -90, SYSDATETIMEOFFSET());
 END;
+GO
+
+-- =============================================================================
+-- SECTION 7 — REPORTING VIEWS (อ่านอย่างเดียว ไม่เปลี่ยนพฤติกรรมการเขียนข้อมูลใดๆ)
+-- รวม JOIN/Projection ที่ Service หลายจุดเขียนซ้ำกันไว้ในที่เดียว ให้ Query จริงหรือ Report ในอนาคต
+-- เรียกใช้ได้ตรงๆ แทนการต่อ JOIN เองยาวๆ ทุกครั้ง — ดู create_reporting_views.sql (root) สำหรับต้นฉบับ
+-- =============================================================================
+
+CREATE VIEW Core.vw_UserPermissionSummary AS
+SELECT
+    u.UserId,
+    u.EmpId,
+    u.FullName,
+    u.UserLevel,
+    u.IsSuperAdmin,
+    u.IsSuspended,
+    u.IsActive,
+    u.IsOnline,
+    u.DivisionName,
+    u.DepartmentName,
+    u.LastLoginDate,
+    COUNT(perm.PermissionId)                                   AS SystemsGranted,
+    SUM(CASE WHEN perm.CanView    = 1 THEN 1 ELSE 0 END)       AS CanViewCount,
+    SUM(CASE WHEN perm.CanAdd     = 1 THEN 1 ELSE 0 END)       AS CanAddCount,
+    SUM(CASE WHEN perm.CanEdit    = 1 THEN 1 ELSE 0 END)       AS CanEditCount,
+    SUM(CASE WHEN perm.CanDelete  = 1 THEN 1 ELSE 0 END)       AS CanDeleteCount,
+    SUM(CASE WHEN perm.CanApprove = 1 THEN 1 ELSE 0 END)       AS CanApproveCount,
+    SUM(CASE WHEN perm.CanReject  = 1 THEN 1 ELSE 0 END)       AS CanRejectCount
+FROM Core.Users u
+LEFT JOIN Core.Permissions perm ON perm.UserId = u.UserId
+GROUP BY
+    u.UserId, u.EmpId, u.FullName, u.UserLevel, u.IsSuperAdmin, u.IsSuspended, u.IsActive,
+    u.IsOnline, u.DivisionName, u.DepartmentName, u.LastLoginDate;
+GO
+
+CREATE VIEW Project.vw_ProjectOverview AS
+SELECT
+    p.ProjectId,
+    p.ProjectCode,
+    p.ProjectName,
+    p.Description,
+    p.ProjectTypeId,
+    pt.TypeName                                                        AS ProjectTypeName,
+    p.DivisionName,
+    p.RequesterName,
+    p.ProjectOwnerId,
+    ownerUser.FullName                                                 AS OwnerName,
+    p.CreatedBy,
+    creatorUser.FullName                                               AS CreatedByName,
+    p.Status,
+    p.Priority,
+    p.StartDate,
+    p.EndDate,
+    p.ProgressPercent,
+    p.IsActive,
+    p.CreatedDate,
+    p.UpdatedDate,
+    (SELECT COUNT(*) FROM Project.ProjectMembers pm WHERE pm.ProjectId = p.ProjectId) AS MemberCount,
+    CASE WHEN EXISTS (SELECT 1 FROM Project.ProjectMembers pm2 WHERE pm2.ProjectId = p.ProjectId)
+         THEN 'TEAM' ELSE 'SOLO' END                                   AS WorkType
+FROM Project.Projects p
+LEFT JOIN Project.ProjectTypes pt   ON pt.ProjectTypeId = p.ProjectTypeId
+LEFT JOIN Core.Users ownerUser      ON ownerUser.UserId = p.ProjectOwnerId
+LEFT JOIN Core.Users creatorUser    ON creatorUser.UserId = p.CreatedBy;
+GO
+
+CREATE VIEW Project.vw_ProjectOwnerStats AS
+SELECT
+    u.UserId,
+    u.EmpId,
+    u.FullName,
+    u.UserLevel,
+    u.DivisionName,
+    u.DepartmentName,
+    COUNT(p.ProjectId)          AS ProjectCount,
+    MAX(p.CreatedDate)          AS LatestProjectDate
+FROM Core.Users u
+JOIN Project.Projects p ON p.ProjectOwnerId = u.UserId AND p.IsActive = 1
+WHERE u.IsActive = 1 AND u.IsSuspended = 0
+GROUP BY u.UserId, u.EmpId, u.FullName, u.UserLevel, u.DivisionName, u.DepartmentName;
+GO
+
+CREATE VIEW Project.vw_TaskProgress AS
+SELECT
+    t.ProjectId,
+    COUNT(*)                                                    AS TotalTasks,
+    SUM(CASE WHEN t.Status = 'DONE' THEN 1 ELSE 0 END)          AS CompletedTasks,
+    CASE WHEN COUNT(*) = 0 THEN 0
+         ELSE CAST(ROUND(100.0 * SUM(CASE WHEN t.Status = 'DONE' THEN 1 ELSE 0 END) / COUNT(*), 0) AS INT)
+    END                                                          AS CompletionPercent
+FROM Project.Tasks t
+GROUP BY t.ProjectId;
+GO
+
+CREATE VIEW Flow.vw_FlowOverview AS
+SELECT
+    f.FlowDefinitionId,
+    f.ProjectId,
+    f.FlowCode,
+    f.Name,
+    f.Description,
+    f.Status,
+    f.WorkType,
+    f.StartDate,
+    f.EndDate,
+    f.ProgressPercent,
+    f.SystemType,
+    f.ModuleList,
+    f.DfdLevel,
+    f.CreatedBy,
+    creatorUser.FullName AS CreatedByName,
+    f.IsActive,
+    f.CreatedDate,
+    f.UpdatedDate,
+    (SELECT COUNT(*) FROM Flow.FlowDiagramRows r WHERE r.FlowDefinitionId = f.FlowDefinitionId)              AS TotalDiagramRows,
+    (SELECT COUNT(DISTINCT r2.DiagramType) FROM Flow.FlowDiagramRows r2 WHERE r2.FlowDefinitionId = f.FlowDefinitionId) AS DiagramTypesFilled
+FROM Flow.FlowDefinitions f
+LEFT JOIN Core.Users creatorUser ON creatorUser.UserId = f.CreatedBy;
 GO
