@@ -359,7 +359,7 @@ export default function UserRegistrationForm({
 
             {/* DivisionName Dropdown */}
             <Dropdown
-              label="สายงาน (DivisionName) *"
+              label="หน่วยงาน (Division) *"
               options={divisionDropdownOptions}
               value={formData.DivisionName}
               onChange={(val) => setFormData({ ...formData, DivisionName: val })}
@@ -367,7 +367,7 @@ export default function UserRegistrationForm({
 
             {/* DepartmentName Dropdown */}
             <Dropdown
-              label="ฝ่าย / แผนก (DepartmentName) *"
+              label="แผนก (Department) *"
               options={departmentDropdownOptions}
               value={formData.DepartmentName}
               onChange={(val) => setFormData({ ...formData, DepartmentName: val })}
@@ -375,7 +375,7 @@ export default function UserRegistrationForm({
 
             {/* SectionName Dropdown */}
             <Dropdown
-              label="ส่วนงาน (SectionName) *"
+              label="Section *"
               options={sectionDropdownOptions}
               value={formData.SectionName}
               onChange={(val) => setFormData({ ...formData, SectionName: val })}

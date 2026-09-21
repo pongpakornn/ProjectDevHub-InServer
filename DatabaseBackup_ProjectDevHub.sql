@@ -125,6 +125,38 @@ CREATE TABLE Core.AuditLogs (
 );
 GO
 
+-- ---------- Core.Divisions ---------- (dropdown "หน่วยงาน (Division)" ของหน้า User Management)
+CREATE TABLE Core.Divisions (
+    DivisionId    INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    DivisionName  NVARCHAR(150) NOT NULL,
+    IsActive      BIT NOT NULL DEFAULT ((1)),
+    SortOrder     INT NOT NULL DEFAULT ((0)),
+    CreatedDate   DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
+);
+GO
+
+-- ---------- Core.Departments ---------- ("แผนก (Department)" ลูกของ Division)
+CREATE TABLE Core.Departments (
+    DepartmentId    INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    DivisionId      INT NOT NULL,
+    DepartmentName  NVARCHAR(150) NOT NULL,
+    IsActive        BIT NOT NULL DEFAULT ((1)),
+    SortOrder       INT NOT NULL DEFAULT ((0)),
+    CreatedDate     DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
+);
+GO
+
+-- ---------- Core.Sections ---------- ("Section" ลูกของ Department)
+CREATE TABLE Core.Sections (
+    SectionId     INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    DepartmentId  INT NOT NULL,
+    SectionName   NVARCHAR(150) NOT NULL,
+    IsActive      BIT NOT NULL DEFAULT ((1)),
+    SortOrder     INT NOT NULL DEFAULT ((0)),
+    CreatedDate   DATETIMEOFFSET(7) NOT NULL DEFAULT (sysdatetimeoffset())
+);
+GO
+
 -- ---------- Project.ProjectTypes ----------
 CREATE TABLE Project.ProjectTypes (
     ProjectTypeId  INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -385,6 +417,9 @@ GO
 ALTER TABLE Core.Permissions        ADD CONSTRAINT FK_Permissions_System            FOREIGN KEY (SystemId) REFERENCES Core.SystemList(SystemId);
 ALTER TABLE Core.Permissions        ADD CONSTRAINT FK_Permissions_Users             FOREIGN KEY (UserId) REFERENCES Core.Users(UserId) ON DELETE CASCADE;
 
+ALTER TABLE Core.Departments        ADD CONSTRAINT FK_Departments_Division          FOREIGN KEY (DivisionId) REFERENCES Core.Divisions(DivisionId) ON DELETE CASCADE;
+ALTER TABLE Core.Sections           ADD CONSTRAINT FK_Sections_Department           FOREIGN KEY (DepartmentId) REFERENCES Core.Departments(DepartmentId) ON DELETE CASCADE;
+
 ALTER TABLE Project.Projects        ADD CONSTRAINT FK_Projects_Owner                FOREIGN KEY (ProjectOwnerId) REFERENCES Core.Users(UserId);
 ALTER TABLE Project.Projects        ADD CONSTRAINT FK_Projects_Creator              FOREIGN KEY (CreatedBy) REFERENCES Core.Users(UserId);
 ALTER TABLE Project.Projects        ADD CONSTRAINT FK_Projects_ProjectType          FOREIGN KEY (ProjectTypeId) REFERENCES Project.ProjectTypes(ProjectTypeId);
@@ -442,6 +477,7 @@ GO
 
 ALTER TABLE Core.Permissions        ADD CONSTRAINT UQ_User_System UNIQUE (UserId, SystemId);
 ALTER TABLE Core.Users              ADD CONSTRAINT [UQ__Users__AF2DBB988DFB40A8] UNIQUE (EmpId);
+ALTER TABLE Core.Divisions          ADD CONSTRAINT UQ_Divisions_DivisionName UNIQUE (DivisionName);
 ALTER TABLE Flow.FlowDefinitions    ADD CONSTRAINT UQ_FlowDefinitions_FlowCode UNIQUE (FlowCode);
 ALTER TABLE Project.ProjectMembers  ADD CONSTRAINT UQ_Project_User UNIQUE (ProjectId, UserId);
 ALTER TABLE Project.Projects        ADD CONSTRAINT [UQ__Projects__2F3A4948DB4CB711] UNIQUE (ProjectCode);
@@ -536,12 +572,14 @@ WHERE u.EmpId = N'ADMIN';
 GO
 
 -- Project.ProjectTypes — project-type templates used by AutoGeneratePhasesAsync
+-- (RPA เพิ่มเข้ามาทีหลัง สำหรับปุ่ม "Project RPA" แยกมุมมองบนหน้า Solo/Team)
 SET IDENTITY_INSERT Project.ProjectTypes ON;
 INSERT INTO Project.ProjectTypes (ProjectTypeId, TypeName, Description, IsActive, SortOrder) VALUES
     (1, N'Web Application',     NULL, 1, 1),
     (2, N'Mobile Application',  NULL, 1, 2),
     (3, N'API / Microservice',  NULL, 1, 3),
-    (4, N'Desktop Application', NULL, 1, 4);
+    (4, N'Desktop Application', NULL, 1, 4),
+    (5, N'RPA', N'Robotic Process Automation', 1, 5);
 SET IDENTITY_INSERT Project.ProjectTypes OFF;
 GO
 
@@ -553,6 +591,45 @@ INSERT INTO Project.Departments (DepartmentId, DepartmentName, IsActive, SortOrd
     (3, N'ฝ่ายคลังสินค้าและจัดส่ง', 1, 3),
     (4, N'ฝ่ายทรัพยากรบุคคล', 1, 4);
 SET IDENTITY_INSERT Project.Departments OFF;
+GO
+
+-- Core.Divisions / Core.Departments / Core.Sections — dropdown "หน่วยงาน (Division) / แผนก (Department) /
+-- Section" ของหน้า User Management (สมัครสมาชิก) เพิ่มเข้ามาทีหลัง แทนของเดิมที่ Hardcode เป็น
+-- MOCK_DIVISION_OPTIONS ไว้ในหน้า Frontend — ค่าที่ Seed ตรงกับของเดิมทุกตัวอักษร ผู้ใช้เดิมจึงไม่เห็นความ
+-- เปลี่ยนแปลงใดๆ จนกว่าจะมีการแก้ไขผ่านหน้า "จัดการ Dropdown หน่วยงาน/แผนก/Section" เอง
+SET IDENTITY_INSERT Core.Divisions ON;
+INSERT INTO Core.Divisions (DivisionId, DivisionName, IsActive, SortOrder) VALUES
+    (1, N'สายงานเทคโนโลยีสารสนเทศ (IT & Digital)', 1, 1),
+    (2, N'สายงานวิศวกรรมและนวัตกรรม (Engineering)', 1, 2),
+    (3, N'สายงานบริหารและสนับสนุนโครงการ (PMO & Ops)', 1, 3);
+SET IDENTITY_INSERT Core.Divisions OFF;
+GO
+
+SET IDENTITY_INSERT Core.Departments ON;
+INSERT INTO Core.Departments (DepartmentId, DivisionId, DepartmentName, IsActive, SortOrder) VALUES
+    (1, 1, N'ฝ่ายพัฒนาระบบซอฟต์แวร์ (Software Development)', 1, 1),
+    (2, 1, N'ฝ่ายวิเคราะห์และทดสอบระบบ (QA & QAOps)', 1, 2),
+    (3, 1, N'ฝ่ายโครงสร้างพื้นฐานและความมั่นคงปลอดภัย', 1, 3),
+    (4, 2, N'ฝ่ายวิจัยและพัฒนาผลิตภัณฑ์ (R&D)', 1, 1),
+    (5, 3, N'ฝ่ายบริหารโครงการ (Project Management Office)', 1, 1);
+SET IDENTITY_INSERT Core.Departments OFF;
+GO
+
+SET IDENTITY_INSERT Core.Sections ON;
+INSERT INTO Core.Sections (SectionId, DepartmentId, SectionName, IsActive, SortOrder) VALUES
+    (1,  1, N'ส่วนงาน Front-End Application', 1, 1),
+    (2,  1, N'ส่วนงาน Back-End & Cloud Architecture', 1, 2),
+    (3,  1, N'ส่วนงาน Mobile & Responsive Solutions', 1, 3),
+    (4,  2, N'ส่วนงาน Automated QA & Testing', 1, 1),
+    (5,  2, N'ส่วนงาน Manual Quality Control', 1, 2),
+    (6,  2, N'ส่วนงาน Performance & Security Testing', 1, 3),
+    (7,  3, N'ส่วนงาน DevOps & CI/CD Pipeline', 1, 1),
+    (8,  3, N'ส่วนงาน Cyber Security & Compliance', 1, 2),
+    (9,  4, N'ส่วนงาน 3D Modeling & CAD Simulation', 1, 1),
+    (10, 4, N'ส่วนงาน IoT Embedded Systems', 1, 2),
+    (11, 5, N'ส่วนงาน Project Governance & Agile', 1, 1),
+    (12, 5, N'ส่วนงาน Resource & Milestone Tracking', 1, 2);
+SET IDENTITY_INSERT Core.Sections OFF;
 GO
 
 -- Project.TechStackCatalog — Stack "ประเภท/ชื่อ/Layer" dropdown master data (3 option groups: TYPE/NAME/LAYER)

@@ -17,6 +17,11 @@ namespace backend.Data
         public DbSet<SystemList> SystemList => Set<SystemList>();
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+        // Core.Divisions / Core.Departments / Core.Sections — dropdown "หน่วยงาน/แผนก/Section" ของ User Management
+        public DbSet<OrgDivision> Divisions => Set<OrgDivision>();
+        public DbSet<OrgDepartment> OrgDepartments => Set<OrgDepartment>();
+        public DbSet<OrgSection> OrgSections => Set<OrgSection>();
+
         // ---------- Project ----------
         public DbSet<Projects> Projects => Set<Projects>();
         public DbSet<ProjectTypes> ProjectTypes => Set<ProjectTypes>();
@@ -72,6 +77,19 @@ namespace backend.Data
             modelBuilder.Entity<Permission>()
                 .HasIndex(p => new { p.UserId, p.SystemId })
                 .IsUnique();
+
+            // 5. Core.Divisions -> Core.Departments -> Core.Sections (ลำดับชั้นเดียว ไม่มี Path บรรจบกัน จึง Cascade ได้ปลอดภัย)
+            modelBuilder.Entity<OrgDepartment>()
+                .HasOne(dep => dep.Division)
+                .WithMany(d => d.Departments)
+                .HasForeignKey(dep => dep.DivisionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<OrgSection>()
+                .HasOne(s => s.Department)
+                .WithMany(dep => dep.Sections)
+                .HasForeignKey(s => s.DepartmentId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ===========================================================================
             // ---------- Project Schema ----------

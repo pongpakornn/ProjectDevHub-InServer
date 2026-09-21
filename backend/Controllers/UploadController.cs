@@ -1,4 +1,6 @@
+using backend.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers;
 
@@ -8,11 +10,13 @@ public class UploadController : ControllerBase
 {
     private readonly string _photoRoot;
     private readonly string _requestPath;
+    private readonly AppDbContext _context;
 
-    public UploadController(IConfiguration config)
+    public UploadController(IConfiguration config, AppDbContext context)
     {
         _photoRoot = config["PhotoStorage:RootPath"]!;
         _requestPath = config["PhotoStorage:RequestPath"]!;
+        _context = context;
     }
 
     // ตัด Character ที่ระบบไฟล์ห้ามใช้ออก (ทั้ง Windows/Linux) + ตัดความยาวกันชน MAX_PATH
@@ -60,6 +64,12 @@ public class UploadController : ControllerBase
         if (projectId <= 0)
             return BadRequest(new { message = "ไม่พบ projectId" });
 
+        // กันเคส Project ถูกลบไปแล้วแต่ยังมี Request ค้าง/เก่าพยายามอัปโหลดรูปเข้ามาอยู่ — ต้องเช็คว่า Project
+        // ยังมีอยู่จริงในระบบก่อนเสมอ ไม่งั้นจะสร้างโฟลเดอร์/ไฟล์ขึ้นมาใหม่เรื่อยๆ ทั้งที่โปรเจกต์เจ้าของถูกลบไปแล้ว
+        var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+        if (!projectExists)
+            return NotFound(new { message = "ไม่พบโปรเจกต์นี้ในระบบแล้ว (อาจถูกลบไปแล้ว) จึงไม่บันทึกรูปภาพต่อ" });
+
         var allowedExt = new[] { ".jpg", ".jpeg", ".png", ".webp" };
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (!allowedExt.Contains(ext))
@@ -92,6 +102,10 @@ public class UploadController : ControllerBase
 
         if (projectId <= 0)
             return BadRequest(new { message = "ไม่พบ projectId" });
+
+        var projectExists = await _context.Projects.AnyAsync(p => p.ProjectId == projectId);
+        if (!projectExists)
+            return NotFound(new { message = "ไม่พบโปรเจกต์นี้ในระบบแล้ว (อาจถูกลบไปแล้ว) จึงไม่บันทึกไฟล์แนบต่อ" });
 
         const long maxSizeBytes = 25 * 1024 * 1024; // 25 MB
         if (file.Length > maxSizeBytes)

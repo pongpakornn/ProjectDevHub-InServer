@@ -54,7 +54,7 @@ export default function UserManagementTable({
   const [selectedSuspendedFilter, setSelectedSuspendedFilter] = useState<string>("ALL");
 
   const divisionFilterOptions = [
-    { label: "ทุกสายงาน (All Divisions)", value: "ALL" },
+    { label: "ทุกหน่วยงาน (All Divisions)", value: "ALL" },
     ...divisionOptions.map((d) => ({ label: d.name, value: d.name })),
   ];
 
@@ -242,7 +242,7 @@ export default function UserManagementTable({
                             {user.DivisionName}
                           </p>
                           <span className="text-[10px] text-slate-400 font-mono block">
-                            ส่วนงาน: {user.SectionName}
+                            Section: {user.SectionName}
                           </span>
                         </div>
                       </td>

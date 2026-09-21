@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { Bot, LayoutGrid } from "lucide-react";
 import TeamHeaderBanner from "./components/team-header-banner";
 import TeamProjectTable from "./components/team-project-table";
 import TeamProjectFormModal from "@/components/projects/team-project-form-modal";
@@ -29,6 +30,7 @@ export default function TeamWorkPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showRpaView, setShowRpaView] = useState(false);
 
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -63,6 +65,13 @@ export default function TeamWorkPage() {
     totalProjects > 0
       ? Math.round(projects.reduce((acc, curr) => acc + curr.progress, 0) / totalProjects)
       : 0;
+
+  // แยกมุมมอง Project RPA ออกจากโปรเจกต์เขียนโปรแกรมทั่วไป — ปุ่มสลับตารางจะโชว์ก็ต่อเมื่อ Team
+  // มีโปรเจกต์ประเภท RPA บันทึกไว้อยู่แล้วอย่างน้อย 1 โปรเจกต์เท่านั้น
+  const hasRpaProjects = projects.some((p) => p.projectTypeName === "RPA");
+  const visibleProjects = projects.filter((p) =>
+    showRpaView ? p.projectTypeName === "RPA" : p.projectTypeName !== "RPA"
+  );
 
   const handleOpenCreateModal = () => {
     setModalState({ isOpen: true, mode: "create", project: null });
@@ -147,8 +156,25 @@ export default function TeamWorkPage() {
         </div>
       )}
 
+      {hasRpaProjects && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowRpaView((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-xs border ${
+              showRpaView
+                ? "bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500"
+                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+            }`}
+          >
+            {showRpaView ? <LayoutGrid className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5 text-indigo-600" />}
+            {showRpaView ? "กลับไปดูโปรเจกต์ทั่วไป" : "Project RPA"}
+          </button>
+        </div>
+      )}
+
       <TeamProjectTable
-        projects={projects}
+        projects={visibleProjects}
         onProjectClick={handleProjectClick}
         onEditProject={handleOpenEditModal}
         onDeleteProject={handleDelete}

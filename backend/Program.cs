@@ -20,6 +20,7 @@ builder.Services.AddScoped<ITestingService, TestingService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IVisitorService, VisitorService>();
+builder.Services.AddScoped<IOrgStructureService, OrgStructureService>();
 
 // 3. Add CORS Policy for Next.js Frontend
 builder.Services.AddCors(options =>

@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, ServerCrash, RotateCcw, ShieldAlert } from "lucide-react";
+import { Loader2, ServerCrash, RotateCcw, ShieldAlert, Settings2 } from "lucide-react";
 import UserHeaderBanner from "@/components/users/user-header-banner";
 import UserRegistrationForm from "@/components/users/user-registration-form";
 import UserManagementTable from "@/components/users/user-management-table";
 import UserDetailModal from "@/components/users/user-detail-modal";
+import OrgStructureManagerModal from "@/components/users/org-structure-manager-modal";
 import ConfirmModal, { ConfirmModalVariant, ConfirmModalIconType } from "@/components/ui/confirm-modal";
 import { useToast } from "@/lib/toast-context";
 import {
@@ -15,77 +16,16 @@ import {
   SystemList,
 } from "@/types/user-permission";
 import { getUsers, getSystemList, createUser, updateUser, deleteUser, toggleSuspendUser } from "@/lib/users-api";
+import { getDivisionOptions } from "@/lib/org-structure-api";
 import { getStoredUser, isAdminOrAbove } from "@/lib/session";
 
 // TODO: ยังไม่มี Auth Context ผูก User จริง — ใช้ userId ของ Admin ทดสอบไปก่อน (userId=1) ถ้ายังไม่ได้ล็อกอิน
 const CURRENT_USER_ID = getStoredUser()?.userId ?? 1;
 
-const MOCK_DIVISION_OPTIONS: DivisionOption[] = [
-  {
-    id: "DIV-IT",
-    name: "สายงานเทคโนโลยีสารสนเทศ (IT & Digital)",
-    departments: [
-      {
-        id: "DEP-DEV",
-        name: "ฝ่ายพัฒนาระบบซอฟต์แวร์ (Software Development)",
-        sections: [
-          "ส่วนงาน Front-End Application",
-          "ส่วนงาน Back-End & Cloud Architecture",
-          "ส่วนงาน Mobile & Responsive Solutions",
-        ],
-      },
-      {
-        id: "DEP-QA",
-        name: "ฝ่ายวิเคราะห์และทดสอบระบบ (QA & QAOps)",
-        sections: [
-          "ส่วนงาน Automated QA & Testing",
-          "ส่วนงาน Manual Quality Control",
-          "ส่วนงาน Performance & Security Testing",
-        ],
-      },
-      {
-        id: "DEP-INFRA",
-        name: "ฝ่ายโครงสร้างพื้นฐานและความมั่นคงปลอดภัย",
-        sections: [
-          "ส่วนงาน DevOps & CI/CD Pipeline",
-          "ส่วนงาน Cyber Security & Compliance",
-        ],
-      },
-    ],
-  },
-  {
-    id: "DIV-ENG",
-    name: "สายงานวิศวกรรมและนวัตกรรม (Engineering)",
-    departments: [
-      {
-        id: "DEP-RND",
-        name: "ฝ่ายวิจัยและพัฒนาผลิตภัณฑ์ (R&D)",
-        sections: [
-          "ส่วนงาน 3D Modeling & CAD Simulation",
-          "ส่วนงาน IoT Embedded Systems",
-        ],
-      },
-    ],
-  },
-  {
-    id: "DIV-OPS",
-    name: "สายงานบริหารและสนับสนุนโครงการ (PMO & Ops)",
-    departments: [
-      {
-        id: "DEP-PMO",
-        name: "ฝ่ายบริหารโครงการ (Project Management Office)",
-        sections: [
-          "ส่วนงาน Project Governance & Agile",
-          "ส่วนงาน Resource & Milestone Tracking",
-        ],
-      },
-    ],
-  },
-];
-
 export default function UsersPage() {
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
   const [systemList, setSystemList] = useState<SystemList[]>([]);
+  const [divisionOptions, setDivisionOptions] = useState<DivisionOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +33,7 @@ export default function UsersPage() {
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingUser, setEditingUser] = useState<UserWithPermissions | null>(null);
   const [viewingUser, setViewingUser] = useState<UserWithPermissions | null>(null);
+  const [isOrgManagerOpen, setIsOrgManagerOpen] = useState(false);
 
   // ข้อยกเว้น: User Management มองเห็น/ใช้งานได้เฉพาะ Admin/Super Admin เท่านั้น ไม่ผูกกับ Permission
   // Matrix ปกติ (CanAdd/CanEdit/...) — ตรงกับกฎเดียวกับที่ใช้กรองเมนูฝั่ง Sidebar
@@ -157,14 +98,27 @@ export default function UsersPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [usersData, systemsData] = await Promise.all([getUsers(CURRENT_USER_ID), getSystemList()]);
+      const [usersData, systemsData, divisionData] = await Promise.all([
+        getUsers(CURRENT_USER_ID),
+        getSystemList(),
+        getDivisionOptions(),
+      ]);
       setUsers(usersData);
       setSystemList(systemsData);
+      setDivisionOptions(divisionData);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลสมาชิกได้");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const reloadDivisionOptions = () => {
+    getDivisionOptions()
+      .then(setDivisionOptions)
+      .catch(() => {
+        // ไม่ต้อง Block UI ถ้าโหลดรอบใหม่ไม่สำเร็จ — Dropdown จะยังใช้ค่าชุดล่าสุดที่มีอยู่ต่อไป
+      });
   };
 
   useEffect(() => {
@@ -345,6 +299,18 @@ export default function UsersPage() {
         isFormOpen={isFormOpen}
       />
 
+      {/* 1b. ปุ่มจัดการ Dropdown หน่วยงาน/แผนก/Section (Admin เพิ่ม/แก้ไข/ลบเองได้) */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setIsOrgManagerOpen(true)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-xs"
+        >
+          <Settings2 className="w-3.5 h-3.5 text-indigo-600" />
+          จัดการ Dropdown หน่วยงาน / แผนก / Section
+        </button>
+      </div>
+
       {/* 2. Registration + Permission Matrix Form (Toggleable, ใช้ CSS Grid Trick ป้องกัน Layout Shift) */}
       <div
         className={`grid transition-all duration-500 ease-in-out ${
@@ -357,7 +323,7 @@ export default function UsersPage() {
             initialData={editingUser}
             onSubmit={handleSaveUser}
             onCancel={handleCloseForm}
-            divisionOptions={MOCK_DIVISION_OPTIONS}
+            divisionOptions={divisionOptions}
             systemList={systemList}
             isSaving={isSaving}
           />
@@ -367,7 +333,7 @@ export default function UsersPage() {
       {/* 3. User List & Permission Matrix Overview Table */}
       <UserManagementTable
         users={users}
-        divisionOptions={MOCK_DIVISION_OPTIONS}
+        divisionOptions={divisionOptions}
         onView={(user) => setViewingUser(user)}
         onEdit={handleOpenEdit}
         onDelete={handleDeleteUser}
@@ -397,6 +363,14 @@ export default function UsersPage() {
         icon={confirmModal.icon}
         onConfirm={confirmModal.action}
         onCancel={closeConfirmModal}
+      />
+
+      {/* 6. Org Structure Manager (จัดการ Dropdown หน่วยงาน/แผนก/Section) */}
+      <OrgStructureManagerModal
+        isOpen={isOrgManagerOpen}
+        onClose={() => setIsOrgManagerOpen(false)}
+        currentUserId={CURRENT_USER_ID}
+        onChanged={reloadDivisionOptions}
       />
     </div>
   );

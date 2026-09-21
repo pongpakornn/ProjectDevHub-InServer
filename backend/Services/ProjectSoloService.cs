@@ -586,6 +586,11 @@ namespace backend.Services
             {
                 "Requirement Gathering", "UI Design", "Core Development",
                 "Database Integration", "Testing", "Packaging & Installer", "Deployment / Rollout"
+            },
+            ["RPA"] = new[]
+            {
+                "Process Analysis", "Bot Design", "Bot Development",
+                "UAT (User Acceptance Test)", "Deployment", "Hypercare & Monitoring"
             }
         };
 

@@ -105,7 +105,7 @@ export default function UserDetailModal({
           {/* User Info Overview Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-              <span className="text-[10px] font-mono text-slate-400 block">ส่วนงาน (Section)</span>
+              <span className="text-[10px] font-mono text-slate-400 block">Section</span>
               <span className="font-bold text-slate-800 text-xs block truncate">{user.SectionName}</span>
             </div>
 
