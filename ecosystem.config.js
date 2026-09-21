@@ -12,7 +12,13 @@ module.exports = {
       },
       autorestart: true,
       max_memory_restart: "1G",
-      exp_backoff_restart_delay: 100
+      exp_backoff_restart_delay: 100,
+      // ป้องกัน Crash Loop: ต้องรันอยู่ครบ min_uptime ถึงจะนับเป็น "รอดแล้ว" ไม่งั้นนับเป็น Restart ล้มเหลว
+      // เข้า max_restarts — ถ้าครบ 10 ครั้งติดกันเร็วๆ PM2 จะหยุดพยายามเอง (status: errored) แทนที่จะวน Restart
+      // รัวๆ ไม่เลิกจนกิน CPU/Log เต็มเครื่อง
+      min_uptime: "10s",
+      max_restarts: 10,
+      restart_delay: 5000
     },
     {
       name: "projectdevhub-api",
@@ -23,7 +29,10 @@ module.exports = {
       },
       autorestart: true,
       max_memory_restart: "1G",
-      exp_backoff_restart_delay: 100
+      exp_backoff_restart_delay: 100,
+      min_uptime: "10s",
+      max_restarts: 10,
+      restart_delay: 5000
     }
   ]
 };
