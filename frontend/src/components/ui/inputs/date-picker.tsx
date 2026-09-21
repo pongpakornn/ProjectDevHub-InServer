@@ -8,9 +8,22 @@ export interface DatePickerProps {
   onCancel?: () => void;
 }
 
+const MONTH_NAMES = [
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+];
+const MONTH_ABBR = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+];
+
 // 1. Component DatePicker (ปฏิทินแบบ Custom)
 export const DatePicker: React.FC<DatePickerProps> = ({ onSelectRange, onCancel }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  // "days" = ตารางวันปกติ, "monthYear" = หน้าเลือกเดือน/ปีโดยตรง (กดที่ Label เดือน-ปีเพื่อเข้าโหมดนี้ —
+  // เพิ่มมาเพราะเดิมเลื่อนได้ทีละเดือนอย่างเดียว บันทึกย้อนหลังหลายเดือน/ปีต้องกดปุ่ม < ซ้ำๆ ไม่สะดวก)
+  const [viewMode, setViewMode] = useState<"days" | "monthYear">("days");
+  const [pickerYear, setPickerYear] = useState(currentDate.getFullYear());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -21,25 +34,84 @@ export const DatePicker: React.FC<DatePickerProps> = ({ onSelectRange, onCancel 
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const blanks = Array.from({ length: firstDayOfMonth }, (_, i) => i);
 
-  const monthNames = [
-    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-  ];
   const dayNames = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
+  const openMonthYearPicker = () => {
+    setPickerYear(year);
+    setViewMode("monthYear");
+  };
+
+  const selectMonth = (m: number) => {
+    setCurrentDate(new Date(pickerYear, m, 1));
+    setViewMode("days");
+  };
+
+  if (viewMode === "monthYear") {
+    return (
+      <div className="p-3 bg-white border border-slate-200/80 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] w-[260px] select-none font-sans">
+        {/* 📅 Header เลื่อนปี */}
+        <div className="flex justify-between items-center mb-4">
+          <button type="button" onClick={() => setPickerYear((y) => y - 1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-[13px] font-semibold text-slate-700">{pickerYear + 543}</span>
+          <button type="button" onClick={() => setPickerYear((y) => y + 1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 📅 ตารางเลือกเดือน */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {MONTH_NAMES.map((name, m) => {
+            const isSelected = m === month && pickerYear === year;
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => selectMonth(m)}
+                className={`py-2 text-[12px] rounded-lg transition-all font-medium ${
+                  isSelected
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {MONTH_ABBR[m]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setViewMode("days")}
+            className="text-[11px] text-slate-500 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-slate-100 transition-colors"
+          >
+            กลับไปเลือกวัน
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-3 bg-white border border-slate-200/80 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] w-[260px] select-none font-sans">
-      {/* 📅 Header เลื่อนเดือน */}
+      {/* 📅 Header เลื่อนเดือน — กด Label ตรงกลางเพื่อกระโดดไปเลือกเดือน/ปีโดยตรง */}
       <div className="flex justify-between items-center mb-4">
         <button type="button" onClick={prevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-[13px] font-semibold text-slate-700">
-          {monthNames[month]} {year + 543}
-        </span>
+        <button
+          type="button"
+          onClick={openMonthYearPicker}
+          className="text-[13px] font-semibold text-slate-700 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+          title="เลือกเดือน/ปีโดยตรง"
+        >
+          {MONTH_NAMES[month]} {year + 543}
+        </button>
         <button type="button" onClick={nextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -61,8 +133,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ onSelectRange, onCancel 
               type="button"
               onClick={() => onSelectRange?.(new Date(year, month, d))}
               className={`p-1.5 text-[12px] rounded-lg transition-all ${
-                isToday 
-                  ? "bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-200" 
+                isToday
+                  ? "bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-200"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
@@ -74,17 +146,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ onSelectRange, onCancel 
 
       {/* 📅 Footer Actions */}
       <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
-        <button 
-          type="button" 
-          onClick={() => onSelectRange?.(new Date())} 
+        <button
+          type="button"
+          onClick={() => onSelectRange?.(new Date())}
           className="text-[11px] text-indigo-600 font-medium hover:text-indigo-700 px-2 py-1 rounded-md hover:bg-indigo-50 transition-colors"
         >
           เลือกวันนี้
         </button>
         {onCancel && (
-          <button 
-            type="button" 
-            onClick={onCancel} 
+          <button
+            type="button"
+            onClick={onCancel}
             className="text-[11px] text-slate-500 hover:text-slate-700 px-2 py-1 rounded-md hover:bg-slate-100 transition-colors"
           >
             ปิด

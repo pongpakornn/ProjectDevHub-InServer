@@ -1,69 +1,180 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Phase } from "@/types/project-detail";
 
 interface ProjectTimelineSectionProps {
   phases: Phase[];
 }
 
+const MONTH_ABBR = [
+  "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+  "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+];
+
+// รองรับทั้ง "DD-MM-YYYY" (ค่าที่ TableDatePickerCell ส่งออกมาจริง) และ "YYYY-MM-DD" (เผื่อข้อมูลเก่า/ISO)
+function parsePhaseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const cleaned = value.split("T")[0].trim();
+
+  const dmy = cleaned.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  const ymd = cleaned.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (ymd) {
+    const [, y, m, d] = ymd;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  return null;
+}
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function addMonths(d: Date, count: number) {
+  return new Date(d.getFullYear(), d.getMonth() + count, 1);
+}
+
+function daysBetween(a: Date, b: Date) {
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  return Math.round((b.getTime() - a.getTime()) / MS_PER_DAY);
+}
+
 export const ProjectTimelineSection: React.FC<ProjectTimelineSectionProps> = ({ phases }) => {
+  const parsedPhases = useMemo(
+    () =>
+      phases.map((phase) => ({
+        phase,
+        start: parsePhaseDate(phase.startDate),
+        end: parsePhaseDate(phase.endDate),
+      })),
+    [phases]
+  );
+
+  const datedPhases = parsedPhases.filter((p) => p.start);
+
+  // ช่วงเดือนของตารางคำนวณจาก Phase ที่มีวันที่จริงทั้งหมด (Start เร็วสุด -> End/Start ช้าสุด) ไม่ใช่ค่า Fix
+  // ไว้ตายตัวเหมือนเดิม — ถ้ายังไม่มี Phase ไหนระบุวันที่เลย ใช้เดือนปัจจุบัน ± 3 เดือนไปพลางก่อน
+  const { rangeStart, months } = useMemo(() => {
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+
+    for (const { start, end } of datedPhases) {
+      const effectiveEnd = end ?? start;
+      if (start && (!minDate || start < minDate)) minDate = start;
+      if (effectiveEnd && (!maxDate || effectiveEnd > maxDate)) maxDate = effectiveEnd;
+    }
+
+    const today = new Date();
+    const fallbackStart = addMonths(startOfMonth(today), -3);
+    const fallbackEnd = addMonths(startOfMonth(today), 3);
+
+    const rangeStartMonth = startOfMonth(minDate ?? fallbackStart);
+    const rangeEndMonth = startOfMonth(maxDate ?? fallbackEnd);
+
+    const monthCount = Math.max(1, daysBetween(rangeStartMonth, rangeEndMonth) / 30.44) + 1;
+    const totalMonths = Math.min(24, Math.max(4, Math.round(monthCount))); // กันตารางยาวเกินไปถ้าข้อมูลผิดปกติ
+
+    const list = Array.from({ length: totalMonths }, (_, i) => {
+      const m = addMonths(rangeStartMonth, i);
+      return {
+        key: `${m.getFullYear()}-${m.getMonth()}`,
+        label: MONTH_ABBR[m.getMonth()],
+        showYear: i === 0 || m.getMonth() === 0,
+        year: m.getFullYear() + 543,
+      };
+    });
+
+    return { rangeStart: rangeStartMonth, months: list };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phases]);
+
+  const rangeEndExclusive = addMonths(rangeStart, months.length);
+  const totalDays = Math.max(1, daysBetween(rangeStart, rangeEndExclusive));
+  const gridTemplateColumns = `48px 220px repeat(${months.length}, minmax(60px, 1fr))`;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs space-y-0">
       <div className="p-4 bg-white border-b border-slate-100 flex items-center justify-between">
         <h3 className="font-extrabold text-slate-900 text-base tracking-tight">Project Timeline</h3>
       </div>
-      
+
       <div className="p-3 overflow-x-auto">
         <div className="min-w-[850px]">
-          <div className="grid grid-cols-12 bg-[#0f172a] py-3.5 text-xs font-extrabold text-white text-center items-center rounded-t-xl shadow-xs">
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-3 text-left pl-3">Activity</div>
-            <div className="col-span-1">มิ.ย.</div>
-            <div className="col-span-1">ก.ค.</div>
-            <div className="col-span-1">ส.ค.</div>
-            <div className="col-span-1">ก.ย.</div>
-            <div className="col-span-1">ต.ค.</div>
-            <div className="col-span-1">พ.ย.</div>
-            <div className="col-span-2">ธ.ค.</div>
+          <div
+            className="grid bg-[#0f172a] py-3.5 text-xs font-extrabold text-white text-center items-center rounded-t-xl shadow-xs"
+            style={{ gridTemplateColumns }}
+          >
+            <div className="text-center">#</div>
+            <div className="text-left pl-3">Activity</div>
+            {months.map((m) => (
+              <div key={m.key} className="flex flex-col items-center leading-tight">
+                <span>{m.label}</span>
+                {m.showYear && <span className="text-[9px] font-normal text-slate-400">{m.year}</span>}
+              </div>
+            ))}
           </div>
 
           <div className="divide-y divide-slate-100 text-xs bg-white border-x border-b border-slate-100 rounded-b-xl">
-            {phases.map((phase, idx) => {
-              const startDateStr = phase.startDate || "01-07-2026";
-              const endDateStr = phase.endDate || "10-07-2026";
+            {parsedPhases.map(({ phase, start, end }, idx) => {
+              const effectiveEnd = end ?? start;
+              const hasDates = !!start;
+
+              let leftPct = 0;
+              let widthPct = 0;
+              if (hasDates && start) {
+                const startOffsetDays = Math.max(0, daysBetween(rangeStart, start));
+                const endOffsetDays = Math.max(startOffsetDays + 1, daysBetween(rangeStart, effectiveEnd ?? start) + 1);
+                leftPct = (startOffsetDays / totalDays) * 100;
+                widthPct = Math.max(2.5, ((endOffsetDays - startOffsetDays) / totalDays) * 100);
+                if (leftPct + widthPct > 100) widthPct = 100 - leftPct;
+              }
 
               return (
-                <div key={phase.id} className="grid grid-cols-12 py-3 items-center hover:bg-slate-50/70 transition-colors">
-                  <div className="col-span-1 text-center font-extrabold text-slate-900 text-xs">
-                    {String(idx + 1).padStart(2, '0')}
+                <div
+                  key={phase.id}
+                  className="grid py-3 items-center hover:bg-slate-50/70 transition-colors"
+                  style={{ gridTemplateColumns }}
+                >
+                  <div className="text-center font-extrabold text-slate-900 text-xs">
+                    {String(idx + 1).padStart(2, "0")}
                   </div>
 
-                  <div className="col-span-3 text-left pl-3 font-bold text-slate-900 text-sm truncate">
+                  <div className="text-left pl-3 font-bold text-slate-900 text-sm truncate">
                     {phase.name}
                   </div>
 
-                  <div className="col-span-8 relative h-7 bg-slate-100/60 rounded-full border border-slate-200/50 flex items-center px-1">
-                    {phase.startDate && (
-                      <div 
-                        className="h-5 bg-indigo-600 rounded-full flex items-center justify-between px-2 shadow-xs transition-all" 
-                        style={{
-                          marginLeft: `${(idx * 7) % 60}%`,
-                          width: `${Math.max(32, 100 - (idx * 8))}%`
-                        }} 
+                  <div
+                    className="relative h-7 bg-slate-100/60 rounded-full border border-slate-200/50"
+                    style={{ gridColumn: `span ${months.length}` }}
+                  >
+                    {hasDates && (
+                      <div
+                        className="absolute top-1 h-5 bg-indigo-600 rounded-full flex items-center justify-between px-2 shadow-xs transition-all overflow-hidden"
+                        style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
                       >
-                        <span className="font-mono text-[10px] font-bold text-white tracking-tighter bg-indigo-800/60 px-2 py-0.5 rounded-full shadow-2xs">
-                          {startDateStr}
+                        <span className="font-mono text-[10px] font-bold text-white tracking-tighter truncate">
+                          {phase.startDate}
                         </span>
-                        <span className="font-mono text-[10px] font-bold text-white tracking-tighter bg-indigo-800/60 px-2 py-0.5 rounded-full shadow-2xs">
-                          {endDateStr}
-                        </span>
+                        {phase.endDate && phase.endDate !== phase.startDate && (
+                          <span className="font-mono text-[10px] font-bold text-white tracking-tighter truncate">
+                            {phase.endDate}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
               );
             })}
+            {parsedPhases.length === 0 && (
+              <div className="py-6 text-center text-slate-400 text-xs">ยังไม่มี Phase ในโปรเจกต์นี้</div>
+            )}
           </div>
         </div>
       </div>

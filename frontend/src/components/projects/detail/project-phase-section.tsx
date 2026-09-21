@@ -8,7 +8,8 @@ import {
   GripVertical,
   CheckCircle2,
   Clock,
-  CircleDashed
+  CircleDashed,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/buttons/button";
 import Checkbox from "@/components/ui/inputs/checkbox";
@@ -41,8 +42,27 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
 }) => {
   const [newPhaseName, setNewPhaseName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState<{ [phaseId: string]: string }>({});
-  const [newTaskDetail, setNewTaskDetail] = useState<{ [phaseId: string]: string }>({});
+  // รายละเอียดเพิ่มเติมของ Task ใหม่ — เก็บเป็น Array ต่อ Phase เพื่อให้กด "+" เพิ่มบรรทัดรายละเอียดได้เรื่อยๆ
+  // ก่อนบันทึก จะ Join ทุกบรรทัดที่ไม่ว่างด้วย "\n" แล้วส่งเป็นค่า detail (string) เดียวไปที่ Backend ตามเดิม
+  const [newTaskDetailLines, setNewTaskDetailLines] = useState<{ [phaseId: string]: string[] }>({});
   const [isSavingPhase, setIsSavingPhase] = useState(false);
+
+  const getDetailLines = (phaseId: string) => newTaskDetailLines[phaseId] ?? [""];
+
+  const setDetailLine = (phaseId: string, index: number, val: string) => {
+    const lines = [...getDetailLines(phaseId)];
+    lines[index] = val;
+    setNewTaskDetailLines({ ...newTaskDetailLines, [phaseId]: lines });
+  };
+
+  const addDetailLine = (phaseId: string) => {
+    setNewTaskDetailLines({ ...newTaskDetailLines, [phaseId]: [...getDetailLines(phaseId), ""] });
+  };
+
+  const removeDetailLine = (phaseId: string, index: number) => {
+    const lines = getDetailLines(phaseId).filter((_, i) => i !== index);
+    setNewTaskDetailLines({ ...newTaskDetailLines, [phaseId]: lines.length > 0 ? lines : [""] });
+  };
 
   const calculatePhaseProgress = (phase: Phase) => {
     if (phase.items.length === 0) return phase.status === "Done" ? 100 : 0;
@@ -111,18 +131,23 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
     const title = newTaskTitle[phaseId];
     if (!title || !title.trim()) return;
 
+    const detail = getDetailLines(phaseId)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("\n");
+
     try {
       const created = await createTaskItem(
         projectId,
         Number(phaseId),
-        { title, detail: newTaskDetail[phaseId] || "" },
+        { title, detail },
         currentUserId
       );
       setPhases(phases.map(p =>
         p.id === phaseId ? { ...p, items: [...p.items, created] } : p
       ));
       setNewTaskTitle({ ...newTaskTitle, [phaseId]: "" });
-      setNewTaskDetail({ ...newTaskDetail, [phaseId]: "" });
+      setNewTaskDetailLines({ ...newTaskDetailLines, [phaseId]: [""] });
     } catch (err) {
       console.error("เพิ่ม Task ไม่สำเร็จ", err);
       alert("เพิ่ม Task ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
@@ -426,7 +451,7 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
                                       </h5>
 
                                       {task.detail && (
-                                        <p className={`text-[11px] mt-0.5 transition-colors duration-200 ${
+                                        <p className={`text-[11px] mt-0.5 whitespace-pre-line transition-colors duration-200 ${
                                           task.completed ? "text-slate-400/80" : "text-slate-500"
                                         }`}>
                                           {task.detail}
@@ -446,28 +471,58 @@ export const ProjectPhaseSection: React.FC<ProjectPhaseSectionProps> = ({
                               </div>
 
                               {canAdd && (
-                                <div className="flex flex-col sm:flex-row items-center gap-2 pt-2 border-t border-slate-200/50">
+                                <div className="space-y-2 pt-2 border-t border-slate-200/50">
                                   <input
                                     type="text"
                                     placeholder="ชื่อรายการงาน เช่น ออกแบบ Schema..."
                                     value={newTaskTitle[phase.id] || ""}
                                     onChange={(e) => setNewTaskTitle({ ...newTaskTitle, [phase.id]: e.target.value })}
-                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
+                                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 shadow-2xs"
                                   />
-                                  <input
-                                    type="text"
-                                    placeholder="รายละเอียดเพิ่มเติม (Optional)"
-                                    value={newTaskDetail[phase.id] || ""}
-                                    onChange={(e) => setNewTaskDetail({ ...newTaskDetail, [phase.id]: e.target.value })}
-                                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs w-full focus:outline-none focus:border-indigo-500 shadow-2xs"
-                                  />
-                                  <Button
-                                    onClick={() => handleAddTask(phase.id)}
-                                    className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 shadow-2xs"
-                                  >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    เพิ่ม Task
-                                  </Button>
+
+                                  {/* รายละเอียดเพิ่มเติม — กด + เพื่อเพิ่มบันทึกได้อีกหลายบรรทัด (Optional ทุกบรรทัด) */}
+                                  <div className="space-y-1.5">
+                                    {getDetailLines(phase.id).map((line, i) => (
+                                      <div key={i} className="flex items-center gap-1.5">
+                                        <input
+                                          type="text"
+                                          placeholder={i === 0 ? "รายละเอียดเพิ่มเติม (Optional)" : `รายละเอียดเพิ่มเติม #${i + 1}`}
+                                          value={line}
+                                          onChange={(e) => setDetailLine(phase.id, i, e.target.value)}
+                                          className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 shadow-2xs"
+                                        />
+                                        {i === getDetailLines(phase.id).length - 1 ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => addDetailLine(phase.id)}
+                                            title="เพิ่มบรรทัดรายละเอียด"
+                                            className="shrink-0 p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 border border-indigo-200 cursor-pointer transition-colors"
+                                          >
+                                            <Plus className="w-3.5 h-3.5" />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => removeDetailLine(phase.id, i)}
+                                            title="ลบบรรทัดนี้"
+                                            className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent cursor-pointer transition-colors"
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  <div className="flex justify-end">
+                                    <Button
+                                      onClick={() => handleAddTask(phase.id)}
+                                      className="w-auto! bg-indigo-600 hover:bg-indigo-700 text-white normal-case text-xs font-bold py-1.5 px-3.5 flex items-center gap-1 shrink-0 shadow-2xs"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                      เพิ่ม Task
+                                    </Button>
+                                  </div>
                                 </div>
                               )}
                             </div>
