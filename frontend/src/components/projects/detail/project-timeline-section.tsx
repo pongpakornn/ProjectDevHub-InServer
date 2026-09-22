@@ -49,6 +49,14 @@ function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// ข้อมูล Phase บางแถวเก็บ Start/EndDate เป็น "DD-MM-YYYY" บางแถวเป็น "YYYY-MM-DD" ปนกัน (ข้อมูลเก่า/ใหม่คนละช่วง)
+// Tooltip เลย Format จาก Date ที่ Parse แล้วเสมอ แทนการต่อ String ดิบตรงๆ กันวันที่โชว์ไม่ตรงรูปแบบกัน
+function formatDMY(d: Date) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}-${month}-${d.getFullYear()}`;
+}
+
 // ความกว้างขั้นต่ำต่อวัน (px) ที่ป้อนให้ minmax(...) — ช่วงสั้นๆ Grid จะยืดคอลัมน์ให้เต็มการ์ดเอง (ไม่ต้องคำนวณ
 // Manual) ส่วนช่วงยาวมากๆ ก็ยังคุมไม่ให้แคบจนอ่านไม่ออก โดยแลกกับการ Scroll แนวนอนแทน
 function dayWidthFor(totalDays: number) {
@@ -171,14 +179,15 @@ export const ProjectTimelineSection: React.FC<ProjectTimelineSectionProps> = ({ 
               ? Math.max(1, daysBetween(start, effectiveEnd ?? start) + 1)
               : 0;
 
-            const tooltipText = hasDates
-              ? `${phase.startDate}${phase.endDate && phase.endDate !== phase.startDate ? ` → ${phase.endDate}` : ""}`
-              : "";
+            const tooltipText =
+              hasDates && start
+                ? (() => {
+                    const startLabel = formatDMY(start);
+                    const endLabel = formatDMY(effectiveEnd ?? start);
+                    return startLabel === endLabel ? startLabel : `${startLabel} → ${endLabel}`;
+                  })()
+                : "";
             const durationPct = hasDates ? (durationDays / totalDays) * 100 : 0;
-            // แถบแคบเกินไปจนใส่ตัวอักษรวันที่ไม่พอ — ซ่อนป้ายในแถบไปเลยแทนที่จะถูกตัดครึ่งดูเหมือน "2..." แล้ว
-            // ใช้ Tooltip ตอน Hover (ด้านล่าง) แทน ซึ่งมีให้ดูวันที่เต็มเสมอไม่ว่าแถบจะกว้างแค่ไหนอยู่แล้ว
-            const canShowBothDates = durationPct >= 25;
-            const canShowOneDate = durationPct >= 10;
 
             return (
               <div key={phase.id} className="grid items-center py-3 hover:bg-slate-50/70 transition-colors" style={{ gridTemplateColumns }}>
@@ -212,18 +221,7 @@ export const ProjectTimelineSection: React.FC<ProjectTimelineSectionProps> = ({ 
                         width: `${durationPct}%`,
                       }}
                     >
-                      <div className="absolute inset-0 bg-indigo-600 rounded-full flex items-center justify-between px-2 shadow-xs overflow-hidden">
-                        {canShowOneDate && (
-                          <span className="font-mono text-[10px] font-bold text-white tracking-tighter truncate">
-                            {phase.startDate}
-                          </span>
-                        )}
-                        {canShowBothDates && phase.endDate && phase.endDate !== phase.startDate && (
-                          <span className="font-mono text-[10px] font-bold text-white tracking-tighter truncate">
-                            {phase.endDate}
-                          </span>
-                        )}
-                      </div>
+                      <div className="absolute inset-0 bg-indigo-600 rounded-full shadow-xs" />
 
                       {/* Tooltip แสดงวันที่เริ่มต้น-จบตอน Hover เสมอ ไม่ว่าแถบจะกว้างพอให้เห็น Label ในตัวหรือไม่ */}
                       <div className="pointer-events-none absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover/bar:opacity-100 transition-opacity duration-150 whitespace-nowrap bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-lg z-30">
